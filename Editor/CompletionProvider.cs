@@ -332,7 +332,8 @@ public static class CompletionProvider
             var varName = match.Groups[2].Value;
 
             // Skip if it looks like a method call or keyword, or if already seen (shadowing)
-            if (!Keywords.Contains(varType) && !Keywords.Contains(varName) && !seenNames.Contains(varName))
+            // Note: "var" is a keyword but is valid as a type for variable declarations
+            if ((varType == "var" || !Keywords.Contains(varType)) && !Keywords.Contains(varName) && !seenNames.Contains(varName))
             {
                 variables.Add((varName, varType));
                 seenNames.Add(varName);
@@ -589,13 +590,15 @@ public static class CompletionProvider
         // Escape variable name for regex
         var escapedVarName = Regex.Escape(variableName);
 
-        // Try to find variable declaration with type
+        // Try to find variable declaration with type (including nested generics like List<List<VPoint>>)
         // Pattern: Type variableName = or Type variableName;
-        var typePattern = $@"\b(\w+)\s+{escapedVarName}\s*[=;]";
+        // Use balanced matching for nested generics by finding the type that ends just before varName
+        var typePattern = $@"([\w]+\s*<[^;=]*>|[\w]+)\s+{escapedVarName}\s*[=;]";
         var match = Regex.Match(text, typePattern);
         if (match.Success)
         {
-            var typeName = match.Groups[1].Value;
+            // Remove internal spaces (e.g., "List <VPoint>" -> "List<VPoint>")
+            var typeName = Regex.Replace(match.Groups[1].Value, @"\s+", "");
             // Skip keywords that look like types
             if (typeName != "var" && typeName != "new" && !Keywords.Contains(typeName))
             {
@@ -603,12 +606,13 @@ public static class CompletionProvider
             }
         }
 
-        // Pattern: var variableName = new Type(
-        var varPattern = $@"\bvar\s+{escapedVarName}\s*=\s*new\s+(\w+)";
+        // Pattern: var variableName = new Type( or var variableName = new Type<T>(
+        var varPattern = $@"\bvar\s+{escapedVarName}\s*=\s*new\s+([\w]+\s*<[^;(]*>|[\w]+)";
         match = Regex.Match(text, varPattern);
         if (match.Success)
         {
-            return match.Groups[1].Value;
+            // Remove internal spaces
+            return Regex.Replace(match.Groups[1].Value, @"\s+", "");
         }
 
         // Pattern: Type PropertyName { get; - property declaration
@@ -634,7 +638,52 @@ public static class CompletionProvider
             return typeName.TrimEnd('?');
         }
 
-        // Pattern: var variableName = SomeMethod() - harder to resolve, skip for now
+        // Pattern: foreach (var varName in collection) or foreach (Type varName in collection)
+        // Need to infer element type from collection
+        // Use non-greedy .+? to match type including nested generics like List<List<VPoint>>
+        var foreachPattern = $@"foreach\s*\(\s*(.+?)\s+{escapedVarName}\s+in\s+(\w+)";
+        match = Regex.Match(text, foreachPattern);
+        if (match.Success)
+        {
+            var declaredType = match.Groups[1].Value.Trim();
+            var collectionName = match.Groups[2].Value;
+
+            if (declaredType != "var")
+            {
+                // Explicit type declaration
+                return Regex.Replace(declaredType, @"\s+", "");
+            }
+
+            // Need to find the collection's element type
+            // First, find the type of the collection
+            var collectionType = FindVariableType(text, collectionName, allCode);
+            if (!string.IsNullOrEmpty(collectionType))
+            {
+                // Extract element type from generic collection (e.g., List<VPoint> -> VPoint)
+                var genericMatch = Regex.Match(collectionType, @"<(.+)>$");
+                if (genericMatch.Success)
+                {
+                    var elementType = genericMatch.Groups[1].Value;
+                    // Handle nested generics - take the outermost type parameter
+                    // For Dictionary<K,V>, take K (but this is simplified)
+                    if (elementType.Contains(',') && !elementType.Contains('<'))
+                    {
+                        // Simple case: Dictionary<string, int> -> string (key type for KeyValuePair)
+                        // For now, just return the first type
+                        elementType = elementType.Split(',')[0].Trim();
+                    }
+                    return elementType;
+                }
+            }
+        }
+
+        // Pattern: for loop with index variable - for (int i = 0; ...)
+        var forPattern = $@"for\s*\(\s*([\w]+)\s+{escapedVarName}\s*=";
+        match = Regex.Match(text, forPattern);
+        if (match.Success)
+        {
+            return match.Groups[1].Value;
+        }
 
         return null;
     }

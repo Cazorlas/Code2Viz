@@ -62,6 +62,7 @@ public static class TypeInspector
         ["VGroup"] = typeof(Geometry.VGroup),
         ["VGroup"] = typeof(Geometry.VGroup),
         ["VizConsole"] = typeof(Console.VizConsole),
+        ["VLine"] = typeof(Geometry.VLine),
 
         // Generic Collections
         ["List"] = typeof(System.Collections.Generic.List<>),
@@ -70,6 +71,20 @@ public static class TypeInspector
         ["Queue"] = typeof(System.Collections.Generic.Queue<>),
         ["Stack"] = typeof(System.Collections.Generic.Stack<>),
         ["LinkedList"] = typeof(System.Collections.Generic.LinkedList<>),
+        ["SortedList"] = typeof(System.Collections.Generic.SortedList<,>),
+        ["SortedSet"] = typeof(System.Collections.Generic.SortedSet<>),
+        ["SortedDictionary"] = typeof(System.Collections.Generic.SortedDictionary<,>),
+
+        // Collection interfaces (use List<> as backing type for members)
+        ["IList"] = typeof(System.Collections.Generic.IList<>),
+        ["ICollection"] = typeof(System.Collections.Generic.ICollection<>),
+        ["IEnumerable"] = typeof(System.Collections.Generic.IEnumerable<>),
+        ["IDictionary"] = typeof(System.Collections.Generic.IDictionary<,>),
+        ["ISet"] = typeof(System.Collections.Generic.ISet<>),
+
+        // Non-generic collections
+        ["ArrayList"] = typeof(System.Collections.ArrayList),
+        ["Hashtable"] = typeof(System.Collections.Hashtable),
     };
 
     // Types to add for general completion
@@ -198,12 +213,200 @@ public static class TypeInspector
             return cached;
 
         var type = ResolveType(typeName);
-        if (type == null)
-            return new List<(string, string, CompletionKind)>();
+        var members = type != null
+            ? GetTypeMembersFromReflection(type)
+            : new List<(string Name, string Description, CompletionKind Kind)>();
 
-        var members = GetTypeMembersFromReflection(type);
-        _typeCache[typeName] = members;
+        // Add LINQ extension methods for collection types
+        // Check both the resolved type AND the type name string pattern
+        bool isCollection = (type != null && IsEnumerableType(type)) || IsCollectionTypeName(typeName);
+        if (isCollection)
+        {
+            var linqMethods = GetLinqExtensionMethods();
+            var seenNames = new HashSet<string>(members.Select(m => m.Name));
+            foreach (var method in linqMethods)
+            {
+                if (seenNames.Add(method.Name))
+                {
+                    members.Add(method);
+                }
+            }
+        }
+
+        if (members.Count > 0)
+        {
+            _typeCache[typeName] = members;
+        }
         return members;
+    }
+
+    /// <summary>
+    /// Check if a type name string looks like a collection type.
+    /// Used as fallback when type resolution fails.
+    /// </summary>
+    private static bool IsCollectionTypeName(string typeName)
+    {
+        if (string.IsNullOrEmpty(typeName))
+            return false;
+
+        // Extract base type name (before generic parameter)
+        var baseName = typeName;
+        var genericIndex = typeName.IndexOf('<');
+        if (genericIndex > 0)
+            baseName = typeName.Substring(0, genericIndex);
+
+        // Check against known collection type names
+        var collectionTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "List", "IList", "ICollection", "IEnumerable",
+            "HashSet", "ISet", "Dictionary", "IDictionary",
+            "Queue", "Stack", "LinkedList", "SortedSet",
+            "SortedList", "SortedDictionary", "ArrayList", "Hashtable",
+            "Collection", "ObservableCollection", "ReadOnlyCollection",
+            "ConcurrentBag", "ConcurrentQueue", "ConcurrentStack", "ConcurrentDictionary",
+            "ImmutableList", "ImmutableArray", "ImmutableHashSet", "ImmutableDictionary"
+        };
+
+        return collectionTypes.Contains(baseName);
+    }
+
+    /// <summary>
+    /// Check if a type implements IEnumerable (is a collection type).
+    /// </summary>
+    private static bool IsEnumerableType(Type type)
+    {
+        if (type == null) return false;
+
+        // Check for generic IEnumerable<T>
+        try
+        {
+            if (type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>)))
+                return true;
+        }
+        catch { }
+
+        // Check for non-generic IEnumerable
+        try
+        {
+            if (typeof(System.Collections.IEnumerable).IsAssignableFrom(type) && type != typeof(string))
+                return true;
+        }
+        catch { }
+
+        // Check for open generic types like List<>
+        if (type.IsGenericTypeDefinition)
+        {
+            try
+            {
+                // Try to check if it would implement IEnumerable when closed
+                var interfaces = type.GetInterfaces();
+                if (interfaces.Any(i => i.Name.StartsWith("IEnumerable")))
+                    return true;
+            }
+            catch { }
+        }
+
+        // Fallback: Check by type name for common collection types
+        var typeName = type.Name;
+        if (typeName.StartsWith("List") || typeName.StartsWith("IList") ||
+            typeName.StartsWith("ICollection") || typeName.StartsWith("IEnumerable") ||
+            typeName.StartsWith("HashSet") || typeName.StartsWith("ISet") ||
+            typeName.StartsWith("Dictionary") || typeName.StartsWith("IDictionary") ||
+            typeName.StartsWith("Queue") || typeName.StartsWith("Stack") ||
+            typeName.StartsWith("LinkedList") || typeName.StartsWith("SortedSet") ||
+            typeName.StartsWith("SortedList") || typeName.StartsWith("SortedDictionary") ||
+            typeName == "ArrayList" || typeName == "Hashtable")
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Get common LINQ extension methods.
+    /// </summary>
+    private static List<(string Name, string Description, CompletionKind Kind)> GetLinqExtensionMethods()
+    {
+        return new List<(string Name, string Description, CompletionKind Kind)>
+        {
+            // Filtering
+            ("Where", "IEnumerable<T> Where(Func<T, bool> predicate) - Filters elements", CompletionKind.Method),
+            ("OfType", "IEnumerable<T> OfType<T>() - Filters by type", CompletionKind.Method),
+
+            // Projection
+            ("Select", "IEnumerable<TResult> Select(Func<T, TResult> selector) - Projects elements", CompletionKind.Method),
+            ("SelectMany", "IEnumerable<TResult> SelectMany(Func<T, IEnumerable<TResult>> selector) - Flattens sequences", CompletionKind.Method),
+
+            // Ordering
+            ("OrderBy", "IOrderedEnumerable<T> OrderBy(Func<T, TKey> keySelector) - Orders ascending", CompletionKind.Method),
+            ("OrderByDescending", "IOrderedEnumerable<T> OrderByDescending(Func<T, TKey> keySelector) - Orders descending", CompletionKind.Method),
+            ("ThenBy", "IOrderedEnumerable<T> ThenBy(Func<T, TKey> keySelector) - Secondary ascending order", CompletionKind.Method),
+            ("ThenByDescending", "IOrderedEnumerable<T> ThenByDescending(Func<T, TKey> keySelector) - Secondary descending order", CompletionKind.Method),
+            ("Reverse", "IEnumerable<T> Reverse() - Reverses the sequence", CompletionKind.Method),
+
+            // Grouping
+            ("GroupBy", "IEnumerable<IGrouping<TKey, T>> GroupBy(Func<T, TKey> keySelector) - Groups elements", CompletionKind.Method),
+
+            // Set Operations
+            ("Distinct", "IEnumerable<T> Distinct() - Returns distinct elements", CompletionKind.Method),
+            ("Union", "IEnumerable<T> Union(IEnumerable<T> second) - Set union", CompletionKind.Method),
+            ("Intersect", "IEnumerable<T> Intersect(IEnumerable<T> second) - Set intersection", CompletionKind.Method),
+            ("Except", "IEnumerable<T> Except(IEnumerable<T> second) - Set difference", CompletionKind.Method),
+
+            // Element Operations
+            ("First", "T First() - Returns first element", CompletionKind.Method),
+            ("FirstOrDefault", "T FirstOrDefault() - Returns first element or default", CompletionKind.Method),
+            ("Last", "T Last() - Returns last element", CompletionKind.Method),
+            ("LastOrDefault", "T LastOrDefault() - Returns last element or default", CompletionKind.Method),
+            ("Single", "T Single() - Returns single element", CompletionKind.Method),
+            ("SingleOrDefault", "T SingleOrDefault() - Returns single element or default", CompletionKind.Method),
+            ("ElementAt", "T ElementAt(int index) - Returns element at index", CompletionKind.Method),
+            ("ElementAtOrDefault", "T ElementAtOrDefault(int index) - Returns element at index or default", CompletionKind.Method),
+            ("DefaultIfEmpty", "IEnumerable<T> DefaultIfEmpty() - Returns default if empty", CompletionKind.Method),
+
+            // Quantifiers
+            ("Any", "bool Any() - Checks if any elements exist", CompletionKind.Method),
+            ("All", "bool All(Func<T, bool> predicate) - Checks if all match predicate", CompletionKind.Method),
+            ("Contains", "bool Contains(T value) - Checks if contains element", CompletionKind.Method),
+
+            // Aggregation
+            ("Count", "int Count() - Returns count of elements", CompletionKind.Method),
+            ("LongCount", "long LongCount() - Returns count as long", CompletionKind.Method),
+            ("Sum", "int Sum() - Returns sum of elements", CompletionKind.Method),
+            ("Min", "T Min() - Returns minimum element", CompletionKind.Method),
+            ("Max", "T Max() - Returns maximum element", CompletionKind.Method),
+            ("Average", "double Average() - Returns average", CompletionKind.Method),
+            ("Aggregate", "T Aggregate(Func<T, T, T> func) - Applies accumulator function", CompletionKind.Method),
+
+            // Partitioning
+            ("Take", "IEnumerable<T> Take(int count) - Takes first n elements", CompletionKind.Method),
+            ("TakeWhile", "IEnumerable<T> TakeWhile(Func<T, bool> predicate) - Takes while predicate true", CompletionKind.Method),
+            ("Skip", "IEnumerable<T> Skip(int count) - Skips first n elements", CompletionKind.Method),
+            ("SkipWhile", "IEnumerable<T> SkipWhile(Func<T, bool> predicate) - Skips while predicate true", CompletionKind.Method),
+
+            // Conversion
+            ("ToList", "List<T> ToList() - Converts to List", CompletionKind.Method),
+            ("ToArray", "T[] ToArray() - Converts to array", CompletionKind.Method),
+            ("ToDictionary", "Dictionary<TKey, T> ToDictionary(Func<T, TKey> keySelector) - Converts to Dictionary", CompletionKind.Method),
+            ("ToHashSet", "HashSet<T> ToHashSet() - Converts to HashSet", CompletionKind.Method),
+            ("ToLookup", "ILookup<TKey, T> ToLookup(Func<T, TKey> keySelector) - Converts to Lookup", CompletionKind.Method),
+            ("AsEnumerable", "IEnumerable<T> AsEnumerable() - Returns as IEnumerable", CompletionKind.Method),
+            ("Cast", "IEnumerable<T> Cast<T>() - Casts elements to type", CompletionKind.Method),
+
+            // Joining
+            ("Join", "IEnumerable<TResult> Join(...) - Inner join", CompletionKind.Method),
+            ("GroupJoin", "IEnumerable<TResult> GroupJoin(...) - Group join", CompletionKind.Method),
+            ("Zip", "IEnumerable<TResult> Zip(IEnumerable<T2> second, Func<T, T2, TResult> selector) - Zips two sequences", CompletionKind.Method),
+            ("Concat", "IEnumerable<T> Concat(IEnumerable<T> second) - Concatenates sequences", CompletionKind.Method),
+
+            // Generation (these are typically called statically, but useful to show)
+            ("Append", "IEnumerable<T> Append(T element) - Appends an element", CompletionKind.Method),
+            ("Prepend", "IEnumerable<T> Prepend(T element) - Prepends an element", CompletionKind.Method),
+
+            // Other
+            ("SequenceEqual", "bool SequenceEqual(IEnumerable<T> second) - Checks sequence equality", CompletionKind.Method),
+        };
     }
 
     /// <summary>

@@ -401,6 +401,29 @@ public partial class MainWindow : Window
 
         // Track text changes for syntax checking
         CodeEditor.TextChanged += (s, e) => _textChangedSinceLastCheck = true;
+
+        // Ctrl+MouseWheel to change font size
+        CodeEditor.PreviewMouseWheel += CodeEditor_PreviewMouseWheel;
+    }
+
+    private void CodeEditor_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            // Ctrl+Wheel: change font size
+            var currentSize = CodeEditor.FontSize;
+            if (e.Delta > 0)
+            {
+                // Scroll up: increase font size
+                CodeEditor.FontSize = Math.Min(currentSize + 1, 48);
+            }
+            else
+            {
+                // Scroll down: decrease font size
+                CodeEditor.FontSize = Math.Max(currentSize - 1, 8);
+            }
+            e.Handled = true;
+        }
     }
 
     #region Autocomplete
@@ -704,9 +727,11 @@ public partial class MainWindow : Window
             // Clear previous markers
             _textMarkerService?.Clear();
 
+            var totalErrorCount = 0;
+
+            // Handle C# diagnostics
             if (result.Diagnostics != null)
             {
-                var errorCount = 0;
                 foreach (var diagnostic in result.Diagnostics)
                 {
                     if (diagnostic.Severity != Microsoft.CodeAnalysis.DiagnosticSeverity.Error &&
@@ -748,24 +773,17 @@ public partial class MainWindow : Window
                                 _textMarkerService?.Create(offset, length, diagnostic.GetMessage(), color);
 
                                 if (diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)
-                                    errorCount++;
+                                    totalErrorCount++;
                             }
                         }
                         catch { /* Ignore invalid ranges */ }
                     }
-                }
-
-                // Update status bar with error count (subtle, not alarming)
-                if (errorCount > 0)
-                {
-                    SetStatus($"{errorCount} error{(errorCount != 1 ? "s" : "")}", isError: true);
                 }
             }
 
             // Handle F# diagnostics
             if (result.FSharpDiagnostics != null)
             {
-                var errorCount = 0;
                 foreach (var diagnostic in result.FSharpDiagnostics)
                 {
                     if (diagnostic.Severity != "Error" && diagnostic.Severity != "Warning")
@@ -799,18 +817,22 @@ public partial class MainWindow : Window
                                 _textMarkerService?.Create(offset, length, diagnostic.Message, color);
 
                                 if (diagnostic.Severity == "Error")
-                                    errorCount++;
+                                    totalErrorCount++;
                             }
                         }
                         catch { /* Ignore invalid ranges */ }
                     }
                 }
+            }
 
-                // Update status bar with error count
-                if (errorCount > 0)
-                {
-                    SetStatus($"{errorCount} error{(errorCount != 1 ? "s" : "")}", isError: true);
-                }
+            // Update status bar with error count or clear it
+            if (totalErrorCount > 0)
+            {
+                SetStatus($"{totalErrorCount} error{(totalErrorCount != 1 ? "s" : "")}", isError: true);
+            }
+            else
+            {
+                SetStatus("Ready", isError: false);
             }
         }
         catch (Exception ex)
@@ -1076,7 +1098,7 @@ public partial class MainWindow : Window
             var allCode = GetAllProjectCode();
             string? typeName = null;
 
-            // Check if the character before the dot is ')' - parenthesized expression
+            // Check if the character before the dot is ')' - method call or parenthesized expression
             // dotOffset is the position of the dot, so dotOffset-1 is the character before it
             if (dotOffset > 0)
             {
@@ -1088,9 +1110,20 @@ public partial class MainWindow : Window
                     var openParen = FindMatchingOpenParen(closeParenPos);
                     if (openParen >= 0)
                     {
-                        var expr = CodeEditor.Document.GetText(openParen + 1, closeParenPos - openParen - 1);
-                        var textBefore = CodeEditor.Document.GetText(0, openParen);
-                        typeName = InferExpressionType(expr, textBefore, allCode);
+                        // Check if this is a method call: identifier( or identifier.method(
+                        // Look for method name before the opening paren
+                        var methodCallType = InferMethodCallReturnType(openParen, allCode);
+                        if (methodCallType != null)
+                        {
+                            typeName = methodCallType;
+                        }
+                        else
+                        {
+                            // Fallback: treat as parenthesized expression
+                            var expr = CodeEditor.Document.GetText(openParen + 1, closeParenPos - openParen - 1);
+                            var textBefore = CodeEditor.Document.GetText(0, openParen);
+                            typeName = InferExpressionType(expr, textBefore, allCode);
+                        }
                     }
                 }
             }
@@ -1224,6 +1257,221 @@ public partial class MainWindow : Window
         if (!string.IsNullOrEmpty(identifier))
         {
             return CompletionProvider.FindVariableType(textBefore, identifier, allCode);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Infers the return type of a method call expression like "points.First()" or "list.Where(x => x > 0)".
+    /// </summary>
+    /// <param name="openParenOffset">The offset of the opening parenthesis of the method call.</param>
+    /// <param name="allCode">All code in the project for context.</param>
+    /// <returns>The inferred return type, or null if cannot be determined.</returns>
+    private string? InferMethodCallReturnType(int openParenOffset, string allCode)
+    {
+        try
+        {
+            // Find the method name before the opening paren
+            var methodNameEnd = openParenOffset;
+            var methodNameStart = methodNameEnd;
+            while (methodNameStart > 0 && char.IsLetterOrDigit(CodeEditor.Document.GetCharAt(methodNameStart - 1)))
+                methodNameStart--;
+
+            if (methodNameStart >= methodNameEnd)
+                return null;
+
+            var methodName = CodeEditor.Document.GetText(methodNameStart, methodNameEnd - methodNameStart);
+
+            // Check if there's a dot before the method name (object.Method pattern)
+            if (methodNameStart > 0 && CodeEditor.Document.GetCharAt(methodNameStart - 1) == '.')
+            {
+                var dotPos = methodNameStart - 1;
+
+                // Find what's before the dot - could be another method call like "points.First().Count()"
+                // or a simple identifier like "points.First()"
+                string? objectType = null;
+
+                // Check if there's a ')' before the dot (chained method call)
+                if (dotPos > 0 && CodeEditor.Document.GetCharAt(dotPos - 1) == ')')
+                {
+                    // Recursive: find the return type of the preceding method call
+                    var prevCloseParen = dotPos - 1;
+                    var prevOpenParen = FindMatchingOpenParen(prevCloseParen);
+                    if (prevOpenParen >= 0)
+                    {
+                        objectType = InferMethodCallReturnType(prevOpenParen, allCode);
+                    }
+                }
+                else
+                {
+                    // Simple identifier before the dot
+                    var identStart = FindDottedIdentifierStart(CodeEditor.Document, dotPos);
+                    if (identStart < dotPos)
+                    {
+                        var objectName = CodeEditor.Document.GetText(identStart, dotPos - identStart);
+                        var textBefore = CodeEditor.Document.GetText(0, identStart);
+                        objectType = CompletionProvider.FindVariableType(textBefore, objectName, allCode);
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(objectType))
+                {
+                    return InferMethodReturnType(objectType, methodName);
+                }
+            }
+        }
+        catch
+        {
+            // Ignore parsing errors
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Given an object type and method name, infers the return type.
+    /// Handles common LINQ methods and collection methods.
+    /// </summary>
+    private static string? InferMethodReturnType(string objectType, string methodName)
+    {
+        // Extract element type from generic collection (e.g., List<VPoint> -> VPoint)
+        string? elementType = null;
+        var genericMatch = System.Text.RegularExpressions.Regex.Match(objectType, @"<(.+)>$");
+        if (genericMatch.Success)
+        {
+            elementType = genericMatch.Groups[1].Value;
+            // Handle nested generics - for Dictionary<K,V>, just take the first type for simplicity
+            // For List<List<T>>, elementType would be List<T>
+        }
+
+        // Normalize method name for comparison
+        var method = methodName.ToLowerInvariant();
+
+        // LINQ methods that return element type (T)
+        var elementReturningMethods = new HashSet<string>
+        {
+            "first", "firstordefault", "last", "lastordefault",
+            "single", "singleordefault", "elementat", "elementatordefault",
+            "min", "max", "aggregate"
+        };
+
+        if (elementReturningMethods.Contains(method) && !string.IsNullOrEmpty(elementType))
+        {
+            return elementType;
+        }
+
+        // LINQ methods that return the same collection type (or IEnumerable<T>)
+        var collectionReturningMethods = new HashSet<string>
+        {
+            "where", "orderby", "orderbydescending", "thenby", "thenbydescending",
+            "take", "takewhile", "skip", "skipwhile", "distinct", "reverse",
+            "union", "intersect", "except", "concat", "append", "prepend",
+            "defaultifempty", "asenumerable"
+        };
+
+        if (collectionReturningMethods.Contains(method) && !string.IsNullOrEmpty(elementType))
+        {
+            // Return as IEnumerable<T> for LINQ methods
+            return $"IEnumerable<{elementType}>";
+        }
+
+        // LINQ methods that return bool
+        var boolReturningMethods = new HashSet<string> { "any", "all", "contains", "sequenceequal" };
+        if (boolReturningMethods.Contains(method))
+        {
+            return "bool";
+        }
+
+        // LINQ methods that return int
+        if (method == "count")
+        {
+            return "int";
+        }
+
+        // LINQ methods that return long
+        if (method == "longcount")
+        {
+            return "long";
+        }
+
+        // Conversion methods
+        if (method == "tolist" && !string.IsNullOrEmpty(elementType))
+        {
+            return $"List<{elementType}>";
+        }
+
+        if (method == "toarray" && !string.IsNullOrEmpty(elementType))
+        {
+            return $"{elementType}[]";
+        }
+
+        if (method == "tohashset" && !string.IsNullOrEmpty(elementType))
+        {
+            return $"HashSet<{elementType}>";
+        }
+
+        if (method == "todictionary" && !string.IsNullOrEmpty(elementType))
+        {
+            // Simplified - actual key type depends on selector
+            return $"Dictionary<object,{elementType}>";
+        }
+
+        // Select returns different type - for now, return generic IEnumerable
+        if (method == "select" && !string.IsNullOrEmpty(elementType))
+        {
+            return "IEnumerable<object>";
+        }
+
+        if (method == "selectmany" && !string.IsNullOrEmpty(elementType))
+        {
+            return "IEnumerable<object>";
+        }
+
+        // GroupBy returns IEnumerable<IGrouping>
+        if (method == "groupby")
+        {
+            return "IEnumerable<IGrouping>";
+        }
+
+        // Sum/Average return numeric types
+        if (method == "sum" || method == "average")
+        {
+            return "double";
+        }
+
+        // String methods
+        if (objectType == "string" || objectType == "String")
+        {
+            if (method == "substring" || method == "trim" || method == "tolower" || method == "toupper" ||
+                method == "replace" || method == "remove" || method == "insert" || method == "padleft" || method == "padright")
+                return "string";
+            if (method == "split")
+                return "string[]";
+            if (method == "indexof" || method == "lastindexof" || method == "compareto")
+                return "int";
+            if (method == "startswith" || method == "endswith" || method == "contains" || method == "equals")
+                return "bool";
+            if (method == "tochararray")
+                return "char[]";
+        }
+
+        // List-specific methods
+        if (objectType.StartsWith("List<") || objectType.StartsWith("IList<"))
+        {
+            if (method == "find" || method == "findlast" && !string.IsNullOrEmpty(elementType))
+                return elementType;
+            if (method == "findall" && !string.IsNullOrEmpty(elementType))
+                return $"List<{elementType}>";
+            if (method == "findindex" || method == "findlastindex" || method == "indexof" || method == "lastindexof" ||
+                method == "binarysearch" || method == "removeall")
+                return "int";
+            if (method == "getrange" && !string.IsNullOrEmpty(elementType))
+                return $"List<{elementType}>";
+            if (method == "exists" || method == "trueforall" || method == "remove")
+                return "bool";
+            if (method == "toarray" && !string.IsNullOrEmpty(elementType))
+                return $"{elementType}[]";
         }
 
         return null;
@@ -2362,9 +2610,23 @@ public partial class MainWindow : Window
             }
             else
             {
-                // Count errors for status
-                var errorCount = result.Diagnostics?.Count(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error) ?? 0;
-                SetStatus($"Compilation failed: {errorCount} error{(errorCount != 1 ? "s" : "")}", isError: true);
+                // Count errors for status (both C# and F# diagnostics)
+                var errorCount = (result.Diagnostics?.Count(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error) ?? 0)
+                               + (result.FSharpDiagnostics?.Count(d => d.Severity == "Error") ?? 0);
+
+                if (errorCount > 0)
+                {
+                    SetStatus($"Compilation failed: {errorCount} error{(errorCount != 1 ? "s" : "")}", isError: true);
+                }
+                else if (!string.IsNullOrEmpty(result.Error))
+                {
+                    // Show the error message if no diagnostics but compilation failed
+                    SetStatus(result.Error, isError: true);
+                }
+                else
+                {
+                    SetStatus("Compilation failed", isError: true);
+                }
             }
 
             // Show diagnostics (errors/warnings) in console and editor
@@ -2428,6 +2690,51 @@ public partial class MainWindow : Window
                             {
                                 var color = diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error ? Colors.Red : Colors.Orange;
                                 _textMarkerService?.Create(offset, length, diagnostic.GetMessage(), color);
+                            }
+                        }
+                        catch (Exception) { /* Ignore invalid ranges */ }
+                    }
+                }
+            }
+
+            // Show F# diagnostics (errors/warnings) in console and editor
+            if (result.FSharpDiagnostics != null)
+            {
+                foreach (var diagnostic in result.FSharpDiagnostics)
+                {
+                    if (diagnostic.Severity != "Error" && diagnostic.Severity != "Warning")
+                        continue;
+
+                    // Add to console as clickable error entry
+                    var message = $"FS{diagnostic.ErrorNumber}: {diagnostic.Message}";
+                    Console.ConsoleOutput.Instance.WriteCompilationError(diagnostic.FilePath, diagnostic.StartLine, diagnostic.StartColumn, message);
+
+                    // Also highlight in editor if it matches the active file
+                    var activePath = _activeFile?.FilePath;
+                    bool isMatch = false;
+
+                    if (activePath != null)
+                    {
+                        if (string.IsNullOrEmpty(diagnostic.FilePath))
+                            isMatch = true;
+                        else if (string.Equals(diagnostic.FilePath, activePath, StringComparison.OrdinalIgnoreCase))
+                            isMatch = true;
+                        else if (string.Equals(Path.GetFileName(diagnostic.FilePath), Path.GetFileName(activePath), StringComparison.OrdinalIgnoreCase))
+                            isMatch = true;
+                    }
+
+                    if (isMatch)
+                    {
+                        try
+                        {
+                            var offset = CodeEditor.Document.GetOffset(new TextLocation(diagnostic.StartLine, diagnostic.StartColumn + 1));
+                            var endOffset = CodeEditor.Document.GetOffset(new TextLocation(diagnostic.EndLine, diagnostic.EndColumn + 1));
+                            var length = endOffset - offset;
+
+                            if (length > 0)
+                            {
+                                var color = diagnostic.Severity == "Error" ? Colors.Red : Colors.Orange;
+                                _textMarkerService?.Create(offset, length, diagnostic.Message, color);
                             }
                         }
                         catch (Exception) { /* Ignore invalid ranges */ }
@@ -2928,13 +3235,13 @@ public partial class MainWindow : Window
 
     private void SetStatus(string message, bool isError)
     {
+        StatusText.Text = message;
         if (isError)
         {
-            Code2Viz.Console.ConsoleOutput.Instance.WriteError("System", 0, message);
+            StatusText.Foreground = new SolidColorBrush(Colors.OrangeRed);
         }
         else
         {
-            StatusText.Text = message;
             StatusText.Foreground = (SolidColorBrush)FindResource("ForegroundBrush");
         }
     }
