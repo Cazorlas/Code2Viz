@@ -18,8 +18,17 @@ namespace Code2Viz
             InitializeComponent();
             _generator = new DocGenerator();
             _allTypes = _generator.GetDocumentableTypes();
-            
+
             PopulateTree(_allTypes);
+
+            // Show welcome page by default
+            ShowWelcomePage();
+        }
+
+        private void ShowWelcomePage()
+        {
+            DocViewer.Document = _generator.GenerateWelcomePage();
+            DocViewerFSharp.Document = _generator.GenerateWelcomePage();
         }
 
         private void PopulateTree(List<Type> types)

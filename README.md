@@ -1,134 +1,397 @@
 # Code2Viz - 2D Geometry Visualizer
 
-A WPF application for visualizing 2D geometric shapes through C# code execution.
+A WPF application for visualizing 2D geometric shapes through C# or F# code execution with animation support.
 
 ## Overview
 
-Code2Viz is a simple yet powerful tool that allows users to write C# code to create and visualize 2D geometric shapes on an interactive canvas. It combines a code editor with syntax highlighting and a real-time rendering canvas with zoom and pan capabilities.
+Code2Viz is a visual programming environment that lets you write C# or F# code to create, style, and animate 2D geometric shapes on an interactive canvas. It combines a code editor with syntax highlighting, a real-time rendering canvas with zoom and pan capabilities, and a timeline-based animation system with GIF export.
 
 ## Features
 
-### Supported Shapes
+- **Multi-language Support**: Write code in C# or F# with full syntax highlighting
+- **Rich Shape Library**: Points, lines, circles, rectangles, ellipses, arcs, polygons, polylines, Bezier curves, splines, text, arrows, and dimension annotations
+- **Animation System**: Create timeline-based animations with draw, move, rotate, and flip effects
+- **Interactive Canvas**: Zoom with mouse wheel, pan with middle-click, toggle grid display
+- **Export Options**: Save visualizations as PNG images or animated GIFs
+- **Project Management**: Organize multiple code files into projects with tabbed editing
+- **NuGet Integration**: Add external packages to extend functionality
+- **Built-in Help**: Comprehensive API documentation with examples
 
-| Shape | Description | Constructor |
-|-------|-------------|-------------|
-| **Point** | A single point marker | `Point(x, y)` |
-| **Line** | A line segment | `Line(p1, p2)` or `Line(x1, y1, x2, y2)` |
-| **Arc** | A circular arc | `Arc(center, radius, startAngle, endAngle)` |
-| **Circle** | A complete circle | `Circle(center, radius)` or `Circle(x, y, radius)` |
-| **Rectangle** | A rectangle | `Rectangle(x, y, width, height)` |
-| **Ellipse** | An ellipse | `Ellipse(centerX, centerY, radiusX, radiusY)` |
-| **Polygon** | A closed polygon | `Polygon(p1, p2, p3, ...)` |
-| **Polyline** | Connected line segments | `Polyline(p1, p2, p3, ...)` |
+---
 
-### Shape Styling
+## Quick Start
 
-All shapes support customizable styling:
+### 1. Create a New Project
+File > New Project (Ctrl+Shift+N) creates a new project with a starter template.
+
+### 2. Write Your Code
+The entry point is `StartViz.Viz.Main()` in `StartViz.vizcode`:
 
 ```csharp
-Circle circle = new Circle(0, 0, 50);
-circle.StrokeColor = "Red";           // Border color
-circle.FillColor = "LightYellow";     // Fill color
-circle.StrokeThickness = 3;           // Border thickness
+using Code2Viz.Geometry;
+
+namespace StartViz
+{
+    public class Viz
+    {
+        public static void Main()
+        {
+            // Create and draw a circle
+            var circle = new VCircle(0, 0, 50);
+            circle.StrokeColor = "Cyan";
+            circle.FillColor = "#4000FFFF";
+            circle.Draw();
+        }
+    }
+}
+```
+
+### 3. Run Your Code
+Press **F5** or click the **Run** button to execute and see results on the canvas.
+
+---
+
+## Supported Shapes
+
+| Shape | Description | Constructor Examples |
+|-------|-------------|---------------------|
+| **VPoint** | A point marker | `new VPoint(x, y)` |
+| **VLine** | A line segment | `new VLine(p1, p2)` or `new VLine(x1, y1, x2, y2)` |
+| **VCircle** | A circle | `new VCircle(center, radius)` or `new VCircle(x, y, radius)` |
+| **VRectangle** | A rectangle | `new VRectangle(corner, width, height)` |
+| **VEllipse** | An ellipse | `new VEllipse(center, radiusX, radiusY)` |
+| **VArc** | A circular arc | `new VArc(center, radius, startAngle, endAngle)` |
+| **VPolygon** | A closed polygon | `new VPolygon(p1, p2, p3, ...)` |
+| **VPolyline** | Open connected segments | `new VPolyline(p1, p2, p3, ...)` |
+| **VBezier** | Cubic Bezier curve | `new VBezier(start, ctrl1, ctrl2, end)` |
+| **VSpline** | Smooth spline curve | `new VSpline(p1, p2, p3, ...)` |
+| **VText** | Text at a position | `new VText(position, "text")` |
+| **VArrow** | Arrow with head | `new VArrow(start, end)` |
+| **VDimension** | Dimension annotation | `new VDimension(p1, p2)` |
+| **VGroup** | Group of shapes | `new VGroup()` then `.Add(shape)` |
+
+---
+
+## Shape Styling
+
+All shapes support customizable styling through these properties:
+
+```csharp
+var circle = new VCircle(0, 0, 50);
+circle.StrokeColor = "Cyan";           // Outline color
+circle.FillColor = "#4000FFFF";        // Fill color (with transparency)
+circle.StrokeThickness = 2.5;          // Border thickness
 circle.Draw();
 ```
 
-**Supported Colors**: Any named color (Red, Blue, LimeGreen, etc.) or hex values (#FF0000)
+### Color Formats
+- **Named colors**: `"Red"`, `"Blue"`, `"Cyan"`, `"LimeGreen"`, etc.
+- **Hex RGB**: `"#FF0000"` (red)
+- **Hex ARGB**: `"#80FF0000"` (semi-transparent red, where 80 is alpha)
 
-### Canvas Features
+### Global Defaults
 
-- **Mouse Wheel Zoom**: Scroll to zoom in/out, centered on cursor position
-- **Middle-Click Pan**: Hold middle mouse button and drag to pan
-- **Grid Display**: Toggleable grid lines (50 unit spacing)
-- **Coordinate Axes**: X and Y axes displayed at origin
+Set default styling for all new shapes:
+
+```csharp
+ShapeDefaults.GlobalStrokeColor = "Cyan";
+ShapeDefaults.GlobalFillColor = "Transparent";
+ShapeDefaults.GlobalStrokeThickness = 2.0;
+
+// All shapes created after this use these defaults
+var circle = new VCircle(0, 0, 50);
+circle.Draw();  // Uses Cyan stroke
+
+// Reset to original defaults
+ShapeDefaults.Reset();
+```
+
+---
+
+## Animation System
+
+Code2Viz includes a timeline-based animation system for creating animated visualizations.
+
+### Basic Animation Example
+
+```csharp
+using Code2Viz.Geometry;
+using Code2Viz.Animation;
+using System.Collections.Generic;
+
+namespace StartViz
+{
+    public class Viz
+    {
+        public static void Main()
+        {
+            // Create shapes
+            var line = new VLine(0, 0, 100, 50);
+            var circle = new VCircle(50, 50, 30);
+            circle.StrokeColor = "Yellow";
+
+            // Create timeline with shapes
+            var shapes = new List<Shape> { line, circle };
+            var timeline = new Timeline(shapes);
+            timeline.Duration = 5.0;  // 5 seconds
+            timeline.Repeat = true;   // Loop animation
+
+            // Add animations
+            timeline.AddAnimation(new DrawAnimation(line, startTime: 0.0, duration: 2.0));
+            timeline.AddAnimation(new DrawAnimation(circle, startTime: 0.5, duration: 2.0));
+            timeline.AddAnimation(new MoveAnimation(circle, new VXYZ(50, 0, 0), startTime: 2.0, duration: 2.0));
+
+            // Start playback
+            timeline.Play();
+        }
+    }
+}
+```
+
+### Animation Types
+
+| Animation | Description | Constructor |
+|-----------|-------------|-------------|
+| **DrawAnimation** | Progressive drawing (0% to 100%) | `new DrawAnimation(shape, startTime, duration)` |
+| **MoveAnimation** | Move by displacement vector | `new MoveAnimation(shape, displacement, startTime, duration)` |
+| **RotateAnimation** | Rotate around a pivot point | `new RotateAnimation(shape, pivot, angleDegrees, startTime, duration)` |
+| **FlipAnimation** | Mirror across an axis line | `new FlipAnimation(shape, mirrorAxis, startTime, duration)` |
+
+### Easing Functions
+
+Smooth animations with built-in easing:
+
+```csharp
+var anim = new MoveAnimation(shape, displacement, start, duration);
+anim.EasingFunction = EasingFunctions.EaseInOutQuad;  // Smooth start and end
+```
+
+Available: `Linear`, `EaseInQuad`, `EaseOutQuad`, `EaseInOutQuad`, `EaseInCubic`, `EaseOutCubic`, `EaseInOutCubic`
+
+---
+
+## Console Output
+
+Use `VizConsole` to output debug messages:
+
+```csharp
+VizConsole.WriteLine("Starting visualization...");
+VizConsole.WriteLine($"Circle radius: {circle.Radius}");
+```
+
+Output appears in the console panel below the canvas with file and line number tracking:
+```
+[StartViz:15] Starting visualization...
+[StartViz:16] Circle radius: 50
+```
+
+---
+
+## Canvas Features
+
+### Interactive Controls
+- **Mouse Wheel**: Zoom in/out centered on cursor position
+- **Middle-Click Drag**: Pan the canvas view
+- **Grid Toggle**: Show/hide reference grid lines (View menu)
 - **Auto Zoom Extents**: Automatically fits all shapes after execution
-- **Real-time Coordinates**: Mouse position displayed in footer
 
-### Code Editor
+### Coordinate System
+Code2Viz uses a **mathematical coordinate system**:
+- Origin (0, 0) is at the center of the canvas
+- X-axis increases to the right (+X = right)
+- Y-axis increases upward (+Y = up, not down like screen coordinates)
+- Angles are measured in degrees, counter-clockwise from the positive X-axis
 
-- **Syntax Highlighting**: Full C# syntax highlighting with custom colors for geometry classes
-- **Line Numbers**: Visible line numbers for easy reference
-- **Code Formatting**: Press `Ctrl+Shift+F` to auto-format code
-- **File Operations**: New, Open, Save functionality
+---
 
-### Export
+## Export Options
 
-- **PNG Export**: Export the current canvas view to a PNG image file
+### PNG Export
+File > Export > PNG (or Ctrl+E) exports the current canvas view as a PNG image.
+
+### GIF Export
+File > Export > GIF exports animations as animated GIF files with options:
+- **Width/Height**: Output dimensions
+- **Frame Rate**: 10-60 FPS
+- **Duration**: Animation length in seconds
+- **Loop**: Enable/disable infinite looping
+
+---
 
 ## Keyboard Shortcuts
 
-### File Operations
+### Running Code
 | Shortcut | Action |
 |----------|--------|
 | `F5` | Run code |
 | `Ctrl+Enter` | Run code |
-| `Ctrl+New` | New file |
-| `Ctrl+O` | Open file |
-| `Ctrl+S` | Save file |
-| `Ctrl+Shift+F` | Format code |
+
+### File Operations
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Shift+N` | New project |
+| `Ctrl+N` | New file |
+| `Ctrl+O` | Open project |
+| `Ctrl+S` | Save all files |
 
 ### Editor Operations
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+C` | Copy |
-| `Ctrl+V` | Paste |
-| `Ctrl+X` | Cut |
-| `Ctrl+Z` | Undo |
-| `Ctrl+Y` | Redo |
-| `Ctrl+A` | Select all |
-| `Ctrl+D` | Duplicate line |
-| `Ctrl+Shift+D` | Delete line |
+| `Ctrl+Shift+F` | Format code |
+| `Ctrl+/` | Toggle comment |
 | `Ctrl+Up` | Move line up |
 | `Ctrl+Down` | Move line down |
-| `Ctrl+/` | Toggle comment |
-| `Tab` | Indent |
-| `Shift+Tab` | Unindent |
+| `Shift+Alt+Down` | Duplicate line |
+| `Ctrl+Shift+D` | Delete line |
+| `Tab` / `Shift+Tab` | Indent / Unindent |
 
-## Usage Example
+### Canvas
+| Shortcut | Action |
+|----------|--------|
+| `Mouse Wheel` | Zoom |
+| `Middle Click` | Pan |
+
+---
+
+## Project Structure
+
+### File Format
+Code2Viz projects use `.vizcode` files. All files in the same directory (and subdirectories) are compiled together.
+
+### Entry Point
+The entry point must be `StartViz.Viz.Main()` in `StartViz.vizcode`:
 
 ```csharp
-// Create a square with points
-Point p1 = new Point(0, 0);
-Point p2 = new Point(100, 0);
-Point p3 = new Point(100, 100);
-Point p4 = new Point(0, 100);
-
-// Draw the square outline
-new Line(p1, p2).Draw();
-new Line(p2, p3).Draw();
-new Line(p3, p4).Draw();
-new Line(p4, p1).Draw();
-
-// Add a circle in the center
-Circle circle = new Circle(50, 50, 30);
-circle.StrokeColor = "Blue";
-circle.FillColor = "LightBlue";
-circle.Draw();
-
-// Draw corner points
-p1.Draw();
-p2.Draw();
-p3.Draw();
-p4.Draw();
+namespace StartViz
+{
+    public class Viz
+    {
+        public static void Main()
+        {
+            // Your code here
+        }
+    }
+}
 ```
 
-## Coordinate System
+### Available Namespaces
+```csharp
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Code2Viz.Geometry;    // Shapes: VPoint, VLine, VCircle, etc.
+using Code2Viz.Animation;   // Timeline, DrawAnimation, MoveAnimation, etc.
+using Code2Viz.Console;     // VizConsole.WriteLine()
+```
 
-Code2Viz uses a **mathematical coordinate system**:
-- Origin (0, 0) is at the center of the canvas
-- X-axis increases to the right
-- Y-axis increases upward (not downward like screen coordinates)
-- Angles are measured in degrees, counter-clockwise from the positive X-axis
+---
+
+## Geometry Utilities
+
+### VXYZ - 3D Vector
+```csharp
+var v = new VXYZ(10, 20, 0);
+double length = v.GetLength();
+var normalized = v.Normalize();
+var cross = v1.CrossProduct(v2);
+var dot = v1.DotProduct(v2);
+
+// Static basis vectors
+var x = VXYZ.BasisX;  // (1, 0, 0)
+var y = VXYZ.BasisY;  // (0, 1, 0)
+var z = VXYZ.BasisZ;  // (0, 0, 1)
+```
+
+### Common Shape Methods
+All shapes inherit from `Shape` and support these methods:
+```csharp
+shape.Draw();                    // Render to canvas
+var copy = shape.Clone();        // Create a copy
+shape.Move(new VXYZ(10, 20, 0)); // Translate
+shape.Rotate(pivot, 45);         // Rotate 45 degrees around pivot
+shape.Scale(center, 2.0);        // Scale by factor
+var bounds = shape.GetBounds();  // Get bounding box
+bool hit = shape.Contains(point);// Point containment test
+double d = shape.DistanceTo(pt); // Distance to point
+```
+
+---
+
+## Example: Complete Drawing
+
+```csharp
+using Code2Viz.Geometry;
+using System;
+
+namespace StartViz
+{
+    public class Viz
+    {
+        public static void Main()
+        {
+            // Set global styling
+            ShapeDefaults.GlobalStrokeColor = "Cyan";
+            ShapeDefaults.GlobalStrokeThickness = 2;
+
+            // Draw coordinate axes
+            new VArrow(-150, 0, 150, 0).Draw();  // X-axis
+            new VArrow(0, -150, 0, 150).Draw();  // Y-axis
+
+            // Draw a house
+            var house = new VPolygon(
+                new VPoint(-50, -50),
+                new VPoint(50, -50),
+                new VPoint(50, 30),
+                new VPoint(0, 70),
+                new VPoint(-50, 30)
+            );
+            house.FillColor = "#40FFFF00";
+            house.Draw();
+
+            // Door
+            var door = new VRectangle(-15, -50, 30, 50);
+            door.FillColor = "#80804000";
+            door.Draw();
+
+            // Window
+            var window = new VCircle(25, 0, 15);
+            window.FillColor = "#8000FFFF";
+            window.Draw();
+
+            // Sun
+            var sun = new VCircle(100, 100, 25);
+            sun.StrokeColor = "Yellow";
+            sun.FillColor = "#80FFFF00";
+            sun.Draw();
+
+            // Sun rays
+            for (int i = 0; i < 8; i++)
+            {
+                double angle = i * 45 * Math.PI / 180;
+                double x1 = 100 + 35 * Math.Cos(angle);
+                double y1 = 100 + 35 * Math.Sin(angle);
+                double x2 = 100 + 50 * Math.Cos(angle);
+                double y2 = 100 + 50 * Math.Sin(angle);
+                var ray = new VLine(x1, y1, x2, y2);
+                ray.StrokeColor = "Yellow";
+                ray.Draw();
+            }
+
+            VizConsole.WriteLine("House drawing complete!");
+        }
+    }
+}
+```
+
+---
 
 ## Building and Running
 
 ### Prerequisites
-
-- .NET 8.0 SDK
+- .NET 9.0 SDK
 - Windows (WPF application)
 
 ### Build
-
 ```bash
 cd Code2Viz
 dotnet restore
@@ -136,42 +399,28 @@ dotnet build
 ```
 
 ### Run
-
 ```bash
 dotnet run
 ```
 
-## Project Structure
-
-```
-Code2Viz/
-├── Geometry/           # Shape classes
-│   ├── IDrawable.cs    # Base interface and Shape class
-│   ├── Point2D.cs      # Point shape
-│   ├── Line2D.cs       # Line shape
-│   ├── Arc2D.cs        # Arc shape
-│   ├── Circle2D.cs     # Circle shape
-│   ├── Rectangle2D.cs  # Rectangle shape
-│   ├── Ellipse2D.cs    # Ellipse shape
-│   ├── Polygon2D.cs    # Polygon shape
-│   └── Polyline2D.cs   # Polyline shape
-├── Canvas/             # Rendering components
-│   ├── RenderCanvas.cs # Custom canvas with zoom/pan
-│   └── CanvasRenderer.cs # Shape collection manager
-├── Editor/             # Code editor components
-│   ├── CSharpHighlighting.xshd # Syntax highlighting
-│   └── CodeFormatter.cs # Code formatting
-├── Execution/          # Script execution
-│   └── ScriptRunner.cs # Roslyn-based C# execution
-├── MainWindow.xaml     # Main UI layout
-├── MainWindow.xaml.cs  # Main window logic
-└── App.xaml            # Application resources
-```
+---
 
 ## Dependencies
 
 - **AvalonEdit** (6.3.0.90) - Code editor with syntax highlighting
-- **Microsoft.CodeAnalysis.CSharp.Scripting** (4.8.0) - Roslyn scripting for C# code execution
+- **Microsoft.CodeAnalysis.CSharp** (4.8.0) - Roslyn compilation for C# code execution
+- **FSharp.Compiler.Service** - F# compilation support
+- **NuGet.Protocol** - Package management integration
+
+---
+
+## Getting Help
+
+- **Built-in Help**: Help > API Reference (F1) opens comprehensive documentation
+- **Welcome Page**: The Help window shows a getting-started guide by default
+- **Console Output**: Use `VizConsole.WriteLine()` for debugging
+
+---
 
 ## License
 

@@ -30,11 +30,32 @@ namespace Code2Viz.Documentation
                 { "Code2Viz", "Root namespace for the Code2Viz application." },
                 { "Code2Viz.Geometry", "Contains classes and interfaces for 2D geometric shapes and operations." },
                 { "Code2Viz.Editor", "Contains classes related to the code editor, including formatting, completion, and snippets." },
-                
+
+                // Base classes
+                { "Shape", "Abstract base class for all drawable shapes. Provides common properties like StrokeColor, FillColor, StrokeThickness, and animation properties (DrawFactor, OffsetX, OffsetY, RotationAngle). Also defines common methods: Draw(), Clone(), Move(), Rotate(), Flip(), Scale(), GetBounds(), Contains(), DistanceTo()." },
+                { "IDrawable", "Interface for any object that can be drawn on the canvas. Defines Draw() method and styling properties." },
+                { "ICurve", "Interface for geometric shapes that can be treated as curves (measurable, divisible)." },
+
                 // Shapes
+                { "VArc", "Represents a 2D arc defined by a center point, radius, start angle, and end angle (in degrees). The arc is drawn counter-clockwise from start to end angle." },
+                { "VCircle", "Represents a 2D circle defined by a center point and a radius. Can be filled and/or stroked." },
+                { "VRectangle", "Represents a 2D axis-aligned rectangle defined by a corner point (bottom-left), width, and height." },
+                { "VPolygon", "Represents a closed 2D polygon defined by a list of vertices. Automatically closes the shape by connecting last point to first." },
+                { "VPolyline", "Represents an open sequence of connected line segments. Unlike polygon, does not close automatically." },
+                { "VLine", "Represents a straight line segment between two points. The most basic geometric primitive." },
+                { "VEllipse", "Represents a 2D ellipse defined by a center point, X radius (horizontal), and Y radius (vertical)." },
+                { "VPoint", "Represents a point in 2D Cartesian space (X, Y). Can be drawn as a small dot on the canvas." },
+                { "VBezier", "Represents a 2D cubic Bezier curve defined by four control points: start, control1, control2, and end." },
+                { "VSpline", "Represents a smooth Catmull-Rom spline curve passing through a series of points." },
+                { "VText", "Represents text drawn at a specific position. Supports font size (Height property) and styling." },
+                { "VGroup", "Represents a collection of shapes treated as a single unit. Supports group transformations (Move, Rotate, Scale)." },
+                { "VArrow", "Represents an arrow (line with arrowhead). Supports single or double-ended arrows with configurable head size and angle." },
+                { "VDimension", "Represents a dimension line showing the distance between two points with text annotation. Useful for technical drawings." },
+
+                // Legacy aliases (for backward compatibility)
                 { "Arc2D", "Represents a 2D arc defined by a center, radius, start angle, and end angle." },
                 { "Circle2D", "Represents a 2D circle defined by a center point and a radius." },
-                { "Rectangle2D", "Represents a 2D axis-aligned rectangle defined by a top-left corner, width, and height." },
+                { "Rectangle2D", "Represents a 2D axis-aligned rectangle defined by a corner, width, and height." },
                 { "Polygon2D", "Represents a closed 2D polygon defined by a list of vertices." },
                 { "Polyline2D", "Represents an open sequence of connected line segments." },
                 { "Line2D", "Represents a straight line segment between two points." },
@@ -44,26 +65,24 @@ namespace Code2Viz.Documentation
                 { "Spline2D", "Represents a smooth spline curve passing through a series of points." },
                 { "Text2D", "Represents text drawn at a specific position." },
                 { "Group2D", "Represents a collection of shapes treated as a single unit." },
-                
-                // Interfaces/Helpers
-                { "ICurve", "Interface for geometric shapes that can be treated as curves (measurable, divisible)." },
-                { "IDrawable", "Interface for any object that can be drawn on the canvas." },
-                { "GeometryHelper", "Static helper class providing common geometric algorithms like intersection and projection." },
-                { "VPoint", "A value type representing a 2D point coordinates." },
-                { "VXYZ", "Object representing coordinates in 3-dimensional space." },
-                { "VPlane", "Represents a plane in 3D space defined by origin and basis vectors." },
-                { "VTransform", "Represents a 3D transformation (rotation, reflection)." },
-                { "VCoordinateSystem", "Represents a 3D coordinate system with origin and orthonormal basis vectors." },
+
+                // Support classes
+                { "VXYZ", "Represents a 3D vector or point with X, Y, Z coordinates. Provides vector operations like Add, Subtract, CrossProduct, DotProduct, Normalize, GetLength. Also has static properties BasisX, BasisY, BasisZ, Zero." },
+                { "VPlane", "Represents a plane in 3D space defined by origin and basis vectors. Used for coordinate transformations." },
+                { "VTransform", "Represents a 3D transformation matrix for rotation and reflection operations." },
+                { "VCoordinateSystem", "Represents a 3D coordinate system with origin and orthonormal basis vectors (X, Y, Z axes)." },
+                { "GeometryHelper", "Static helper class providing common geometric algorithms like intersection, projection, distance calculations, and angle measurements." },
+                { "ShapeDefaults", "Static class holding global default settings for shapes (GlobalStrokeColor, GlobalFillColor, GlobalStrokeThickness). These are populated from Project Settings." },
 
                 // Animation
-                { "Code2Viz.Animation", "Contains classes for animating shapes over time." },
-                { "Timeline", "Manages a collection of shapes and animations, controlling playback timing and state." },
-                { "Animation", "Abstract base class for all animations. Defines timing, easing, and the Apply method." },
-                { "DrawAnimation", "Animates the DrawFactor property to progressively draw a shape from 0% to 100%." },
-                { "MoveAnimation", "Animates moving a shape by a specified vector over time." },
-                { "RotateAnimation", "Animates rotating a shape around a pivot point by a specified angle." },
-                { "FlipAnimation", "Animates flipping (mirroring) a shape across a specified axis line." },
-                { "EasingFunctions", "Provides common easing functions: Linear, EaseInQuad, EaseOutQuad, EaseInOutQuad." },
+                { "Code2Viz.Animation", "Contains classes for animating shapes over time using a timeline-based system." },
+                { "Timeline", "Manages a collection of shapes and animations, controlling playback timing and state. Supports looping (Repeat), speed control, and multiple concurrent animations." },
+                { "Animation", "Abstract base class for all animations. Defines Target shape, StartTime, Duration, and EasingFunction. Subclasses implement the Apply() method." },
+                { "DrawAnimation", "Animates the DrawFactor property to progressively draw a shape from 0% to 100%. Creates a 'drawing' effect where shapes appear to be drawn over time." },
+                { "MoveAnimation", "Animates moving a shape by a specified displacement vector over time. The shape smoothly translates from its original position." },
+                { "RotateAnimation", "Animates rotating a shape around a specified pivot point by a given angle in degrees. Useful for spinning or orbiting effects." },
+                { "FlipAnimation", "Animates flipping (mirroring) a shape across a specified axis line. Creates a reflection transformation over time." },
+                { "EasingFunctions", "Static class providing common easing functions for smooth animations: Linear, EaseInQuad, EaseOutQuad, EaseInOutQuad, EaseInCubic, EaseOutCubic, EaseInOutCubic." },
             };
         }
 
@@ -499,15 +518,211 @@ timeline.Play()" }
         {
             _csharpSamples = new Dictionary<string, string>
             {
-                { "VPoint", "VPoint p = new VPoint(100.0, 200.0);" },
-                { "VXYZ", "VXYZ v = new VXYZ(10.0, 20.0, 30.0);\ndouble len = v.GetLength();" },
-                { "VLine", "VPoint start = new VPoint(0, 0);\nVPoint end = new VPoint(100, 100);\nVLine line = new VLine(start, end);" },
-                { "VPlane", "VXYZ origin = VXYZ.Zero;\nVXYZ normal = VXYZ.BasisZ;\nVPlane plane = VPlane.CreateByNormalAndOrigin(normal, origin);" },
-                { "VTransform", "VTransform t = VTransform.CreateRotation(VXYZ.BasisZ, 90.0);" },
-                { "VArrow", "// From two points\nVArrow a = new VArrow(new VPoint(10, 10), new VPoint(100, 10));\na.Draw();\n\n// From start point, direction, and length\nVArrow a2 = new VArrow(new VPoint(0, 0), VXYZ.BasisX, 50);\na2.Draw();" },
+                // Basic shapes
+                { "VPoint", @"// Create a point
+var p = new VPoint(100, 200);
+p.StrokeColor = ""Red"";
+p.Draw();" },
 
-                { "CanvasRenderer", "CanvasRenderer.Instance.Clear();\nCanvasRenderer.Instance.AddShape(someShape);" },
-                { "VizConsole", "VizConsole.Log(\"Debug info\");\nVizConsole.Clear();" },
+                { "VLine", @"// Create a line from two points
+var line = new VLine(new VPoint(0, 0), new VPoint(100, 50));
+line.StrokeColor = ""Cyan"";
+line.StrokeThickness = 2;
+line.Draw();
+
+// Or using coordinates directly
+var line2 = new VLine(0, 100, 150, 100);
+line2.Draw();" },
+
+                { "VCircle", @"// Create a circle with center and radius
+var circle = new VCircle(new VPoint(50, 50), 30);
+circle.StrokeColor = ""Yellow"";
+circle.FillColor = ""#4000FFFF""; // Semi-transparent cyan
+circle.Draw();
+
+// Or using coordinates
+var circle2 = new VCircle(100, 100, 25);
+circle2.Draw();" },
+
+                { "VRectangle", @"// Create a rectangle (corner, width, height)
+var rect = new VRectangle(new VPoint(10, 10), 80, 50);
+rect.StrokeColor = ""LimeGreen"";
+rect.FillColor = ""#2000FF00"";
+rect.Draw();
+
+// Or using coordinates
+var rect2 = new VRectangle(100, 0, 60, 40);
+rect2.Draw();" },
+
+                { "VEllipse", @"// Create an ellipse with center and radii
+var ellipse = new VEllipse(new VPoint(100, 100), 60, 30);
+ellipse.StrokeColor = ""Magenta"";
+ellipse.StrokeThickness = 2;
+ellipse.Draw();" },
+
+                { "VArc", @"// Create an arc (center, radius, startAngle, endAngle)
+var arc = new VArc(new VPoint(50, 50), 40, 0, 270);
+arc.StrokeColor = ""Orange"";
+arc.StrokeThickness = 3;
+arc.Draw();
+
+// Angles are in degrees, counter-clockwise from positive X-axis" },
+
+                { "VPolygon", @"// Create a triangle
+var triangle = new VPolygon(
+    new VPoint(0, 0),
+    new VPoint(100, 0),
+    new VPoint(50, 80)
+);
+triangle.StrokeColor = ""LimeGreen"";
+triangle.FillColor = ""#4000FF00"";
+triangle.Draw();
+
+// Create from array
+var points = new[] { new VPoint(0,0), new VPoint(50,0), new VPoint(50,50), new VPoint(0,50) };
+var square = new VPolygon(points);
+square.Draw();" },
+
+                { "VPolyline", @"// Create an open polyline (not closed)
+var polyline = new VPolyline(
+    new VPoint(0, 0),
+    new VPoint(30, 50),
+    new VPoint(60, 20),
+    new VPoint(100, 60)
+);
+polyline.StrokeColor = ""Cyan"";
+polyline.Draw();" },
+
+                { "VBezier", @"// Create a cubic Bezier curve (4 control points)
+var bezier = new VBezier(
+    new VPoint(0, 0),      // Start point
+    new VPoint(30, 80),    // Control point 1
+    new VPoint(70, 80),    // Control point 2
+    new VPoint(100, 0)     // End point
+);
+bezier.StrokeColor = ""Magenta"";
+bezier.StrokeThickness = 2;
+bezier.Draw();" },
+
+                { "VSpline", @"// Create a smooth spline through points
+var spline = new VSpline(
+    new VPoint(0, 0),
+    new VPoint(30, 40),
+    new VPoint(60, 20),
+    new VPoint(100, 50)
+);
+spline.StrokeColor = ""Cyan"";
+spline.Draw();" },
+
+                { "VText", @"// Create text at a position
+var text = new VText(new VPoint(50, 50), ""Hello World"");
+text.Height = 24;
+text.StrokeColor = ""White"";
+text.Draw();" },
+
+                { "VArrow", @"// Create an arrow from two points
+var arrow = new VArrow(new VPoint(0, 0), new VPoint(100, 0));
+arrow.StrokeColor = ""Orange"";
+arrow.HeadLength = 15;
+arrow.HeadAngle = 30;
+arrow.Draw();
+
+// Create from point, direction, and length
+var arrow2 = new VArrow(new VPoint(0, 50), VXYZ.BasisX, 80);
+arrow2.DoubleEnded = true; // Arrow on both ends
+arrow2.Draw();" },
+
+                { "VDimension", @"// Create a dimension line between two points
+var dim = new VDimension(new VPoint(0, 0), new VPoint(100, 0));
+dim.Offset = 20;          // Distance above the line
+dim.DecimalPlaces = 1;    // Show 1 decimal place
+dim.TextHeight = 14;
+dim.Draw();
+
+// Custom text
+var dim2 = new VDimension(0, 50, 80, 50);
+dim2.CustomText = ""80 mm"";
+dim2.Draw();" },
+
+                { "VGroup", @"// Create a group of shapes
+var group = new VGroup();
+group.Add(new VCircle(0, 0, 20));
+group.Add(new VLine(-30, 0, 30, 0));
+group.Add(new VLine(0, -30, 0, 30));
+
+// Transform the whole group
+group.Move(new VXYZ(100, 100, 0));
+group.Rotate(new VPoint(100, 100), 45);
+group.Draw();" },
+
+                // Support classes
+                { "VXYZ", @"// Create a 3D vector
+var v = new VXYZ(10, 20, 30);
+double len = v.GetLength();
+var normalized = v.Normalize();
+
+// Vector operations
+var v1 = new VXYZ(1, 0, 0);
+var v2 = new VXYZ(0, 1, 0);
+var cross = v1.CrossProduct(v2);  // (0, 0, 1)
+var dot = v1.DotProduct(v2);      // 0
+
+// Static basis vectors
+var x = VXYZ.BasisX;  // (1, 0, 0)
+var y = VXYZ.BasisY;  // (0, 1, 0)
+var z = VXYZ.BasisZ;  // (0, 0, 1)" },
+
+                { "VPlane", @"// Create a plane from normal and origin
+var origin = VXYZ.Zero;
+var normal = VXYZ.BasisZ;
+var plane = VPlane.CreateByNormalAndOrigin(normal, origin);" },
+
+                { "VTransform", @"// Create a rotation transform
+var rotation = VTransform.CreateRotation(VXYZ.BasisZ, 90);
+
+// Create a reflection transform
+var reflection = VTransform.CreateReflection(plane);" },
+
+                { "ShapeDefaults", @"// Set global defaults for all new shapes
+ShapeDefaults.GlobalStrokeColor = ""Cyan"";
+ShapeDefaults.GlobalFillColor = ""#20FFFFFF"";
+ShapeDefaults.GlobalStrokeThickness = 2.0;
+
+// Now all new shapes use these defaults
+var circle = new VCircle(0, 0, 50);  // Uses Cyan stroke
+circle.Draw();
+
+// Reset to original defaults
+ShapeDefaults.Reset();" },
+
+                { "Shape", @"// Shape is the base class for all drawable shapes
+// Common properties available on all shapes:
+
+shape.StrokeColor = ""Cyan"";           // Outline color
+shape.FillColor = ""Transparent"";      // Fill color
+shape.StrokeThickness = 2.0;           // Line thickness
+
+// Animation properties
+shape.DrawFactor = 1.0;    // 0-1, for progressive drawing
+shape.OffsetX = 0;         // Translation offset
+shape.OffsetY = 0;
+shape.RotationAngle = 0;   // Degrees
+shape.RotationPivot = null; // Pivot point for rotation
+
+// Common methods
+shape.Draw();              // Render to canvas
+var copy = shape.Clone();  // Create a copy
+shape.Move(new VXYZ(10, 20, 0));
+shape.Rotate(pivot, 45);
+shape.Scale(center, 2.0);
+var bounds = shape.GetBounds();
+bool inside = shape.Contains(point);
+double dist = shape.DistanceTo(point);" },
+
+                { "GeometryHelper", @"// Static methods for geometric calculations
+double dist = GeometryHelper.DistancePointToLine(point, line);
+VPoint? intersection = GeometryHelper.LineLineIntersection(line1, line2);
+double angle = GeometryHelper.AngleBetweenVectors(v1, v2);" },
 
                 // Animation
                 { "Timeline", @"// Create shapes
@@ -562,6 +777,211 @@ var timeline = new Timeline(new[] { triangle });
 timeline.AddAnimation(new FlipAnimation(triangle, mirrorAxis, startTime: 0.0, duration: 2.0));
 timeline.Play();" }
             };
+        }
+
+        public FlowDocument GenerateWelcomePage()
+        {
+            var doc = new FlowDocument();
+            doc.FontFamily = new FontFamily("Segoe UI");
+            doc.PagePadding = new Thickness(20);
+            doc.ColumnWidth = double.NaN;
+
+            // Title
+            var title = new Paragraph(new Run("Welcome to Code2Viz"))
+            {
+                FontSize = 28,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.DarkSlateGray,
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+            doc.Blocks.Add(title);
+
+            // Tagline
+            var tagline = new Paragraph(new Run("A Visual Programming Environment for 2D Geometry"))
+            {
+                FontSize = 16,
+                FontStyle = FontStyles.Italic,
+                Foreground = Brushes.Teal,
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 30)
+            };
+            doc.Blocks.Add(tagline);
+
+            // Introduction
+            AddWelcomeSectionHeader(doc, "What is Code2Viz?");
+            doc.Blocks.Add(new Paragraph(new Run(
+                "Code2Viz is an interactive application that lets you write C# or F# code to create and visualize 2D geometric shapes. " +
+                "Simply write code in the built-in editor, press F5 (or click Run), and see your shapes appear on the canvas instantly. " +
+                "It's perfect for learning geometry, creating diagrams, prototyping visualizations, and exploring mathematical concepts."))
+            { FontSize = 14, Margin = new Thickness(0, 0, 0, 15) });
+
+            // Key Features
+            AddWelcomeSectionHeader(doc, "Key Features");
+            var featuresList = new List
+            {
+                MarkerStyle = TextMarkerStyle.Disc,
+                Margin = new Thickness(20, 0, 0, 20)
+            };
+            AddListItem(featuresList, "Multi-language Support", "Write code in C# or F# with full IntelliSense-like syntax highlighting");
+            AddListItem(featuresList, "Rich Shape Library", "Points, lines, circles, rectangles, ellipses, arcs, polygons, polylines, Bezier curves, splines, text, arrows, and dimensions");
+            AddListItem(featuresList, "Animation System", "Create timeline-based animations with draw, move, rotate, and flip effects");
+            AddListItem(featuresList, "Interactive Canvas", "Zoom with mouse wheel, pan with middle-click, toggle grid display");
+            AddListItem(featuresList, "Export Options", "Save your visualizations as PNG images or animated GIFs");
+            AddListItem(featuresList, "Project Management", "Organize multiple code files into projects with tabbed editing");
+            AddListItem(featuresList, "NuGet Integration", "Add external packages to extend functionality");
+            doc.Blocks.Add(featuresList);
+
+            // Getting Started
+            AddWelcomeSectionHeader(doc, "Getting Started");
+            var stepsList = new List
+            {
+                MarkerStyle = TextMarkerStyle.Decimal,
+                Margin = new Thickness(20, 0, 0, 20)
+            };
+            AddListItem(stepsList, "Create or Open a Project", "Use File > New Project or File > Open to start");
+            AddListItem(stepsList, "Write Your Code", "The entry point is StartViz.Viz.Main() in StartViz.vizcode");
+            AddListItem(stepsList, "Create Shapes", "Instantiate shape objects (e.g., new VCircle(0, 0, 50))");
+            AddListItem(stepsList, "Draw to Canvas", "Call .Draw() on shapes to render them");
+            AddListItem(stepsList, "Run Your Code", "Press F5 or click the Run button to see results");
+            doc.Blocks.Add(stepsList);
+
+            // Quick Example
+            AddWelcomeSectionHeader(doc, "Quick Example");
+            var exampleCode = @"using Code2Viz.Geometry;
+
+namespace StartViz
+{
+    public class Viz
+    {
+        public static void Main()
+        {
+            // Create a circle at origin with radius 50
+            var circle = new VCircle(0, 0, 50);
+            circle.StrokeColor = ""Cyan"";
+            circle.FillColor = ""#4000FFFF"";
+            circle.Draw();
+
+            // Add crosshairs
+            new VLine(-60, 0, 60, 0).Draw();
+            new VLine(0, -60, 0, 60).Draw();
+        }
+    }
+}";
+            var codeP = new Paragraph(new Run(exampleCode))
+            {
+                FontFamily = new FontFamily("Consolas"),
+                Background = Brushes.WhiteSmoke,
+                Padding = new Thickness(15),
+                Margin = new Thickness(0, 0, 0, 20)
+            };
+            doc.Blocks.Add(codeP);
+
+            // Keyboard Shortcuts
+            AddWelcomeSectionHeader(doc, "Keyboard Shortcuts");
+            var shortcutsTable = new Table();
+            shortcutsTable.CellSpacing = 0;
+            shortcutsTable.BorderBrush = Brushes.LightGray;
+            shortcutsTable.BorderThickness = new Thickness(1);
+            shortcutsTable.Columns.Add(new TableColumn { Width = new GridLength(150) });
+            shortcutsTable.Columns.Add(new TableColumn { Width = new GridLength(300) });
+
+            var rowGroup = new TableRowGroup();
+            AddShortcutRow(rowGroup, "F5 / Ctrl+Enter", "Run code", true);
+            AddShortcutRow(rowGroup, "Ctrl+S", "Save all files", false);
+            AddShortcutRow(rowGroup, "Ctrl+N", "New file", true);
+            AddShortcutRow(rowGroup, "Ctrl+Shift+N", "New project", false);
+            AddShortcutRow(rowGroup, "Ctrl+O", "Open project", true);
+            AddShortcutRow(rowGroup, "Ctrl+Shift+F", "Format code", false);
+            AddShortcutRow(rowGroup, "Ctrl+/", "Toggle comment", true);
+            AddShortcutRow(rowGroup, "Ctrl+Up/Down", "Move line up/down", false);
+            AddShortcutRow(rowGroup, "Shift+Alt+Down", "Duplicate line", true);
+            AddShortcutRow(rowGroup, "Mouse Wheel", "Zoom canvas", false);
+            AddShortcutRow(rowGroup, "Middle Click", "Pan canvas", true);
+            shortcutsTable.RowGroups.Add(rowGroup);
+            doc.Blocks.Add(shortcutsTable);
+
+            // Coordinate System
+            AddWelcomeSectionHeader(doc, "Coordinate System");
+            doc.Blocks.Add(new Paragraph(new Run(
+                "Code2Viz uses a standard mathematical coordinate system with the origin (0, 0) at the center of the canvas. " +
+                "The X-axis points right and the Y-axis points up (not down like typical screen coordinates). " +
+                "Positive angles are measured counter-clockwise from the positive X-axis."))
+            { FontSize = 14, Margin = new Thickness(0, 0, 0, 20) });
+
+            // Tips
+            AddWelcomeSectionHeader(doc, "Tips");
+            var tipsList = new List
+            {
+                MarkerStyle = TextMarkerStyle.Circle,
+                Margin = new Thickness(20, 0, 0, 20)
+            };
+            AddListItem(tipsList, "Colors", "Use color names (\"Red\", \"Cyan\") or hex codes (\"#FF0000\", \"#80FFFFFF\" for semi-transparent)");
+            AddListItem(tipsList, "VizConsole", "Use VizConsole.WriteLine() to output debug messages to the console panel");
+            AddListItem(tipsList, "ShapeDefaults", "Set ShapeDefaults.GlobalStrokeColor to apply colors to all new shapes");
+            AddListItem(tipsList, "Animation", "Create a Timeline, add animations, and call .Play() to animate shapes");
+            AddListItem(tipsList, "Help Browser", "Select any class from the tree on the left to see its documentation");
+            doc.Blocks.Add(tipsList);
+
+            // Footer
+            var footer = new Paragraph(new Run("Select a class from the tree on the left to view its documentation."))
+            {
+                FontSize = 12,
+                FontStyle = FontStyles.Italic,
+                Foreground = Brushes.Gray,
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 30, 0, 0)
+            };
+            doc.Blocks.Add(footer);
+
+            return doc;
+        }
+
+        private void AddWelcomeSectionHeader(FlowDocument doc, string text)
+        {
+            doc.Blocks.Add(new Paragraph(new Run(text))
+            {
+                FontSize = 18,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.Teal,
+                Margin = new Thickness(0, 15, 0, 8),
+                BorderBrush = Brushes.LightGray,
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                Padding = new Thickness(0, 0, 0, 5)
+            });
+        }
+
+        private void AddListItem(List list, string title, string description)
+        {
+            var para = new Paragraph();
+            para.Inlines.Add(new Run(title + ": ") { FontWeight = FontWeights.SemiBold });
+            para.Inlines.Add(new Run(description));
+            para.Margin = new Thickness(0, 2, 0, 2);
+            list.ListItems.Add(new ListItem(para));
+        }
+
+        private void AddShortcutRow(TableRowGroup group, string shortcut, string description, bool isAlt)
+        {
+            var row = new TableRow();
+            if (isAlt) row.Background = Brushes.WhiteSmoke;
+
+            var keyCell = new TableCell(new Paragraph(new Run(shortcut) { FontFamily = new FontFamily("Consolas"), FontWeight = FontWeights.SemiBold }))
+            {
+                Padding = new Thickness(8, 4, 8, 4),
+                BorderBrush = Brushes.LightGray,
+                BorderThickness = new Thickness(0, 0, 0, 1)
+            };
+
+            var descCell = new TableCell(new Paragraph(new Run(description)))
+            {
+                Padding = new Thickness(8, 4, 8, 4),
+                BorderBrush = Brushes.LightGray,
+                BorderThickness = new Thickness(0, 0, 0, 1)
+            };
+
+            row.Cells.Add(keyCell);
+            row.Cells.Add(descCell);
+            group.Rows.Add(row);
         }
     }
 }
