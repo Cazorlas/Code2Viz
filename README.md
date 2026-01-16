@@ -175,8 +175,8 @@ Available: `Linear`, `EaseInQuad`, `EaseOutQuad`, `EaseInOutQuad`, `EaseInCubic`
 Use `VizConsole` to output debug messages:
 
 ```csharp
-VizConsole.WriteLine("Starting visualization...");
-VizConsole.WriteLine($"Circle radius: {circle.Radius}");
+VizConsole.Log("Starting visualization...");
+VizConsole.Log($"Circle radius: {circle.Radius}");
 ```
 
 Output appears in the console panel below the canvas with file and line number tracking:
@@ -281,7 +281,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Code2Viz.Geometry;    // Shapes: VPoint, VLine, VCircle, etc.
 using Code2Viz.Animation;   // Timeline, DrawAnimation, MoveAnimation, etc.
-using Code2Viz.Console;     // VizConsole.WriteLine()
+using Code2Viz.Console;     // VizConsole.Log()
 ```
 
 ---
@@ -377,7 +377,7 @@ namespace StartViz
                 ray.Draw();
             }
 
-            VizConsole.WriteLine("House drawing complete!");
+            VizConsole.Log("House drawing complete!");
         }
     }
 }
@@ -418,7 +418,7 @@ dotnet run
 
 - **Built-in Help**: Help > API Reference (F1) opens comprehensive documentation
 - **Welcome Page**: The Help window shows a getting-started guide by default
-- **Console Output**: Use `VizConsole.WriteLine()` for debugging
+- **Console Output**: Use `VizConsole.Log()` for debugging
 
 ---
 

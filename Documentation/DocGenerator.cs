@@ -337,7 +337,7 @@ namespace Code2Viz.Documentation
                 { "VTransform", "let t = VTransform.CreateRotation(VXYZ.BasisZ, 90.0)" },
 
                 { "CanvasRenderer", "CanvasRenderer.Instance.Clear()\nCanvasRenderer.Instance.AddShape(someShape)" },
-                { "VizConsole", "VizConsole.Log(\"Debug info\")\nVizConsole.Clear()" },
+                { "VizConsole", "VizConsole.Log(\"Debug info\")\nVizConsole.Log($\"Value: {someVariable}\")" },
 
                 // Animation
                 { "Timeline", @"// Create shapes
@@ -917,7 +917,7 @@ namespace StartViz
                 Margin = new Thickness(20, 0, 0, 20)
             };
             AddListItem(tipsList, "Colors", "Use color names (\"Red\", \"Cyan\") or hex codes (\"#FF0000\", \"#80FFFFFF\" for semi-transparent)");
-            AddListItem(tipsList, "VizConsole", "Use VizConsole.WriteLine() to output debug messages to the console panel");
+            AddListItem(tipsList, "VizConsole", "Use VizConsole.Log() to output debug messages to the console panel");
             AddListItem(tipsList, "ShapeDefaults", "Set ShapeDefaults.GlobalStrokeColor to apply colors to all new shapes");
             AddListItem(tipsList, "Animation", "Create a Timeline, add animations, and call .Play() to animate shapes");
             AddListItem(tipsList, "Help Browser", "Select any class from the tree on the left to see its documentation");
