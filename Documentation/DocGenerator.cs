@@ -829,7 +829,7 @@ timeline.Play();" }
             AddListItem(featuresList, "Interactive Canvas", "Zoom with mouse wheel, pan with middle-click, toggle grid display");
             AddListItem(featuresList, "Export Options", "Save your visualizations as PNG images or animated GIFs");
             AddListItem(featuresList, "Project Management", "Organize multiple code files into projects with tabbed editing");
-            AddListItem(featuresList, "NuGet Integration", "Add external packages to extend functionality");
+            AddListItem(featuresList, "NuGet Package Manager", "Search, install, update, and remove NuGet packages via Tools menu");
             doc.Blocks.Add(featuresList);
 
             // Getting Started
@@ -921,6 +921,7 @@ namespace StartViz
             AddListItem(tipsList, "ShapeDefaults", "Set ShapeDefaults.GlobalStrokeColor to apply colors to all new shapes");
             AddListItem(tipsList, "Animation", "Create a Timeline, add animations, and call .Play() to animate shapes");
             AddListItem(tipsList, "Help Browser", "Select any class from the tree on the left to see its documentation");
+            AddListItem(tipsList, "NuGet Packages", "Use Tools > NuGet Package Manager to add external libraries like Newtonsoft.Json");
             doc.Blocks.Add(tipsList);
 
             // Footer

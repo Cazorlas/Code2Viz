@@ -286,6 +286,44 @@ using Code2Viz.Console;     // VizConsole.Log()
 
 ---
 
+## NuGet Package Manager
+
+Code2Viz includes a built-in NuGet Package Manager to add external libraries to your projects.
+
+### Opening the Package Manager
+Tools > NuGet Package Manager (or use the toolbar button)
+
+### Features
+- **Search**: Search the NuGet repository for packages by name
+- **Install**: Select a package and version, then click Install to add it to your project
+- **Update**: If a newer version is available, you can update existing packages
+- **Remove**: Remove packages you no longer need
+
+### Using Installed Packages
+After installing a package, add its namespace to your code:
+
+```csharp
+using Newtonsoft.Json;  // Example: after installing Newtonsoft.Json
+
+namespace StartViz
+{
+    public class Viz
+    {
+        public static void Main()
+        {
+            var obj = new { Name = "Test", Value = 42 };
+            var json = JsonConvert.SerializeObject(obj);
+            VizConsole.Log(json);
+        }
+    }
+}
+```
+
+### Package Storage
+Packages are stored in a `.packages` folder within your project directory. This folder is created automatically when you install your first package.
+
+---
+
 ## Geometry Utilities
 
 ### VXYZ - 3D Vector
