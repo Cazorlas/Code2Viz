@@ -615,6 +615,20 @@ public static class CompletionProvider
             return Regex.Replace(match.Groups[1].Value, @"\s+", "");
         }
 
+        // Pattern: var variableName = TypeName.FactoryMethod( - factory method pattern (e.g., VCuboid.ByLengths)
+        // This assumes the factory method returns an instance of the class
+        var factoryPattern = $@"\bvar\s+{escapedVarName}\s*=\s*([\w]+)\s*\.\s*\w+\s*\(";
+        match = Regex.Match(text, factoryPattern);
+        if (match.Success)
+        {
+            var typeName = match.Groups[1].Value;
+            // Verify this is a known type (not a variable calling a method)
+            if (TypeInspector.IsKnownType(typeName))
+            {
+                return typeName;
+            }
+        }
+
         // Pattern: Type PropertyName { get; - property declaration
         var propPattern = $@"\b(\w+)\s+{escapedVarName}\s*\{{";
         match = Regex.Match(text, propPattern);

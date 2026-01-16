@@ -56,6 +56,15 @@ namespace Code2Viz.Documentation
                 { "VTransform", "Represents a 3D transformation (rotation, reflection)." },
                 { "VBox", "Represents an oriented box in 3D space." },
 
+                // 3D Solids
+                { "VCoordinateSystem", "Represents a 3D coordinate system with origin and orthonormal basis vectors." },
+                { "VSolid", "Abstract base class for 3D solid geometry. Provides Area, Volume, mesh generation, and wireframe rendering." },
+                { "VCuboid", "Represents a 3D cuboid (box) solid with Width, Length, and Height dimensions." },
+                { "VCylinder", "Represents a 3D cylinder solid defined by a central axis, radius, and height." },
+                { "VSphere", "Represents a 3D sphere solid defined by a center point and radius." },
+                { "VCone", "Represents a 3D cone or truncated cone (frustum) solid with start/end radii and height." },
+                { "VMesh", "Represents a mesh with vertices and triangle indices for 3D rendering." },
+
                 // Animation
                 { "Code2Viz.Animation", "Contains classes for animating shapes over time." },
                 { "Timeline", "Manages a collection of shapes and animations, controlling playback timing and state." },
@@ -566,7 +575,104 @@ var timeline = new Timeline(new[] { triangle });
 
 // Flip across the axis over 2 seconds
 timeline.AddAnimation(new FlipAnimation(triangle, mirrorAxis, startTime: 0.0, duration: 2.0));
-timeline.Play();" }
+timeline.Play();" },
+
+                // 3D Solids
+                { "VCoordinateSystem", @"// Create coordinate system at origin with standard axes
+var cs1 = VCoordinateSystem.ByOrigin(10, 20, 30);
+
+// Create coordinate system with custom Z-axis direction
+var cs2 = VCoordinateSystem.ByOriginZAxis(VXYZ.Zero, new VXYZ(0, 0, 1));
+
+// Transform points between local and world coordinates
+var worldPt = cs1.ToWorld(1, 0, 0);
+var localPt = cs1.ToLocal(worldPt);" },
+
+                { "VCuboid", @"// Create cuboid by corner points
+var box1 = VCuboid.ByCorners(new VXYZ(0, 0, 0), new VXYZ(50, 30, 20));
+box1.Draw();
+
+// Create cuboid at origin with dimensions
+var box2 = VCuboid.ByLengths(100, 60, 40); // width, length, height
+box2.StrokeColor = ""Cyan"";
+box2.Draw();
+
+// Create cuboid at specific location
+var box3 = VCuboid.ByLengths(new VXYZ(200, 0, 0), 30, 30, 30);
+box3.Draw();" },
+
+                { "VCylinder", @"// Create cylinder by two points and radius
+var cyl1 = VCylinder.ByPointsRadius(
+    new VXYZ(0, 0, 0),
+    new VXYZ(0, 0, 100),
+    radius: 25);
+cyl1.Draw();
+
+// Create cylinder at origin with radius and height
+var cyl2 = VCylinder.ByRadiusHeight(radius: 40, height: 80);
+cyl2.StrokeColor = ""LimeGreen"";
+cyl2.Draw();" },
+
+                { "VSphere", @"// Create sphere by center and radius
+var sphere1 = VSphere.ByCenterPointRadius(new VXYZ(0, 0, 0), radius: 50);
+sphere1.Draw();
+
+// Create sphere using x, y, z coordinates
+var sphere2 = VSphere.ByCenterPointRadius(100, 0, 0, radius: 30);
+sphere2.StrokeColor = ""Orange"";
+sphere2.Draw();
+
+// Create sphere through four points (circumsphere)
+var sphere3 = VSphere.ByFourPoints(
+    new VXYZ(0, 0, 0), new VXYZ(100, 0, 0),
+    new VXYZ(50, 100, 0), new VXYZ(50, 50, 80));
+sphere3.Draw();" },
+
+                { "VCone", @"// Create pointed cone
+var cone1 = VCone.ByPointsRadius(
+    new VXYZ(0, 0, 0),    // base center
+    new VXYZ(0, 0, 100),  // apex
+    startRadius: 40);
+cone1.Draw();
+
+// Create truncated cone (frustum)
+var cone2 = VCone.ByPointsRadii(
+    new VXYZ(100, 0, 0),
+    new VXYZ(100, 0, 80),
+    startRadius: 50,
+    endRadius: 20);
+cone2.StrokeColor = ""Magenta"";
+cone2.Draw();
+
+// Create cone at origin
+var cone3 = VCone.ByRadiusHeight(radius: 30, height: 60);
+cone3.Draw();" },
+
+                { "VSolid", @"// VSolid is an abstract base class for all 3D solids
+// Use concrete classes: VCuboid, VCylinder, VSphere, VCone
+
+// All solids provide:
+var box = VCuboid.ByLengths(10, 10, 10);
+var area = box.Area;      // Surface area
+var volume = box.Volume;  // Volume
+var center = box.Centroid; // Center of mass
+
+// Draw solid as wireframe
+box.Draw();
+
+// Get mesh for custom rendering
+var mesh = box.GetMesh(subdivisions: 16);" },
+
+                { "VMesh", @"// VMesh is returned by VSolid.GetMesh()
+// It contains vertices, triangles, and edges for 3D rendering
+
+var sphere = VSphere.ByCenterPointRadius(VXYZ.Zero, 50);
+var mesh = sphere.GetMesh(subdivisions: 24);
+
+// Access mesh data
+var vertices = mesh.Vertices;   // List<VXYZ>
+var triangles = mesh.Triangles; // List<int> (groups of 3)
+var edges = mesh.Edges;         // List<(int, int)> for wireframe" }
             };
         }
     }
