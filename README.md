@@ -249,11 +249,24 @@ File > Export > GIF exports animations as animated GIF files with options:
 |----------|--------|
 | `Ctrl+Shift+F` | Format code |
 | `Ctrl+/` | Toggle comment |
-| `Ctrl+Up` | Move line up |
-| `Ctrl+Down` | Move line down |
-| `Shift+Alt+Down` | Duplicate line |
-| `Ctrl+Shift+D` | Delete line |
 | `Tab` / `Shift+Tab` | Indent / Unindent |
+
+### Line Operations
+| Shortcut | Action |
+|----------|--------|
+| `Alt+Up` | Move line up |
+| `Alt+Down` | Move line down |
+| `Shift+Alt+Up` | Copy line up |
+| `Shift+Alt+Down` | Copy line down |
+| `Ctrl+Shift+D` | Delete line |
+
+### Selection Operations
+| Shortcut | Action |
+|----------|--------|
+| `Shift+Alt+Right` | Expand selection (word → brackets → line → block) |
+| `Shift+Alt+Left` | Shrink selection (undo expand) |
+| `Ctrl+D` | Add next occurrence (select word, then find next) |
+| `Ctrl+Shift+L` | Select all occurrences |
 
 ### Canvas
 | Shortcut | Action |

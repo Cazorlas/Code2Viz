@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Reflection;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Code2Viz.Editor;
 
@@ -109,29 +110,63 @@ public static class TypeInspector
             return _commonTypes;
 
         _commonTypes = new List<(string Name, string Description)>();
+        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // Add Code2Viz.Geometry types with XML doc summaries where available
         var geometryAssembly = typeof(Geometry.VPoint).Assembly;
-        foreach (var type in geometryAssembly.GetExportedTypes())
+
+        // Add Code2Viz.Geometry types (VPoint, VLine, VCircle, etc.)
+        var geometryTypes = geometryAssembly.GetExportedTypes()
+            .Where(t => t.Namespace == "Code2Viz.Geometry" && t.IsPublic && !t.IsNested);
+        foreach (var type in geometryTypes)
         {
-            if (type.IsPublic && !type.IsNested && !type.IsAbstract)
+            var suffix = type.IsAbstract ? " (abstract)" : "";
+            var description = $"{type.Namespace}.{type.Name}{suffix}";
+            if (seenNames.Add(type.Name))
             {
-                var description = $"{type.Namespace}.{type.Name}";
                 _commonTypes.Add((type.Name, description));
             }
         }
 
         // Add VizConsole
-        _commonTypes.Add(("VizConsole", "Console output with line tracking"));
+        if (seenNames.Add("VizConsole"))
+        {
+            _commonTypes.Add(("VizConsole", "Code2Viz.Console.VizConsole - Console output with line tracking"));
+        }
 
-        // Add Animation types (include abstract classes like Animation for type declarations)
+        // Add Animation types (Timeline, DrawAnimation, MoveAnimation, etc.)
         var animationTypes = geometryAssembly.GetExportedTypes()
             .Where(t => t.Namespace == "Code2Viz.Animation" && t.IsPublic && !t.IsNested);
         foreach (var type in animationTypes)
         {
             var suffix = type.IsAbstract ? " (abstract)" : "";
             var description = $"{type.Namespace}.{type.Name}{suffix}";
-            _commonTypes.Add((type.Name, description));
+            if (seenNames.Add(type.Name))
+            {
+                _commonTypes.Add((type.Name, description));
+            }
+        }
+
+        // Add primitive types with their C# aliases
+        var primitiveTypes = new (string Alias, Type Type, string Desc)[]
+        {
+            ("int", typeof(int), "32-bit signed integer"),
+            ("double", typeof(double), "64-bit floating point"),
+            ("float", typeof(float), "32-bit floating point"),
+            ("bool", typeof(bool), "Boolean true/false"),
+            ("string", typeof(string), "Text string"),
+            ("long", typeof(long), "64-bit signed integer"),
+            ("short", typeof(short), "16-bit signed integer"),
+            ("byte", typeof(byte), "8-bit unsigned integer"),
+            ("char", typeof(char), "Unicode character"),
+            ("decimal", typeof(decimal), "High-precision decimal"),
+            ("object", typeof(object), "Base object type"),
+        };
+        foreach (var (alias, type, desc) in primitiveTypes)
+        {
+            if (seenNames.Add(alias))
+            {
+                _commonTypes.Add((alias, $"{type.FullName} - {desc}"));
+            }
         }
 
         // Add common System types
@@ -140,7 +175,7 @@ public static class TypeInspector
             (typeof(Math), "Mathematical functions"),
             (typeof(System.Console), "Console I/O"),
             (typeof(Convert), "Type conversion"),
-            (typeof(string), "String manipulation"),
+            (typeof(String), "String manipulation"),
             (typeof(Random), "Random number generator"),
             (typeof(DateTime), "Date and time"),
             (typeof(TimeSpan), "Time interval"),
@@ -152,10 +187,25 @@ public static class TypeInspector
             (typeof(System.IO.Directory), "Directory operations"),
             (typeof(System.Text.StringBuilder), "Mutable string builder"),
             (typeof(System.Text.RegularExpressions.Regex), "Regular expressions"),
+            (typeof(Tuple), "Immutable tuple"),
+            (typeof(Action), "Delegate without return"),
+            (typeof(Func<>), "Delegate with return"),
+            (typeof(Exception), "Base exception"),
+            (typeof(Array), "Base array type"),
+            (typeof(Nullable<>), "Nullable wrapper"),
+            (typeof(Task), "Async task"),
+            (typeof(System.Numerics.Vector2), "2D vector"),
+            (typeof(System.Numerics.Vector3), "3D vector"),
         };
         foreach (var (type, desc) in systemTypes)
         {
-            _commonTypes.Add((type.Name, $"{type.FullName} - {desc}"));
+            var name = type.Name;
+            var tickIndex = name.IndexOf('`');
+            if (tickIndex > 0) name = name.Substring(0, tickIndex);
+            if (seenNames.Add(name))
+            {
+                _commonTypes.Add((name, $"{type.FullName} - {desc}"));
+            }
         }
 
         // Add generic collections
@@ -170,14 +220,21 @@ public static class TypeInspector
             (typeof(SortedSet<>), "Sorted unique set"),
             (typeof(SortedList<,>), "Sorted key-value list"),
             (typeof(SortedDictionary<,>), "Sorted dictionary"),
+            (typeof(IEnumerable<>), "Enumerable interface"),
+            (typeof(IList<>), "List interface"),
+            (typeof(ICollection<>), "Collection interface"),
+            (typeof(IDictionary<,>), "Dictionary interface"),
+            (typeof(KeyValuePair<,>), "Key-value pair"),
         };
         foreach (var (type, desc) in genericCollections)
         {
             var name = type.Name;
             var tickIndex = name.IndexOf('`');
-            if (tickIndex > 0)
-                name = name.Substring(0, tickIndex);
-            _commonTypes.Add((name, $"System.Collections.Generic.{name} - {desc}"));
+            if (tickIndex > 0) name = name.Substring(0, tickIndex);
+            if (seenNames.Add(name))
+            {
+                _commonTypes.Add((name, $"System.Collections.Generic.{name} - {desc}"));
+            }
         }
 
         return _commonTypes;

@@ -3388,6 +3388,10 @@ public partial class MainWindow : Window
                     ResetCanvasConsoleLayout();
                     e.Handled = true;
                     break;
+                case Key.D:
+                    AddNextOccurrence();
+                    e.Handled = true;
+                    break;
             }
         }
         else if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
@@ -3408,6 +3412,10 @@ public partial class MainWindow : Window
                     break;
                 case Key.K:
                     PerformInsertColor();
+                    e.Handled = true;
+                    break;
+                case Key.L:
+                    SelectAllOccurrences();
                     e.Handled = true;
                     break;
             }
@@ -3433,7 +3441,19 @@ public partial class MainWindow : Window
             switch (e.SystemKey)
             {
                 case Key.Down:
-                    DuplicateLine();
+                    CopyLineDown();
+                    e.Handled = true;
+                    break;
+                case Key.Up:
+                    CopyLineUp();
+                    e.Handled = true;
+                    break;
+                case Key.Right:
+                    ExpandSelection();
+                    e.Handled = true;
+                    break;
+                case Key.Left:
+                    ShrinkSelection();
                     e.Handled = true;
                     break;
             }
@@ -3454,19 +3474,91 @@ public partial class MainWindow : Window
 
     #region Editor Line Operations
 
-    private void DuplicateLine()
+    private void DuplicateLine() => CopyLineDown();
+
+    private void CopyLineDown()
     {
         if (!CodeEditor.IsKeyboardFocusWithin) return;
 
         var document = CodeEditor.Document;
-        var caret = CodeEditor.TextArea.Caret;
-        var line = document.GetLineByNumber(caret.Line);
-        var lineText = document.GetText(line.Offset, line.Length);
+        var textArea = CodeEditor.TextArea;
+        var selection = textArea.Selection;
 
-        var insertOffset = line.EndOffset;
-        document.Insert(insertOffset, Environment.NewLine + lineText);
+        // Determine the range of lines to duplicate
+        int startLine, endLine;
+        if (selection.IsEmpty)
+        {
+            // No selection - duplicate current line
+            startLine = endLine = textArea.Caret.Line;
+        }
+        else
+        {
+            // Has selection - get all lines in selection
+            var selStart = selection.SurroundingSegment.Offset;
+            var selEnd = selection.SurroundingSegment.EndOffset;
+            startLine = document.GetLineByOffset(selStart).LineNumber;
+            endLine = document.GetLineByOffset(selEnd).LineNumber;
 
-        caret.Line = caret.Line + 1;
+            // If selection ends at the very start of a line, don't include that line
+            var endLineObj = document.GetLineByNumber(endLine);
+            if (selEnd == endLineObj.Offset && endLine > startLine)
+            {
+                endLine--;
+            }
+        }
+
+        // Get the text of all lines to duplicate
+        var firstLine = document.GetLineByNumber(startLine);
+        var lastLine = document.GetLineByNumber(endLine);
+        var textToDuplicate = document.GetText(firstLine.Offset, lastLine.EndOffset - firstLine.Offset);
+
+        // Insert the duplicated text after the last line
+        var insertOffset = lastLine.EndOffset;
+        document.Insert(insertOffset, Environment.NewLine + textToDuplicate);
+
+        // Move caret down by the number of lines duplicated
+        var lineCount = endLine - startLine + 1;
+        textArea.Caret.Line = textArea.Caret.Line + lineCount;
+    }
+
+    private void CopyLineUp()
+    {
+        if (!CodeEditor.IsKeyboardFocusWithin) return;
+
+        var document = CodeEditor.Document;
+        var textArea = CodeEditor.TextArea;
+        var selection = textArea.Selection;
+
+        // Determine the range of lines to duplicate
+        int startLine, endLine;
+        if (selection.IsEmpty)
+        {
+            startLine = endLine = textArea.Caret.Line;
+        }
+        else
+        {
+            var selStart = selection.SurroundingSegment.Offset;
+            var selEnd = selection.SurroundingSegment.EndOffset;
+            startLine = document.GetLineByOffset(selStart).LineNumber;
+            endLine = document.GetLineByOffset(selEnd).LineNumber;
+
+            var endLineObj = document.GetLineByNumber(endLine);
+            if (selEnd == endLineObj.Offset && endLine > startLine)
+            {
+                endLine--;
+            }
+        }
+
+        // Get the text of all lines to duplicate
+        var firstLine = document.GetLineByNumber(startLine);
+        var lastLine = document.GetLineByNumber(endLine);
+        var textToDuplicate = document.GetText(firstLine.Offset, lastLine.EndOffset - firstLine.Offset);
+
+        // Insert the duplicated text before the first line
+        var insertOffset = firstLine.Offset;
+        document.Insert(insertOffset, textToDuplicate + Environment.NewLine);
+
+        // Caret stays at same position (which is now in the duplicated text)
     }
 
     private void DeleteLine()
@@ -3624,6 +3716,331 @@ public partial class MainWindow : Window
                 document.EndUpdate();
             }
         }
+    }
+
+    #endregion
+
+    #region Selection Operations
+
+    // Stack to track selection expansion history for shrinking
+    private readonly Stack<(int Start, int Length)> _selectionHistory = new();
+
+    private void ExpandSelection()
+    {
+        if (!CodeEditor.IsKeyboardFocusWithin) return;
+
+        var document = CodeEditor.Document;
+        var textArea = CodeEditor.TextArea;
+        var selection = textArea.Selection;
+
+        int currentStart, currentLength;
+        if (selection.IsEmpty)
+        {
+            currentStart = textArea.Caret.Offset;
+            currentLength = 0;
+        }
+        else
+        {
+            var segment = selection.SurroundingSegment;
+            currentStart = segment.Offset;
+            currentLength = segment.Length;
+        }
+
+        // Save current selection for shrinking
+        _selectionHistory.Push((currentStart, currentLength));
+
+        // Determine what to expand to
+        var text = document.Text;
+        int newStart = currentStart;
+        int newEnd = currentStart + currentLength;
+
+        if (currentLength == 0)
+        {
+            // No selection - select current word
+            (newStart, newEnd) = GetWordBounds(text, currentStart);
+        }
+        else
+        {
+            // Try expanding to larger constructs
+            var currentText = text.Substring(currentStart, currentLength);
+
+            // If word selected, try to expand to quoted string or parentheses
+            var (wordStart, wordEnd) = GetWordBounds(text, currentStart);
+            if (newStart == wordStart && newEnd == wordEnd)
+            {
+                // Try to expand to enclosing brackets/quotes
+                var (bracketStart, bracketEnd) = GetEnclosingBrackets(text, currentStart, currentLength);
+                if (bracketStart < newStart || bracketEnd > newEnd)
+                {
+                    newStart = bracketStart;
+                    newEnd = bracketEnd;
+                }
+                else
+                {
+                    // Expand to line
+                    var line = document.GetLineByOffset(currentStart);
+                    newStart = line.Offset;
+                    newEnd = line.EndOffset;
+                }
+            }
+            else if (IsEntireLine(document, currentStart, currentLength))
+            {
+                // Expand to include more lines or block
+                var (blockStart, blockEnd) = GetEnclosingBlock(text, currentStart, currentLength);
+                newStart = blockStart;
+                newEnd = blockEnd;
+            }
+            else
+            {
+                // Expand to line
+                var startLine = document.GetLineByOffset(currentStart);
+                var endLine = document.GetLineByOffset(currentStart + currentLength);
+                newStart = startLine.Offset;
+                newEnd = endLine.EndOffset;
+            }
+        }
+
+        // Apply new selection
+        if (newStart != currentStart || newEnd != currentStart + currentLength)
+        {
+            textArea.Selection = ICSharpCode.AvalonEdit.Editing.Selection.Create(textArea, newStart, newEnd);
+            textArea.Caret.Offset = newEnd;
+        }
+    }
+
+    private void ShrinkSelection()
+    {
+        if (!CodeEditor.IsKeyboardFocusWithin) return;
+        if (_selectionHistory.Count == 0) return;
+
+        var textArea = CodeEditor.TextArea;
+        var (start, length) = _selectionHistory.Pop();
+
+        if (length == 0)
+        {
+            textArea.ClearSelection();
+            textArea.Caret.Offset = start;
+        }
+        else
+        {
+            textArea.Selection = ICSharpCode.AvalonEdit.Editing.Selection.Create(textArea, start, start + length);
+            textArea.Caret.Offset = start + length;
+        }
+    }
+
+    private (int Start, int End) GetWordBounds(string text, int offset)
+    {
+        if (offset >= text.Length) return (offset, offset);
+
+        int start = offset;
+        int end = offset;
+
+        // Expand backwards
+        while (start > 0 && (char.IsLetterOrDigit(text[start - 1]) || text[start - 1] == '_'))
+            start--;
+
+        // Expand forwards
+        while (end < text.Length && (char.IsLetterOrDigit(text[end]) || text[end] == '_'))
+            end++;
+
+        return (start, end);
+    }
+
+    private (int Start, int End) GetEnclosingBrackets(string text, int start, int length)
+    {
+        var brackets = new Dictionary<char, char>
+        {
+            { ')', '(' }, { ']', '[' }, { '}', '{' }, { '>', '<' }, { '"', '"' }, { '\'', '\'' }
+        };
+
+        int searchStart = start;
+        int searchEnd = start + length;
+
+        // Search outward for enclosing brackets
+        for (int i = start - 1; i >= 0; i--)
+        {
+            char c = text[i];
+            if (c == '(' || c == '[' || c == '{')
+            {
+                // Find matching closing bracket
+                int depth = 1;
+                for (int j = searchEnd; j < text.Length; j++)
+                {
+                    if (text[j] == c) depth++;
+                    else if (text[j] == brackets.FirstOrDefault(x => x.Value == c).Key)
+                    {
+                        depth--;
+                        if (depth == 0)
+                        {
+                            return (i, j + 1);
+                        }
+                    }
+                }
+            }
+            else if (c == '"' || c == '\'')
+            {
+                // Find matching quote
+                for (int j = searchEnd; j < text.Length; j++)
+                {
+                    if (text[j] == c && (j == 0 || text[j - 1] != '\\'))
+                    {
+                        return (i, j + 1);
+                    }
+                }
+            }
+        }
+
+        return (start, start + length);
+    }
+
+    private (int Start, int End) GetEnclosingBlock(string text, int start, int length)
+    {
+        // Find enclosing braces
+        int braceDepth = 0;
+        int blockStart = start;
+
+        for (int i = start - 1; i >= 0; i--)
+        {
+            if (text[i] == '}') braceDepth++;
+            else if (text[i] == '{')
+            {
+                if (braceDepth == 0)
+                {
+                    blockStart = i;
+                    break;
+                }
+                braceDepth--;
+            }
+        }
+
+        braceDepth = 0;
+        int blockEnd = start + length;
+
+        for (int i = start + length; i < text.Length; i++)
+        {
+            if (text[i] == '{') braceDepth++;
+            else if (text[i] == '}')
+            {
+                if (braceDepth == 0)
+                {
+                    blockEnd = i + 1;
+                    break;
+                }
+                braceDepth--;
+            }
+        }
+
+        return (blockStart, blockEnd);
+    }
+
+    private bool IsEntireLine(ICSharpCode.AvalonEdit.Document.TextDocument document, int start, int length)
+    {
+        var startLine = document.GetLineByOffset(start);
+        var endLine = document.GetLineByOffset(start + length);
+        return start == startLine.Offset && start + length == endLine.EndOffset;
+    }
+
+    private string? _lastSearchText;
+
+    private void AddNextOccurrence()
+    {
+        if (!CodeEditor.IsKeyboardFocusWithin) return;
+
+        var document = CodeEditor.Document;
+        var textArea = CodeEditor.TextArea;
+        var selection = textArea.Selection;
+
+        string searchText;
+        int searchFrom;
+
+        if (selection.IsEmpty)
+        {
+            // No selection - select current word first
+            var (wordStart, wordEnd) = GetWordBounds(document.Text, textArea.Caret.Offset);
+            if (wordStart == wordEnd) return;
+
+            searchText = document.GetText(wordStart, wordEnd - wordStart);
+            textArea.Selection = ICSharpCode.AvalonEdit.Editing.Selection.Create(textArea, wordStart, wordEnd);
+            textArea.Caret.Offset = wordEnd;
+            _lastSearchText = searchText;
+            return;
+        }
+
+        // Get selected text
+        var segment = selection.SurroundingSegment;
+        searchText = document.GetText(segment.Offset, segment.Length);
+        _lastSearchText = searchText;
+
+        // Search for next occurrence after current selection
+        searchFrom = segment.EndOffset;
+        var text = document.Text;
+        var nextIndex = text.IndexOf(searchText, searchFrom, StringComparison.Ordinal);
+
+        // Wrap around if not found
+        if (nextIndex < 0)
+        {
+            nextIndex = text.IndexOf(searchText, 0, StringComparison.Ordinal);
+            if (nextIndex >= segment.Offset) return; // No other occurrence
+        }
+
+        if (nextIndex >= 0)
+        {
+            // Add to selection (multi-cursor not supported in basic AvalonEdit, so just move selection)
+            textArea.Selection = ICSharpCode.AvalonEdit.Editing.Selection.Create(textArea, nextIndex, nextIndex + searchText.Length);
+            textArea.Caret.Offset = nextIndex + searchText.Length;
+
+            // Scroll to make visible
+            textArea.Caret.BringCaretToView();
+        }
+    }
+
+    private void SelectAllOccurrences()
+    {
+        if (!CodeEditor.IsKeyboardFocusWithin) return;
+
+        var document = CodeEditor.Document;
+        var textArea = CodeEditor.TextArea;
+        var selection = textArea.Selection;
+
+        string searchText;
+
+        if (selection.IsEmpty)
+        {
+            // No selection - use word at caret
+            var (wordStart, wordEnd) = GetWordBounds(document.Text, textArea.Caret.Offset);
+            if (wordStart == wordEnd) return;
+            searchText = document.GetText(wordStart, wordEnd - wordStart);
+        }
+        else
+        {
+            var segment = selection.SurroundingSegment;
+            searchText = document.GetText(segment.Offset, segment.Length);
+        }
+
+        // Find all occurrences
+        var text = document.Text;
+        var occurrences = new List<(int Start, int End)>();
+        int index = 0;
+
+        while ((index = text.IndexOf(searchText, index, StringComparison.Ordinal)) >= 0)
+        {
+            occurrences.Add((index, index + searchText.Length));
+            index += searchText.Length;
+        }
+
+        if (occurrences.Count <= 1) return;
+
+        // AvalonEdit doesn't support true multi-cursor, but we can select all text
+        // For now, just show a message and select the last occurrence
+        // In the future, this could be enhanced with rectangular selection or multi-caret support
+
+        // Select last occurrence and show count in status
+        var last = occurrences[^1];
+        textArea.Selection = ICSharpCode.AvalonEdit.Editing.Selection.Create(textArea, last.Start, last.End);
+        textArea.Caret.Offset = last.End;
+        textArea.Caret.BringCaretToView();
+
+        SetStatus($"Found {occurrences.Count} occurrences of \"{searchText}\"", false);
     }
 
     #endregion

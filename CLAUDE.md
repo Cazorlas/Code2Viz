@@ -145,12 +145,21 @@ Due to naming conflicts with WPF types:
 - `Ctrl+S` - Save all files
 - `Ctrl+Shift+F` - Format code
 
-### Editor Operations (custom implemented)
-- `Shift+Alt+Down` - Duplicate line
-- `Ctrl+Shift+D` - Delete line
-- `Ctrl+Up` - Move line up
-- `Ctrl+Down` - Move line down
+### Editor Operations
 - `Ctrl+/` - Toggle comment (single/multi-line)
+
+### Line Operations
+- `Alt+Up` - Move line up
+- `Alt+Down` - Move line down
+- `Shift+Alt+Up` - Copy line up
+- `Shift+Alt+Down` - Copy line down
+- `Ctrl+Shift+D` - Delete line
+
+### Selection Operations
+- `Shift+Alt+Right` - Expand selection (word → brackets → line → block)
+- `Shift+Alt+Left` - Shrink selection (undo expand)
+- `Ctrl+D` - Add next occurrence
+- `Ctrl+Shift+L` - Select all occurrences
 
 ### Built-in AvalonEdit
 - `Ctrl+C/V/X` - Copy/Paste/Cut

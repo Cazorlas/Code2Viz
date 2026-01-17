@@ -937,15 +937,26 @@ namespace StartViz
             shortcutsTable.Columns.Add(new TableColumn { Width = new GridLength(300) });
 
             var rowGroup = new TableRowGroup();
+            // File operations
             AddShortcutRow(rowGroup, "F5 / Ctrl+Enter", "Run code", true);
             AddShortcutRow(rowGroup, "Ctrl+S", "Save all files", false);
             AddShortcutRow(rowGroup, "Ctrl+N", "New file", true);
             AddShortcutRow(rowGroup, "Ctrl+Shift+N", "New project", false);
             AddShortcutRow(rowGroup, "Ctrl+O", "Open project", true);
+            // Editor operations
             AddShortcutRow(rowGroup, "Ctrl+Shift+F", "Format code", false);
             AddShortcutRow(rowGroup, "Ctrl+/", "Toggle comment", true);
-            AddShortcutRow(rowGroup, "Ctrl+Up/Down", "Move line up/down", false);
-            AddShortcutRow(rowGroup, "Shift+Alt+Down", "Duplicate line", true);
+            // Line operations
+            AddShortcutRow(rowGroup, "Alt+Up/Down", "Move line up/down", false);
+            AddShortcutRow(rowGroup, "Shift+Alt+Up", "Copy line up", true);
+            AddShortcutRow(rowGroup, "Shift+Alt+Down", "Copy line down", false);
+            AddShortcutRow(rowGroup, "Ctrl+Shift+D", "Delete line", true);
+            // Selection operations
+            AddShortcutRow(rowGroup, "Shift+Alt+Right", "Expand selection", false);
+            AddShortcutRow(rowGroup, "Shift+Alt+Left", "Shrink selection", true);
+            AddShortcutRow(rowGroup, "Ctrl+D", "Add next occurrence", false);
+            AddShortcutRow(rowGroup, "Ctrl+Shift+L", "Select all occurrences", true);
+            // Canvas
             AddShortcutRow(rowGroup, "Mouse Wheel", "Zoom canvas", false);
             AddShortcutRow(rowGroup, "Middle Click", "Pan canvas", true);
             shortcutsTable.RowGroups.Add(rowGroup);

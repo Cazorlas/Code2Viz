@@ -429,7 +429,7 @@ public class RenderCanvas : FrameworkElement
 
     private void DrawPoint(DrawingContext dc, VPoint point)
     {
-        if (point.Opacity <= 0) return;
+        if (point.DrawFactor <= 0 || point.Opacity <= 0) return;
 
         var applyOpacity = point.Opacity < 1.0;
         if (applyOpacity) dc.PushOpacity(point.Opacity);
@@ -450,6 +450,15 @@ public class RenderCanvas : FrameworkElement
         var applyOpacity = line.Opacity < 1.0;
         if (applyOpacity) dc.PushOpacity(line.Opacity);
 
+        // Apply rotation transform if needed
+        var applyRotation = line.RotationAngle != 0 && line.RotationPivot != null;
+        if (applyRotation)
+        {
+            var pivot = WorldToScreen(line.RotationPivot!.X + line.OffsetX, line.RotationPivot!.Y + line.OffsetY);
+            // Negate angle because screen Y is inverted
+            dc.PushTransform(new RotateTransform(-line.RotationAngle, pivot.X, pivot.Y));
+        }
+
         // Apply offset for move animation
         var offsetX = line.OffsetX;
         var offsetY = line.OffsetY;
@@ -468,6 +477,7 @@ public class RenderCanvas : FrameworkElement
 
         dc.DrawLine(pen, start, end);
 
+        if (applyRotation) dc.Pop();
         if (applyOpacity) dc.Pop();
     }
 
@@ -524,6 +534,14 @@ public class RenderCanvas : FrameworkElement
         var applyOpacity = circle.Opacity < 1.0;
         if (applyOpacity) dc.PushOpacity(circle.Opacity);
 
+        // Apply rotation transform if needed
+        var applyRotation = circle.RotationAngle != 0 && circle.RotationPivot != null;
+        if (applyRotation)
+        {
+            var pivot = WorldToScreen(circle.RotationPivot!.X + circle.OffsetX, circle.RotationPivot!.Y + circle.OffsetY);
+            dc.PushTransform(new RotateTransform(-circle.RotationAngle, pivot.X, pivot.Y));
+        }
+
         // Apply offset for move animation
         var offsetX = circle.OffsetX;
         var offsetY = circle.OffsetY;
@@ -561,6 +579,7 @@ public class RenderCanvas : FrameworkElement
             dc.DrawEllipse(fill, pen, centerScreen, screenRadius, screenRadius);
         }
 
+        if (applyRotation) dc.Pop();
         if (applyOpacity) dc.Pop();
     }
 
@@ -570,6 +589,14 @@ public class RenderCanvas : FrameworkElement
 
         var applyOpacity = rect.Opacity < 1.0;
         if (applyOpacity) dc.PushOpacity(rect.Opacity);
+
+        // Apply rotation transform if needed
+        var applyRotation = rect.RotationAngle != 0 && rect.RotationPivot != null;
+        if (applyRotation)
+        {
+            var pivot = WorldToScreen(rect.RotationPivot!.X + rect.OffsetX, rect.RotationPivot!.Y + rect.OffsetY);
+            dc.PushTransform(new RotateTransform(-rect.RotationAngle, pivot.X, pivot.Y));
+        }
 
         // Apply offset for move animation
         var offsetX = rect.OffsetX;
@@ -629,12 +656,13 @@ public class RenderCanvas : FrameworkElement
             dc.DrawRectangle(fill, pen, new Rect(corner.X, corner.Y, screenWidth, screenHeight));
         }
 
+        if (applyRotation) dc.Pop();
         if (applyOpacity) dc.Pop();
     }
 
     private void DrawEllipse(DrawingContext dc, VEllipse ellipse)
     {
-        if (ellipse.Opacity <= 0) return;
+        if (ellipse.DrawFactor <= 0 || ellipse.Opacity <= 0) return;
 
         var applyOpacity = ellipse.Opacity < 1.0;
         if (applyOpacity) dc.PushOpacity(ellipse.Opacity);
@@ -757,7 +785,7 @@ public class RenderCanvas : FrameworkElement
 
     private void DrawText(DrawingContext dc, VText text)
     {
-        if (string.IsNullOrEmpty(text.Content) || text.Opacity <= 0)
+        if (string.IsNullOrEmpty(text.Content) || text.DrawFactor <= 0 || text.Opacity <= 0)
             return;
 
         var applyOpacity = text.Opacity < 1.0;
@@ -860,39 +888,77 @@ public class RenderCanvas : FrameworkElement
 
     private void DrawArrow(DrawingContext dc, VArrow arrow)
     {
-        if (arrow.Opacity <= 0) return;
+        if (arrow.DrawFactor <= 0 || arrow.Opacity <= 0) return;
 
         var applyOpacity = arrow.Opacity < 1.0;
         if (applyOpacity) dc.PushOpacity(arrow.Opacity);
 
+        // Apply rotation transform if needed
+        var applyRotation = arrow.RotationAngle != 0 && arrow.RotationPivot != null;
+        if (applyRotation)
+        {
+            var pivot = WorldToScreen(arrow.RotationPivot!.X + arrow.OffsetX, arrow.RotationPivot!.Y + arrow.OffsetY);
+            dc.PushTransform(new RotateTransform(-arrow.RotationAngle, pivot.X, pivot.Y));
+        }
+
         var pen = GetCachedPen(arrow.StrokeColor, arrow.StrokeThickness);
         var brush = GetCachedBrush(arrow.StrokeColor);  // Use stroke color for filled arrowhead
-        var start = WorldToScreen(arrow.Start.X, arrow.Start.Y);
-        var end = WorldToScreen(arrow.End.X, arrow.End.Y);
+        var start = WorldToScreen(arrow.Start.X + arrow.OffsetX, arrow.Start.Y + arrow.OffsetY);
+        var fullEnd = WorldToScreen(arrow.End.X + arrow.OffsetX, arrow.End.Y + arrow.OffsetY);
+
+        // Apply DrawFactor for animation (partial arrow drawing)
+        Point end = fullEnd;
+        if (arrow.DrawFactor < 1.0)
+        {
+            // Calculate partial end point
+            var dx = fullEnd.X - start.X;
+            var dy = fullEnd.Y - start.Y;
+            end = new Point(start.X + dx * arrow.DrawFactor, start.Y + dy * arrow.DrawFactor);
+        }
 
         // Draw main line
         dc.DrawLine(pen, start, end);
 
-        // Draw filled end arrowhead
-        var (wing1, wing2) = arrow.GetEndArrowhead();
-        var w1 = WorldToScreen(wing1.X, wing1.Y);
-        var w2 = WorldToScreen(wing2.X, wing2.Y);
-        var arrowHead = new StreamGeometry();
-        using (var ctx = arrowHead.Open())
-        {
-            ctx.BeginFigure(end, true, true);  // Start at tip, filled, closed
-            ctx.LineTo(w1, true, false);
-            ctx.LineTo(w2, true, false);
-        }
-        arrowHead.Freeze();
-        dc.DrawGeometry(brush, pen, arrowHead);
+        // Draw filled end arrowhead (at the current end position)
+        // Calculate arrowhead based on current draw progress
+        var arrowDirX = arrow.End.X - arrow.Start.X;
+        var arrowDirY = arrow.End.Y - arrow.Start.Y;
+        var currentEndX = arrow.Start.X + arrow.OffsetX + arrowDirX * arrow.DrawFactor;
+        var currentEndY = arrow.Start.Y + arrow.OffsetY + arrowDirY * arrow.DrawFactor;
 
-        // Draw start arrowhead if double-ended
-        if (arrow.DoubleEnded)
+        // Get arrowhead wings relative to current end position
+        var length = Math.Sqrt(arrowDirX * arrowDirX + arrowDirY * arrowDirY);
+        if (length > 0)
+        {
+            var dirX = arrowDirX / length;
+            var dirY = arrowDirY / length;
+            var perpX = -dirY;
+            var perpY = dirX;
+            var headLen = arrow.HeadLength;
+            var halfWidth = headLen / 6.0;  // Match VArrow's calculation
+
+            var w1 = WorldToScreen(currentEndX - dirX * headLen + perpX * halfWidth,
+                                   currentEndY - dirY * headLen + perpY * halfWidth);
+            var w2 = WorldToScreen(currentEndX - dirX * headLen - perpX * halfWidth,
+                                   currentEndY - dirY * headLen - perpY * halfWidth);
+
+            var arrowHead = new StreamGeometry();
+            using (var ctx = arrowHead.Open())
+            {
+                ctx.BeginFigure(end, true, true);  // Start at tip, filled, closed
+                ctx.LineTo(w1, true, false);
+                ctx.LineTo(w2, true, false);
+            }
+            arrowHead.Freeze();
+            dc.DrawGeometry(brush, pen, arrowHead);
+        }
+
+        // Draw start arrowhead if double-ended (only when fully drawn)
+        if (arrow.DoubleEnded && arrow.DrawFactor >= 1.0)
         {
             var (sw1, sw2) = arrow.GetStartArrowhead();
-            var sw1Screen = WorldToScreen(sw1.X, sw1.Y);
-            var sw2Screen = WorldToScreen(sw2.X, sw2.Y);
+            var sw1Screen = WorldToScreen(sw1.X + arrow.OffsetX, sw1.Y + arrow.OffsetY);
+            var sw2Screen = WorldToScreen(sw2.X + arrow.OffsetX, sw2.Y + arrow.OffsetY);
             var startHead = new StreamGeometry();
             using (var ctx = startHead.Open())
             {
@@ -904,12 +970,13 @@ public class RenderCanvas : FrameworkElement
             dc.DrawGeometry(brush, pen, startHead);
         }
 
+        if (applyRotation) dc.Pop();
         if (applyOpacity) dc.Pop();
     }
 
     private void DrawDimension(DrawingContext dc, VDimension dim)
     {
-        if (dim.Opacity <= 0) return;
+        if (dim.DrawFactor <= 0 || dim.Opacity <= 0) return;
 
         var applyOpacity = dim.Opacity < 1.0;
         if (applyOpacity) dc.PushOpacity(dim.Opacity);
