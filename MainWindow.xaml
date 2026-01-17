@@ -43,16 +43,8 @@
                 Background="{StaticResource SecondaryBackgroundBrush}"
                 BorderBrush="{StaticResource BorderBrush}"
                 BorderThickness="0,0,0,1"
-                Padding="12,8">
-            <Grid>
-                <TextBlock Text="Code2Viz"
-                           FontSize="28"
-                           FontWeight="Bold"
-                           Foreground="{StaticResource ForegroundBrush}"
-                           VerticalAlignment="Center"
-                           HorizontalAlignment="Left" />
-                <Image Source="/img/logo.png" Width="100" Height="100" HorizontalAlignment="Right" />
-            </Grid>
+                Padding="12,12">
+            <Image Source="/img/logo.png" Height="80" HorizontalAlignment="Left" />
         </Border>
 
         <!-- Menu Bar -->

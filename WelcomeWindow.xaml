@@ -15,7 +15,7 @@
         <!-- Left Side: Branding/Recent -->
         <Border Grid.Column="0" Background="#252526">
             <StackPanel Margin="40">
-                <TextBlock Text="Code2Viz" FontSize="48" FontWeight="Light" Foreground="White" Margin="0,0,0,10"/>
+                <Image Source="/img/logo.png" Width="200" Height="200" HorizontalAlignment="Left" Margin="0,0,0,10"/>
                 <TextBlock Text="Visual Geometry Environment" FontSize="18" Foreground="#888888" Margin="0,0,0,40"/>
                 
                 <TextBlock Text="Recent Projects" FontSize="16" Foreground="#E0E0E0" Margin="0,0,0,10"/>
