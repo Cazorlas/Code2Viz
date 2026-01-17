@@ -8,6 +8,44 @@ using Point = System.Windows.Point;
 
 namespace Code2Viz.Canvas;
 
+// Snap indicator marker brushes
+internal static class SnapMarkerBrushes
+{
+    public static readonly Brush EndpointBrush;
+    public static readonly Brush MidpointBrush;
+    public static readonly Brush CenterBrush;
+    public static readonly Brush IntersectionBrush;
+    public static readonly Brush NearestBrush;
+    public static readonly Brush PerpendicularBrush;
+    public static readonly Pen MeasuringLinePen;
+
+    static SnapMarkerBrushes()
+    {
+        EndpointBrush = new SolidColorBrush(Colors.Yellow);
+        EndpointBrush.Freeze();
+
+        MidpointBrush = new SolidColorBrush(Colors.Cyan);
+        MidpointBrush.Freeze();
+
+        CenterBrush = new SolidColorBrush(Colors.Magenta);
+        CenterBrush.Freeze();
+
+        IntersectionBrush = new SolidColorBrush(Colors.Red);
+        IntersectionBrush.Freeze();
+
+        NearestBrush = new SolidColorBrush(Colors.LimeGreen);
+        NearestBrush.Freeze();
+
+        PerpendicularBrush = new SolidColorBrush(Colors.Orange);
+        PerpendicularBrush.Freeze();
+
+        var measuringBrush = new SolidColorBrush(Colors.LimeGreen);
+        measuringBrush.Freeze();
+        MeasuringLinePen = new Pen(measuringBrush, 2) { DashStyle = DashStyles.Dash };
+        MeasuringLinePen.Freeze();
+    }
+}
+
 /// <summary>
 /// High-performance canvas using DrawingVisual for rendering tens of thousands of shapes.
 /// </summary>
@@ -28,6 +66,10 @@ public class RenderCanvas : FrameworkElement
 
     private List<IDrawable> _currentShapes = new();
     private readonly DrawingVisual _visual;
+
+    // Measuring Tool
+    private MeasuringTool? _measuringTool;
+    public MeasuringTool MeasuringTool => _measuringTool ??= new MeasuringTool();
 
     // Brush cache for performance
     private static readonly Dictionary<string, Brush> _brushCache = new();
@@ -166,6 +208,14 @@ public class RenderCanvas : FrameworkElement
             CaptureMouse();
             Cursor = Cursors.Hand;
         }
+        else if (e.LeftButton == MouseButtonState.Pressed && _measuringTool?.Mode == ToolMode.Measuring)
+        {
+            var screenPos = e.GetPosition(this);
+            var worldPos = ScreenToWorld(screenPos.X, screenPos.Y);
+            _measuringTool.OnLeftClick(new VPoint(worldPos.X, worldPos.Y));
+            RedrawAll();
+            e.Handled = true;
+        }
     }
 
     private void OnMouseUp(object sender, MouseButtonEventArgs e)
@@ -189,6 +239,12 @@ public class RenderCanvas : FrameworkElement
             _panX += screenPos.X - _lastMousePosition.X;
             _panY += screenPos.Y - _lastMousePosition.Y;
             _lastMousePosition = screenPos;
+            RedrawAll();
+        }
+        else if (_measuringTool?.Mode == ToolMode.Measuring)
+        {
+            // Update measuring tool with cursor position
+            _measuringTool.OnMouseMove(new VPoint(worldPos.X, worldPos.Y), _currentShapes, _scale);
             RedrawAll();
         }
     }
@@ -349,6 +405,167 @@ public class RenderCanvas : FrameworkElement
                     break;
             }
         }
+
+        // Draw measuring tool overlay
+        if (_measuringTool?.Mode == ToolMode.Measuring)
+        {
+            DrawMeasuringOverlay(dc);
+        }
+    }
+
+    private void DrawMeasuringOverlay(DrawingContext dc)
+    {
+        if (_measuringTool == null) return;
+
+        // Draw snap indicator
+        if (_measuringTool.CurrentSnap != null)
+        {
+            DrawSnapIndicator(dc, _measuringTool.CurrentSnap);
+        }
+
+        // Draw measuring line if first point is set
+        if (_measuringTool.FirstPoint != null)
+        {
+            var startScreen = WorldToScreen(_measuringTool.FirstPoint.X, _measuringTool.FirstPoint.Y);
+
+            // Draw first point marker
+            dc.DrawEllipse(SnapMarkerBrushes.EndpointBrush, null, startScreen, 6, 6);
+
+            // Draw line to current position
+            var endPoint = _measuringTool.GetEffectiveEndPoint();
+            if (endPoint != null)
+            {
+                var endScreen = WorldToScreen(endPoint.X, endPoint.Y);
+                dc.DrawLine(SnapMarkerBrushes.MeasuringLinePen, startScreen, endScreen);
+
+                // Draw distance label at midpoint
+                var distance = _measuringTool.GetCurrentDistance();
+                if (distance.HasValue)
+                {
+                    var midScreen = new Point(
+                        (startScreen.X + endScreen.X) / 2,
+                        (startScreen.Y + endScreen.Y) / 2);
+
+                    DrawDistanceLabel(dc, midScreen, distance.Value);
+                }
+            }
+        }
+    }
+
+    private void DrawSnapIndicator(DrawingContext dc, SnapResult snap)
+    {
+        var screenPos = WorldToScreen(snap.Point.X, snap.Point.Y);
+        const double markerSize = 8;
+
+        Brush markerBrush = snap.Type switch
+        {
+            SnapType.Endpoint => SnapMarkerBrushes.EndpointBrush,
+            SnapType.Midpoint => SnapMarkerBrushes.MidpointBrush,
+            SnapType.Center => SnapMarkerBrushes.CenterBrush,
+            SnapType.Intersection => SnapMarkerBrushes.IntersectionBrush,
+            SnapType.Nearest => SnapMarkerBrushes.NearestBrush,
+            SnapType.Perpendicular => SnapMarkerBrushes.PerpendicularBrush,
+            _ => Brushes.White
+        };
+
+        var markerPen = new Pen(markerBrush, 2);
+        markerPen.Freeze();
+
+        switch (snap.Type)
+        {
+            case SnapType.Endpoint:
+                // Square marker
+                dc.DrawRectangle(null, markerPen, new Rect(
+                    screenPos.X - markerSize / 2, screenPos.Y - markerSize / 2,
+                    markerSize, markerSize));
+                break;
+
+            case SnapType.Midpoint:
+                // Triangle marker
+                var triangle = new StreamGeometry();
+                using (var ctx = triangle.Open())
+                {
+                    ctx.BeginFigure(new Point(screenPos.X, screenPos.Y - markerSize), false, true);
+                    ctx.LineTo(new Point(screenPos.X - markerSize * 0.866, screenPos.Y + markerSize / 2), true, false);
+                    ctx.LineTo(new Point(screenPos.X + markerSize * 0.866, screenPos.Y + markerSize / 2), true, false);
+                }
+                triangle.Freeze();
+                dc.DrawGeometry(null, markerPen, triangle);
+                break;
+
+            case SnapType.Center:
+                // Circle marker
+                dc.DrawEllipse(null, markerPen, screenPos, markerSize / 2, markerSize / 2);
+                break;
+
+            case SnapType.Intersection:
+                // X marker
+                dc.DrawLine(markerPen,
+                    new Point(screenPos.X - markerSize / 2, screenPos.Y - markerSize / 2),
+                    new Point(screenPos.X + markerSize / 2, screenPos.Y + markerSize / 2));
+                dc.DrawLine(markerPen,
+                    new Point(screenPos.X + markerSize / 2, screenPos.Y - markerSize / 2),
+                    new Point(screenPos.X - markerSize / 2, screenPos.Y + markerSize / 2));
+                break;
+
+            case SnapType.Nearest:
+                // Diamond marker
+                var diamond = new StreamGeometry();
+                using (var ctx = diamond.Open())
+                {
+                    ctx.BeginFigure(new Point(screenPos.X, screenPos.Y - markerSize), false, true);
+                    ctx.LineTo(new Point(screenPos.X + markerSize, screenPos.Y), true, false);
+                    ctx.LineTo(new Point(screenPos.X, screenPos.Y + markerSize), true, false);
+                    ctx.LineTo(new Point(screenPos.X - markerSize, screenPos.Y), true, false);
+                }
+                diamond.Freeze();
+                dc.DrawGeometry(null, markerPen, diamond);
+                break;
+
+            case SnapType.Perpendicular:
+                // Right angle marker
+                var rightAngle = new StreamGeometry();
+                using (var ctx = rightAngle.Open())
+                {
+                    ctx.BeginFigure(new Point(screenPos.X - markerSize, screenPos.Y), false, false);
+                    ctx.LineTo(new Point(screenPos.X, screenPos.Y), true, false);
+                    ctx.LineTo(new Point(screenPos.X, screenPos.Y - markerSize), true, false);
+                }
+                rightAngle.Freeze();
+                dc.DrawGeometry(null, markerPen, rightAngle);
+                break;
+        }
+    }
+
+    private void DrawDistanceLabel(DrawingContext dc, Point screenPos, double distance)
+    {
+        var text = distance.ToString("F2");
+        var typeface = new Typeface("Segoe UI");
+        var formattedText = new FormattedText(
+            text,
+            CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight,
+            typeface,
+            14,
+            Brushes.LimeGreen,
+            VisualTreeHelper.GetDpi(this).PixelsPerDip);
+
+        // Draw background
+        var padding = 4.0;
+        var bgRect = new Rect(
+            screenPos.X - formattedText.Width / 2 - padding,
+            screenPos.Y - formattedText.Height / 2 - padding,
+            formattedText.Width + padding * 2,
+            formattedText.Height + padding * 2);
+
+        var bgBrush = new SolidColorBrush(Color.FromArgb(200, 30, 30, 30));
+        bgBrush.Freeze();
+        dc.DrawRectangle(bgBrush, null, bgRect);
+
+        // Draw text
+        dc.DrawText(formattedText, new Point(
+            screenPos.X - formattedText.Width / 2,
+            screenPos.Y - formattedText.Height / 2));
     }
 
     private void DrawGrid(DrawingContext dc)

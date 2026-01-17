@@ -2654,6 +2654,14 @@ public partial class MainWindow : Window
         // Include Grid
         SettingsIncludeGridCheck.IsChecked = appSettings.IncludeGridInExport;
 
+        // Snap Settings
+        SnapEndpointCheck.IsChecked = appSettings.SnapEndpointEnabled;
+        SnapMidpointCheck.IsChecked = appSettings.SnapMidpointEnabled;
+        SnapCenterCheck.IsChecked = appSettings.SnapCenterEnabled;
+        SnapIntersectionCheck.IsChecked = appSettings.SnapIntersectionEnabled;
+        SnapNearestCheck.IsChecked = appSettings.SnapNearestEnabled;
+        SnapPerpendicularCheck.IsChecked = appSettings.SnapPerpendicularEnabled;
+
         // Update Button colors
         UpdateColorButton(SettingsStrokeColorBtn, SettingsStrokeColorBox.Text);
         UpdateColorButton(SettingsFillColorBtn, SettingsFillColorBox.Text);
@@ -2757,7 +2765,19 @@ public partial class MainWindow : Window
         
         ApplicationSettings.Instance.DefaultExportBackground = exportBg;
         ApplicationSettings.Instance.IncludeGridInExport = SettingsIncludeGridCheck.IsChecked == true;
+
+        // Save Snap Settings
+        ApplicationSettings.Instance.SnapEndpointEnabled = SnapEndpointCheck.IsChecked == true;
+        ApplicationSettings.Instance.SnapMidpointEnabled = SnapMidpointCheck.IsChecked == true;
+        ApplicationSettings.Instance.SnapCenterEnabled = SnapCenterCheck.IsChecked == true;
+        ApplicationSettings.Instance.SnapIntersectionEnabled = SnapIntersectionCheck.IsChecked == true;
+        ApplicationSettings.Instance.SnapNearestEnabled = SnapNearestCheck.IsChecked == true;
+        ApplicationSettings.Instance.SnapPerpendicularEnabled = SnapPerpendicularCheck.IsChecked == true;
+
         ApplicationSettings.Save();
+
+        // Refresh measuring tool snap settings
+        RenderCanvas.MeasuringTool.RefreshSnapSettings();
 
         SetStatus("Settings saved (Project and Application).", isError: false);
     }
@@ -3413,6 +3433,10 @@ public partial class MainWindow : Window
                     ZoomToShapeMenuItem_Click(sender, e);
                     e.Handled = true;
                     break;
+                case Key.M:
+                    ToggleMeasuringTool();
+                    e.Handled = true;
+                    break;
             }
         }
         else if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
@@ -3488,6 +3512,63 @@ public partial class MainWindow : Window
         {
             HelpMenuItem_Click(sender, e);
             e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            // Cancel measuring tool if active
+            if (RenderCanvas.MeasuringTool.Mode == Canvas.ToolMode.Measuring)
+            {
+                RenderCanvas.MeasuringTool.CancelMeasuring();
+                RenderCanvas.Refresh();
+                SetStatus("Measuring cancelled", isError: false);
+                e.Handled = true;
+            }
+        }
+    }
+
+    #endregion
+
+    #region Measuring Tool
+
+    private void ToggleMeasuringTool()
+    {
+        var tool = RenderCanvas.MeasuringTool;
+        tool.Toggle();
+
+        if (tool.Mode == Canvas.ToolMode.Measuring)
+        {
+            SetStatus("Measuring: Click first point", isError: false);
+            tool.MeasurementCompleted += OnMeasurementCompleted;
+            tool.ModeChanged += OnMeasuringModeChanged;
+            tool.RefreshSnapSettings();
+        }
+        else
+        {
+            tool.MeasurementCompleted -= OnMeasurementCompleted;
+            tool.ModeChanged -= OnMeasuringModeChanged;
+            SetStatus("Ready", isError: false);
+        }
+
+        RenderCanvas.Refresh();
+    }
+
+    private void OnMeasurementCompleted(object? sender, double distance)
+    {
+        SetStatus($"Distance: {distance:F2}", isError: false);
+    }
+
+    private void OnMeasuringModeChanged(object? sender, Canvas.ToolMode mode)
+    {
+        if (mode == Canvas.ToolMode.Measuring)
+        {
+            if (RenderCanvas.MeasuringTool.FirstPoint == null)
+            {
+                SetStatus("Measuring: Click first point", isError: false);
+            }
+        }
+        else
+        {
+            SetStatus("Ready", isError: false);
         }
     }
 

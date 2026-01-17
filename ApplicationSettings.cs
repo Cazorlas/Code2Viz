@@ -7,6 +7,14 @@ public class AppSettingsData
 {
     public bool IncludeGridInExport { get; set; } = true;
     public string DefaultExportBackground { get; set; } = "Transparent";
+
+    // Snap Settings
+    public bool SnapEndpointEnabled { get; set; } = true;
+    public bool SnapMidpointEnabled { get; set; } = true;
+    public bool SnapCenterEnabled { get; set; } = true;
+    public bool SnapIntersectionEnabled { get; set; } = true;
+    public bool SnapNearestEnabled { get; set; } = true;
+    public bool SnapPerpendicularEnabled { get; set; } = true;
 }
 
 public static class ApplicationSettings
