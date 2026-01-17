@@ -57,7 +57,7 @@ Press **F5** or click the **Run** button to execute and see results on the canva
 |-------|-------------|---------------------|
 | **VPoint** | A point marker | `new VPoint(x, y)` |
 | **VLine** | A line segment | `new VLine(p1, p2)` or `new VLine(x1, y1, x2, y2)` |
-| **VCircle** | A circle | `new VCircle(center, radius)` or `new VCircle(x, y, radius)` |
+| **VCircle** | A circle | `new VCircle(center, radius)` or `new VCircle(x, y, radius)` or `new VCircle(p1, p2, p3)` (circumcircle) |
 | **VRectangle** | A rectangle | `new VRectangle(corner, width, height)` |
 | **VEllipse** | An ellipse | `new VEllipse(center, radiusX, radiusY)` |
 | **VArc** | A circular arc | `new VArc(center, radius, startAngle, endAngle)` |
@@ -214,6 +214,30 @@ Code2Viz uses a **mathematical coordinate system**:
 
 ---
 
+## Shape IDs and Outliner
+
+### Unique Shape IDs
+Every shape has a unique `Id` property (long integer) automatically assigned when created:
+
+```csharp
+var circle = new VCircle(0, 0, 50);
+var line = new VLine(0, 0, 100, 100);
+VizConsole.Log($"Circle ID: {circle.Id}");  // e.g., 1
+VizConsole.Log($"Line ID: {line.Id}");      // e.g., 2
+```
+
+### Outliner Panel
+The Outliner panel (below the Explorer) displays all shapes grouped by type:
+- Shows shape count per type: "VCircle (3)"
+- Each shape displays its name and clickable ID
+- Click an ID to zoom the canvas to that shape
+- Right-click for **Expand All** / **Collapse All** options
+
+### Zoom To Shape
+Use **View > Zoom To Shape** (or `Ctrl+G`) to zoom to a specific shape by entering its ID.
+
+---
+
 ## Export Options
 
 ### PNG Export
@@ -273,6 +297,7 @@ File > Export > GIF exports animations as animated GIF files with options:
 |----------|--------|
 | `Mouse Wheel` | Zoom |
 | `Middle Click` | Pan |
+| `Ctrl+G` | Zoom to shape by ID |
 
 ---
 

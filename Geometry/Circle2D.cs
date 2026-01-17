@@ -21,6 +21,33 @@ public class VCircle : Shape, ICurve
         StrokeColor = ShapeDefaults.GlobalStrokeColor ?? "Yellow";
     }
 
+    /// <summary>
+    /// Creates a circle passing through three points (circumcircle).
+    /// </summary>
+    /// <exception cref="ArgumentException">Thrown when the three points are collinear.</exception>
+    public VCircle(VPoint p1, VPoint p2, VPoint p3)
+    {
+        double x1 = p1.X, y1 = p1.Y;
+        double x2 = p2.X, y2 = p2.Y;
+        double x3 = p3.X, y3 = p3.Y;
+
+        double d = 2 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
+
+        if (Math.Abs(d) < 1e-10)
+            throw new ArgumentException("The three points are collinear; cannot create a circle.");
+
+        double sq1 = x1 * x1 + y1 * y1;
+        double sq2 = x2 * x2 + y2 * y2;
+        double sq3 = x3 * x3 + y3 * y3;
+
+        double cx = (sq1 * (y2 - y3) + sq2 * (y3 - y1) + sq3 * (y1 - y2)) / d;
+        double cy = (sq1 * (x3 - x2) + sq2 * (x1 - x3) + sq3 * (x2 - x1)) / d;
+
+        Center = new VPoint(cx, cy);
+        Radius = Math.Sqrt((x1 - cx) * (x1 - cx) + (y1 - cy) * (y1 - cy));
+        StrokeColor = ShapeDefaults.GlobalStrokeColor ?? "Yellow";
+    }
+
     public override void Draw()
     {
         CanvasRenderer.Instance.AddShape(this);

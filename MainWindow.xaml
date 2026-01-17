@@ -118,6 +118,7 @@
                     <!-- View Menu -->
                     <MenuItem Header="_View">
                         <MenuItem x:Name="GridMenuItem" Header="Show _Grid" IsCheckable="True" IsChecked="True" Click="GridMenuItem_Click" Style="{StaticResource MenuItemStyle}" />
+                        <MenuItem Header="_Zoom To Shape..." Click="ZoomToShapeMenuItem_Click" Style="{StaticResource MenuItemStyle}" InputGestureText="Ctrl+G" />
                         <Separator />
                         <MenuItem Header="_Clear Canvas" Click="ClearButton_Click" Style="{StaticResource MenuItemStyle}" />
                         <MenuItem Header="Clear C_onsole" Click="ClearConsoleButton_Click" Style="{StaticResource MenuItemStyle}" />
@@ -155,21 +156,24 @@
                 <ColumnDefinition Width="*" MinWidth="300" />
             </Grid.ColumnDefinitions>
 
-            <!-- Project Browser -->
-            <Border Grid.Column="0" 
-                    Background="{StaticResource SecondaryBackgroundBrush}" 
-                    BorderBrush="{StaticResource BorderBrush}" 
+            <!-- Project Browser and Outliner -->
+            <Border Grid.Column="0"
+                    Background="{StaticResource SecondaryBackgroundBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="0,0,1,0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    
+
                     <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="10,8">
-                        <TextBlock Text="EXPLORER" 
-                                   Foreground="{StaticResource ForegroundBrush}" 
-                                   FontWeight="Bold" 
+                        <TextBlock Text="EXPLORER"
+                                   Foreground="{StaticResource ForegroundBrush}"
+                                   FontWeight="Bold"
                                    FontSize="12"/>
                     </Border>
                     
@@ -289,6 +293,148 @@
                                         <Setter Property="Background" Value="#37373D"/>
                                         <Setter Property="Foreground" Value="White"/>
                                     </MultiTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TreeView.ItemContainerStyle>
+                    </TreeView>
+
+                    <!-- Splitter between Explorer and Outliner -->
+                    <GridSplitter Grid.Row="2"
+                                  Height="4"
+                                  HorizontalAlignment="Stretch"
+                                  VerticalAlignment="Center"
+                                  Background="{StaticResource BorderBrush}"
+                                  ResizeBehavior="PreviousAndNext" />
+
+                    <!-- Outliner Header -->
+                    <Border Grid.Row="3" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="10,8">
+                        <TextBlock Text="OUTLINER"
+                                   Foreground="{StaticResource ForegroundBrush}"
+                                   FontWeight="Bold"
+                                   FontSize="12"/>
+                    </Border>
+
+                    <!-- Outliner TreeView -->
+                    <TreeView x:Name="OutlinerTreeView"
+                              Grid.Row="4"
+                              Background="Transparent"
+                              BorderThickness="0"
+                              Padding="0,5">
+                        <TreeView.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Expand All" Click="OutlinerExpandAll_Click"/>
+                                <MenuItem Header="Collapse All" Click="OutlinerCollapseAll_Click"/>
+                            </ContextMenu>
+                        </TreeView.ContextMenu>
+                        <TreeView.Resources>
+                            <Style x:Key="OutlinerExpandCollapseToggleStyle" TargetType="{x:Type ToggleButton}">
+                                <Setter Property="Focusable" Value="False"/>
+                                <Setter Property="Width" Value="16"/>
+                                <Setter Property="Height" Value="16"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                            <Border Background="Transparent" Height="16" Padding="5" Width="16">
+                                                <Path x:Name="ExpandPath"
+                                                      Data="M0,0 L0,6 L6,0 z"
+                                                      Fill="{StaticResource ForegroundBrush}"
+                                                      RenderTransformOrigin="0.5,0.5">
+                                                    <Path.RenderTransform>
+                                                        <RotateTransform Angle="135" />
+                                                    </Path.RenderTransform>
+                                                </Path>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsChecked" Value="True">
+                                                    <Setter TargetName="ExpandPath" Property="RenderTransform">
+                                                        <Setter.Value>
+                                                            <RotateTransform Angle="180" />
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="ExpandPath" Property="Fill" Value="{StaticResource AccentBrush}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </TreeView.Resources>
+                        <TreeView.ItemTemplate>
+                            <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                    <TextBlock Text="{Binding DisplayName}" Foreground="{StaticResource ForegroundBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text=" [" Foreground="Gray" VerticalAlignment="Center" Visibility="{Binding IsShape, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                    <TextBlock x:Name="IdLink"
+                                               Text="{Binding Id}"
+                                               Foreground="{StaticResource AccentBrush}"
+                                               VerticalAlignment="Center"
+                                               Cursor="Hand"
+                                               TextDecorations="Underline"
+                                               MouseLeftButtonDown="OutlinerIdLink_Click"
+                                               Visibility="{Binding IsShape, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                    <TextBlock Text="]" Foreground="Gray" VerticalAlignment="Center" Visibility="{Binding IsShape, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                </StackPanel>
+                            </HierarchicalDataTemplate>
+                        </TreeView.ItemTemplate>
+                        <TreeView.ItemContainerStyle>
+                            <Style TargetType="{x:Type TreeViewItem}">
+                                <Setter Property="IsExpanded" Value="True" />
+                                <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
+                                <Setter Property="Padding" Value="4,2"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="TreeViewItem">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" MinWidth="19" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition />
+                                                </Grid.RowDefinitions>
+                                                <ToggleButton x:Name="Expander"
+                                                              ClickMode="Press"
+                                                              IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
+                                                              Style="{StaticResource OutlinerExpandCollapseToggleStyle}" />
+                                                <Border x:Name="Bd"
+                                                        Grid.Column="1"
+                                                        Background="{TemplateBinding Background}"
+                                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                                        Padding="{TemplateBinding Padding}"
+                                                        SnapsToDevicePixels="true">
+                                                    <ContentPresenter x:Name="PART_Header"
+                                                                      ContentSource="Header"
+                                                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                                      SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                                                </Border>
+                                                <ItemsPresenter x:Name="ItemsHost"
+                                                                Grid.Row="1"
+                                                                Grid.Column="1"
+                                                                Grid.ColumnSpan="2" />
+                                            </Grid>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="HasItems" Value="false">
+                                                    <Setter TargetName="Expander" Property="Visibility" Value="Hidden" />
+                                                </Trigger>
+                                                <Trigger Property="IsExpanded" Value="false">
+                                                    <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="#37373D" />
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#2A2D2E" />
+                                    </Trigger>
                                 </Style.Triggers>
                             </Style>
                         </TreeView.ItemContainerStyle>

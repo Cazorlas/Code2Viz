@@ -1129,4 +1129,126 @@ public class RenderCanvas : FrameworkElement
         minY = Math.Min(minY, y);
         maxY = Math.Max(maxY, y);
     }
+
+    /// <summary>
+    /// Finds a shape by its unique ID and zooms the canvas to fit it.
+    /// </summary>
+    /// <param name="id">The unique ID of the shape to zoom to.</param>
+    /// <returns>True if the shape was found and zoomed to, false otherwise.</returns>
+    public bool ZoomToShape(long id)
+    {
+        var shape = _currentShapes.OfType<Shape>().FirstOrDefault(s => s.Id == id);
+        if (shape == null)
+            return false;
+
+        ZoomExtents(new[] { shape }, minWorldSize: 10);
+        return true;
+    }
+
+    /// <summary>
+    /// Zooms the canvas to fit the given shapes with a specified minimum world size.
+    /// </summary>
+    public void ZoomExtents(IEnumerable<IDrawable> shapes, double minWorldSize)
+    {
+        var shapeList = shapes.ToList();
+        if (!shapeList.Any() || ActualWidth <= 0 || ActualHeight <= 0)
+        {
+            _scale = 1.0;
+            _panX = 0;
+            _panY = 0;
+            RedrawAll();
+            return;
+        }
+
+        double minX = double.MaxValue, minY = double.MaxValue;
+        double maxX = double.MinValue, maxY = double.MinValue;
+
+        foreach (var shape in shapeList)
+        {
+            switch (shape)
+            {
+                case VPoint point:
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, point.X, point.Y);
+                    break;
+                case VLine line:
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, line.Start.X, line.Start.Y);
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, line.End.X, line.End.Y);
+                    break;
+                case VArc arc:
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, arc.Center.X - arc.Radius, arc.Center.Y - arc.Radius);
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, arc.Center.X + arc.Radius, arc.Center.Y + arc.Radius);
+                    break;
+                case VCircle circle:
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, circle.Center.X - circle.Radius, circle.Center.Y - circle.Radius);
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, circle.Center.X + circle.Radius, circle.Center.Y + circle.Radius);
+                    break;
+                case VRectangle rect:
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, rect.Corner.X, rect.Corner.Y);
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, rect.Corner.X + rect.Width, rect.Corner.Y + rect.Height);
+                    break;
+                case VEllipse ellipse:
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, ellipse.Center.X - ellipse.RadiusX, ellipse.Center.Y - ellipse.RadiusY);
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, ellipse.Center.X + ellipse.RadiusX, ellipse.Center.Y + ellipse.RadiusY);
+                    break;
+                case VPolygon polygon:
+                    foreach (var p in polygon.Points)
+                        UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, p.X, p.Y);
+                    break;
+                case VPolyline polyline:
+                    foreach (var p in polyline.Points)
+                        UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, p.X, p.Y);
+                    break;
+                case VText text:
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, text.Location.X, text.Location.Y);
+                    break;
+                case VBezier bezier:
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, bezier.P0.X, bezier.P0.Y);
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, bezier.P1.X, bezier.P1.Y);
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, bezier.P2.X, bezier.P2.Y);
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, bezier.P3.X, bezier.P3.Y);
+                    break;
+                case VSpline spline:
+                    foreach (var p in spline.ControlPoints)
+                        UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, p.X, p.Y);
+                    break;
+                case VArrow arrow:
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, arrow.Start.X, arrow.Start.Y);
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, arrow.End.X, arrow.End.Y);
+                    break;
+                case VDimension dim:
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, dim.Point1.X, dim.Point1.Y);
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, dim.Point2.X, dim.Point2.Y);
+                    break;
+                case VGroup group:
+                    var bounds = group.GetBounds();
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, bounds.min.X, bounds.min.Y);
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, bounds.max.X, bounds.max.Y);
+                    break;
+            }
+        }
+
+        var padding = 50.0;
+        var worldWidth = maxX - minX;
+        var worldHeight = maxY - minY;
+
+        // Ensure minimum world size for better visibility
+        if (worldWidth < minWorldSize) worldWidth = minWorldSize;
+        if (worldHeight < minWorldSize) worldHeight = minWorldSize;
+
+        var worldCenterX = (minX + maxX) / 2;
+        var worldCenterY = (minY + maxY) / 2;
+
+        var availableWidth = ActualWidth - padding * 2;
+        var availableHeight = ActualHeight - padding * 2;
+
+        var scaleX = availableWidth / worldWidth;
+        var scaleY = availableHeight / worldHeight;
+        _scale = Math.Min(scaleX, scaleY);
+        _scale = Math.Clamp(_scale, MinZoom, MaxZoom);
+
+        _panX = -worldCenterX * _scale;
+        _panY = worldCenterY * _scale;
+
+        RedrawAll();
+    }
 }

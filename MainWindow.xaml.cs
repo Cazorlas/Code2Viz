@@ -2880,6 +2880,7 @@ public partial class MainWindow : Window
 
                 CanvasRenderer.Instance.RenderTo(RenderCanvas);
                 SetStatus($"Success: {count} shape{(count != 1 ? "s" : "")} drawn", isError: false);
+                PopulateOutliner(shapes);
             }
             else
             {
@@ -3266,6 +3267,22 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ZoomToShapeMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ZoomToShapeDialog { Owner = this };
+        if (dialog.ShowDialog() == true && dialog.ShapeId.HasValue)
+        {
+            if (RenderCanvas.ZoomToShape(dialog.ShapeId.Value))
+            {
+                SetStatus($"Zoomed to shape ID: {dialog.ShapeId.Value}", isError: false);
+            }
+            else
+            {
+                SetStatus($"Shape with ID {dialog.ShapeId.Value} not found", isError: true);
+            }
+        }
+    }
+
     private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (PromptSaveChanges())
@@ -3390,6 +3407,10 @@ public partial class MainWindow : Window
                     break;
                 case Key.D:
                     AddNextOccurrence();
+                    e.Handled = true;
+                    break;
+                case Key.G:
+                    ZoomToShapeMenuItem_Click(sender, e);
                     e.Handled = true;
                     break;
             }
@@ -5208,7 +5229,76 @@ public partial class MainWindow : Window
             }
         }
         
-        RefreshFileTabs(); 
+        RefreshFileTabs();
         SetStatus($"Renamed {totalChanges} occurrences.", false);
     }
+
+    #region Outliner
+
+    private void PopulateOutliner(IReadOnlyList<Geometry.IDrawable> shapes)
+    {
+        var items = new System.Collections.ObjectModel.ObservableCollection<Project.OutlinerItem>();
+
+        // Group shapes by type
+        var groupedShapes = shapes
+            .OfType<Geometry.Shape>()
+            .GroupBy(s => s.GetType().Name)
+            .OrderBy(g => g.Key);
+
+        foreach (var group in groupedShapes)
+        {
+            var groupItem = new Project.OutlinerItem(group.Key + $" ({group.Count()})");
+
+            foreach (var shape in group.OrderBy(s => s.Id))
+            {
+                var shapeName = !string.IsNullOrEmpty(shape.Name) ? shape.Name : group.Key;
+                var shapeItem = new Project.OutlinerItem(shapeName, isShape: true, id: shape.Id);
+                groupItem.Children.Add(shapeItem);
+            }
+
+            items.Add(groupItem);
+        }
+
+        OutlinerTreeView.ItemsSource = items;
+    }
+
+    private void OutlinerExpandAll_Click(object sender, RoutedEventArgs e)
+    {
+        SetOutlinerItemsExpanded(OutlinerTreeView, true);
+    }
+
+    private void OutlinerCollapseAll_Click(object sender, RoutedEventArgs e)
+    {
+        SetOutlinerItemsExpanded(OutlinerTreeView, false);
+    }
+
+    private void SetOutlinerItemsExpanded(ItemsControl itemsControl, bool isExpanded)
+    {
+        foreach (var item in itemsControl.Items)
+        {
+            var container = itemsControl.ItemContainerGenerator.ContainerFromItem(item) as TreeViewItem;
+            if (container != null)
+            {
+                container.IsExpanded = isExpanded;
+                SetOutlinerItemsExpanded(container, isExpanded);
+            }
+        }
+    }
+
+    private void OutlinerIdLink_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is System.Windows.Controls.TextBlock textBlock && textBlock.DataContext is Project.OutlinerItem item && item.IsShape)
+        {
+            if (RenderCanvas.ZoomToShape(item.Id))
+            {
+                SetStatus($"Zoomed to shape ID: {item.Id}", isError: false);
+            }
+            else
+            {
+                SetStatus($"Shape with ID {item.Id} not found", isError: true);
+            }
+        }
+    }
+
+    #endregion
 }

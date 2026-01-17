@@ -567,7 +567,14 @@ circle.Draw();
 
 // Or using coordinates
 var circle2 = new VCircle(100, 100, 25);
-circle2.Draw();" },
+circle2.Draw();
+
+// Create a circumcircle through 3 points
+var p1 = new VPoint(0, 0);
+var p2 = new VPoint(100, 0);
+var p3 = new VPoint(50, 80);
+var circumcircle = new VCircle(p1, p2, p3);
+circumcircle.Draw();" },
 
                 { "VRectangle", @"// Create a rectangle (corner, width, height)
 var rect = new VRectangle(new VPoint(10, 10), 80, 50);
@@ -959,6 +966,7 @@ namespace StartViz
             // Canvas
             AddShortcutRow(rowGroup, "Mouse Wheel", "Zoom canvas", false);
             AddShortcutRow(rowGroup, "Middle Click", "Pan canvas", true);
+            AddShortcutRow(rowGroup, "Ctrl+G", "Zoom to shape by ID", false);
             shortcutsTable.RowGroups.Add(rowGroup);
             doc.Blocks.Add(shortcutsTable);
 
@@ -983,6 +991,9 @@ namespace StartViz
             AddListItem(tipsList, "Animation", "Create a Timeline, add animations, and call .Play() to animate shapes");
             AddListItem(tipsList, "Help Browser", "Select any class from the tree on the left to see its documentation");
             AddListItem(tipsList, "NuGet Packages", "Use Tools > NuGet Package Manager to add external libraries like Newtonsoft.Json");
+            AddListItem(tipsList, "Shape IDs", "Every shape has a unique Id property. Use Ctrl+G to zoom to a shape by its ID");
+            AddListItem(tipsList, "Outliner", "The Outliner panel shows all shapes grouped by type. Click an ID to zoom to that shape");
+            AddListItem(tipsList, "Circumcircle", "Create a circle through 3 points: new VCircle(p1, p2, p3)");
             doc.Blocks.Add(tipsList);
 
             // Footer

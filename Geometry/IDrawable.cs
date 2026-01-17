@@ -14,9 +14,9 @@ public interface IDrawable
 
 public abstract class Shape : IDrawable
 {
-    private static int _idCounter = 0;
-    
-    public string Id { get; set; } = $"shape_{++_idCounter}";
+    private static long _idCounter = 0;
+
+    public long Id { get; } = System.Threading.Interlocked.Increment(ref _idCounter);
     public string Name { get; set; } = "";
     
     public string StrokeColor { get; set; } = ShapeDefaults.GlobalStrokeColor ?? "Cyan";
