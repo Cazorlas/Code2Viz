@@ -105,6 +105,9 @@ public partial class MainWindow : Window
         var settings = ApplicationSettings.Instance;
         RenderCanvas.ShowGrid = settings.ShowGrid;
         GridMenuItem.IsChecked = settings.ShowGrid;
+
+        // Apply window visibility settings
+        ApplyWindowVisibilitySettings();
     }
 
     private void InitializeCanvas()
@@ -2964,9 +2967,30 @@ public partial class MainWindow : Window
         if (!PromptSaveChanges())
             return;
 
+        // Stop any running animations before closing
+        StopAllAnimations();
+
         var welcome = new WelcomeWindow();
         welcome.Show();
         Close();
+    }
+
+    private void StopAllAnimations()
+    {
+        var timeline = CanvasRenderer.Instance.ActiveTimeline;
+        if (timeline != null)
+        {
+            timeline.IsPlaying = false;
+            timeline.Stop();
+            _animationStopwatch.Reset();
+        }
+
+        // Clear active timeline reference
+        CanvasRenderer.Instance.ActiveTimeline = null;
+
+        // Hide animation controls
+        AnimationControlsPanel.Visibility = Visibility.Collapsed;
+        _isPaused = false;
     }
 
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -2976,6 +3000,9 @@ public partial class MainWindow : Window
             e.Cancel = true;
             return;
         }
+
+        // Stop any running animations
+        StopAllAnimations();
 
         // Clean up file watcher
         StopProjectWatcher();
@@ -3571,6 +3598,112 @@ public partial class MainWindow : Window
             ApplicationSettings.Save();
         }
     }
+
+    #region Windows Menu - Visibility Controls
+
+    private void ShowProjectBrowserMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var isVisible = ShowProjectBrowserMenuItem.IsChecked;
+        SetProjectBrowserVisibility(isVisible);
+
+        ApplicationSettings.Instance.ShowProjectBrowser = isVisible;
+        ApplicationSettings.Save();
+    }
+
+    private void SetProjectBrowserVisibility(bool isVisible)
+    {
+        ProjectBrowserPanel.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
+        ProjectBrowserSplitter.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
+
+        if (isVisible)
+        {
+            ProjectBrowserColumn.Width = new GridLength(250);
+            ProjectBrowserColumn.MinWidth = 150;
+            ProjectBrowserSplitterColumn.Width = GridLength.Auto;
+        }
+        else
+        {
+            ProjectBrowserColumn.Width = new GridLength(0);
+            ProjectBrowserColumn.MinWidth = 0;
+            ProjectBrowserSplitterColumn.Width = new GridLength(0);
+        }
+    }
+
+    private void ShowOutlinerMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var isVisible = ShowOutlinerMenuItem.IsChecked;
+        SetOutlinerVisibility(isVisible);
+
+        ApplicationSettings.Instance.ShowOutliner = isVisible;
+        ApplicationSettings.Save();
+    }
+
+    private void SetOutlinerVisibility(bool isVisible)
+    {
+        var visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
+        OutlinerSplitter.Visibility = visibility;
+        OutlinerHeader.Visibility = visibility;
+        OutlinerTreeView.Visibility = visibility;
+
+        // Adjust row heights
+        if (isVisible)
+        {
+            OutlinerSplitterRow.Height = GridLength.Auto;
+            OutlinerHeaderRow.Height = GridLength.Auto;
+            OutlinerTreeRow.Height = new GridLength(1, GridUnitType.Star);
+        }
+        else
+        {
+            OutlinerSplitterRow.Height = new GridLength(0);
+            OutlinerHeaderRow.Height = new GridLength(0);
+            OutlinerTreeRow.Height = new GridLength(0);
+        }
+    }
+
+    private void ShowTimelineMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var isVisible = ShowTimelineMenuItem.IsChecked;
+        SetTimelineVisibility(isVisible);
+
+        ApplicationSettings.Instance.ShowTimeline = isVisible;
+        ApplicationSettings.Save();
+    }
+
+    private void SetTimelineVisibility(bool isVisible)
+    {
+        TimelinePanel.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
+        TimelineSplitter.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
+        TimelineRow.Height = isVisible ? new GridLength(150) : new GridLength(0);
+    }
+
+    private void ShowToolbarMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var isVisible = ShowToolbarMenuItem.IsChecked;
+        DrawingToolbarPanel.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
+
+        ApplicationSettings.Instance.ShowToolbar = isVisible;
+        ApplicationSettings.Save();
+    }
+
+    private void ApplyWindowVisibilitySettings()
+    {
+        // Apply saved settings on startup
+        var settings = ApplicationSettings.Instance;
+
+        ShowProjectBrowserMenuItem.IsChecked = settings.ShowProjectBrowser;
+        SetProjectBrowserVisibility(settings.ShowProjectBrowser);
+
+        ShowOutlinerMenuItem.IsChecked = settings.ShowOutliner;
+        SetOutlinerVisibility(settings.ShowOutliner);
+
+        ShowTimelineMenuItem.IsChecked = settings.ShowTimeline;
+        SetTimelineVisibility(settings.ShowTimeline);
+
+        ShowToolbarMenuItem.IsChecked = settings.ShowToolbar;
+        DrawingToolbarPanel.Visibility = settings.ShowToolbar ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    #endregion
 
     private void ZoomToShapeMenuItem_Click(object sender, RoutedEventArgs e)
     {

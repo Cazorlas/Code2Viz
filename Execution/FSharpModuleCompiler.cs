@@ -44,9 +44,18 @@ public class FSharpModuleCompiler
                 var allSourceFiles = project.GetAllSourceFiles().ToList();
 
                 // Write files to temp directory, preserving folder structure
-                // F# requires files in dependency order - StartViz.fs must be last
+                // F# requires files in dependency order:
+                // 1. VizDsl.fs (built-in DSL) - FIRST
+                // 2. User modules (non-StartViz files)
+                // 3. StartViz.fs - LAST (entry point)
                 var sourceFiles = new List<string>();
                 string? startVizPath = null;
+
+                // Write VizDsl.fs first (built-in functional DSL module)
+                var vizDslPath = Path.Combine(tempDir, "VizDsl.fs");
+                var vizDslContent = GetEmbeddedVizDsl();
+                File.WriteAllText(vizDslPath, vizDslContent);
+                sourceFiles.Add(vizDslPath);
 
                 foreach (var file in allSourceFiles)
                 {
@@ -276,5 +285,23 @@ public class FSharpModuleCompiler
         }
 
         return references;
+    }
+
+    /// <summary>
+    /// Reads the embedded VizDsl.fs resource.
+    /// </summary>
+    private static string GetEmbeddedVizDsl()
+    {
+        var assembly = typeof(FSharpModuleCompiler).Assembly;
+        var resourceName = "Code2Viz.FSharp.VizDsl.fs";
+
+        using var stream = assembly.GetManifestResourceStream(resourceName);
+        if (stream == null)
+        {
+            throw new InvalidOperationException($"Could not find embedded resource: {resourceName}");
+        }
+
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
     }
 }

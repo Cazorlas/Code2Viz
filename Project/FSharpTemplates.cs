@@ -7,27 +7,32 @@ public static class FSharpTemplates
         var safeName = Templates.SanitizeIdentifier(projectName);
         return $@"namespace {safeName}
 
-open System
-open Code2Viz.Geometry
-open Code2Viz.Canvas
+open VizDsl
 
 module Viz =
     // Entry point for the application
     let Main() =
-        Console.WriteLine(""Hello from F#!"")
+        // Draw a styled circle using pipeline operators
+        circle 0.0 0.0 100.0
+        |> withFill ""#FF5733""
+        |> withStrokeStyle ""White"" 2.0
+        |> draw
+        |> ignore
 
-        // Draw a circle
-        let circle = VCircle(VPoint(400.0, 300.0), 100.0)
-        circle.FillColor <- ""#FF5733""
-        circle.StrokeColor <- ""White""
-        circle.StrokeThickness <- 2.0
-        circle.Draw()
+        // Draw text at center
+        text 0.0 0.0 ""Hello F#""
+        |> withHeight 24.0
+        |> withTextColor ""White""
+        |> draw
+        |> ignore
 
-        // Draw some text
-        let text = VText(VPoint(400.0, 300.0), ""Hello F#"")
-        text.Height <- 24.0
-        text.Color <- ""White""
-        text.Draw()
+        // Draw a row of colorful circles
+        [0..5]
+        |> List.map (fun i ->
+            circle (float i * 60.0 - 150.0) 150.0 20.0
+            |> withFill (Color.byIndex i))
+        |> drawAll
+        |> ignore
 ";
     }
 
@@ -37,14 +42,15 @@ module Viz =
         var safeModuleName = Templates.SanitizeIdentifier(moduleName);
         return $@"namespace {safeName}
 
-open System
-open Code2Viz.Geometry
-open Code2Viz.Canvas
+open VizDsl
 
 module {safeModuleName} =
     // Add your code here
     let example() =
-        ()
+        circle 0.0 0.0 50.0
+        |> withFill Color.blue
+        |> draw
+        |> ignore
 ";
     }
 }

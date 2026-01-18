@@ -1166,7 +1166,8 @@ public class RenderCanvas : FrameworkElement
         var applyOpacity = point.Opacity < 1.0;
         if (applyOpacity) dc.PushOpacity(point.Opacity);
 
-        var screenPos = WorldToScreen(point.X, point.Y);
+        // Apply offset for move animation
+        var screenPos = WorldToScreen(point.X + point.OffsetX, point.Y + point.OffsetY);
         var fill = GetCachedBrush(point.FillColor);
         var pen = GetCachedPen(point.StrokeColor, point.StrokeThickness);
 

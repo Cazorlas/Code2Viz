@@ -30,6 +30,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Editor\CSharpHighlighting.xshd" />
     <EmbeddedResource Include="Editor\FSharpHighlighting.xshd" />
+    <EmbeddedResource Include="FSharp\VizDsl.fs" />
   </ItemGroup>
 
   <ItemGroup>

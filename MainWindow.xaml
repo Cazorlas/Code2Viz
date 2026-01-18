@@ -142,6 +142,14 @@
                         <MenuItem Header="_Reset Layout" Click="ResetLayout_Click" Style="{StaticResource MenuItemStyle}" InputGestureText="Ctrl+R" />
                     </MenuItem>
 
+                    <!-- Windows Menu -->
+                    <MenuItem Header="_Windows">
+                        <MenuItem x:Name="ShowProjectBrowserMenuItem" Header="_Project Browser" IsCheckable="True" IsChecked="False" Click="ShowProjectBrowserMenuItem_Click" Style="{StaticResource MenuItemStyle}" />
+                        <MenuItem x:Name="ShowOutlinerMenuItem" Header="_Outliner" IsCheckable="True" IsChecked="False" Click="ShowOutlinerMenuItem_Click" Style="{StaticResource MenuItemStyle}" />
+                        <MenuItem x:Name="ShowTimelineMenuItem" Header="_Timeline" IsCheckable="True" IsChecked="False" Click="ShowTimelineMenuItem_Click" Style="{StaticResource MenuItemStyle}" />
+                        <MenuItem x:Name="ShowToolbarMenuItem" Header="Tool_bar" IsCheckable="True" IsChecked="False" Click="ShowToolbarMenuItem_Click" Style="{StaticResource MenuItemStyle}" />
+                    </MenuItem>
+
                     <!-- Run Menu -->
                     <MenuItem Header="_Run">
                         <MenuItem x:Name="RunMenuItem" Header="_Run Code" Click="RunButton_Click" InputGestureText="F5" Style="{StaticResource MenuItemStyle}" />
@@ -163,10 +171,11 @@
         </Border>
 
         <!-- Drawing Toolbar -->
-        <Border Grid.Row="2"
+        <Border x:Name="DrawingToolbarPanel" Grid.Row="2"
                 Background="{StaticResource SecondaryBackgroundBrush}"
                 BorderBrush="{StaticResource BorderBrush}"
-                BorderThickness="0,0,0,1">
+                BorderThickness="0,0,0,1"
+                Visibility="Collapsed">
             <StackPanel Orientation="Horizontal" Margin="8,4">
                 <!-- Selection Tool (default) -->
                 <Button x:Name="SelectToolBtn" Content="Select" ToolTip="Select (Esc)" Click="SelectTool_Click"
@@ -207,25 +216,26 @@
         <!-- Main Content: Project Browser + Canvas + Editor + Properties -->
         <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="250" MinWidth="150" />
-                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition x:Name="ProjectBrowserColumn" Width="0" MinWidth="0" />
+                <ColumnDefinition x:Name="ProjectBrowserSplitterColumn" Width="0" />
                 <ColumnDefinition Width="*" MinWidth="200" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" MinWidth="300" />
             </Grid.ColumnDefinitions>
 
             <!-- Project Browser and Outliner -->
-            <Border Grid.Column="0"
+            <Border x:Name="ProjectBrowserPanel" Grid.Column="0"
                     Background="{StaticResource SecondaryBackgroundBrush}"
                     BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="0,0,1,0">
+                    BorderThickness="0,0,1,0"
+                    Visibility="Collapsed">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
+                        <RowDefinition x:Name="OutlinerSplitterRow" Height="0"/>
+                        <RowDefinition x:Name="OutlinerHeaderRow" Height="0"/>
+                        <RowDefinition x:Name="OutlinerTreeRow" Height="0"/>
                     </Grid.RowDefinitions>
 
                     <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="10,8">
@@ -357,15 +367,17 @@
                     </TreeView>
 
                     <!-- Splitter between Explorer and Outliner -->
-                    <GridSplitter Grid.Row="2"
+                    <GridSplitter x:Name="OutlinerSplitter" Grid.Row="2"
                                   Height="4"
                                   HorizontalAlignment="Stretch"
                                   VerticalAlignment="Center"
                                   Background="{StaticResource BorderBrush}"
-                                  ResizeBehavior="PreviousAndNext" />
+                                  ResizeBehavior="PreviousAndNext"
+                                  Visibility="Collapsed" />
 
                     <!-- Outliner Header -->
-                    <Border Grid.Row="3" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="10,8">
+                    <Border x:Name="OutlinerHeader" Grid.Row="3" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="10,8"
+                            Visibility="Collapsed">
                         <TextBlock Text="OUTLINER"
                                    Foreground="{StaticResource ForegroundBrush}"
                                    FontWeight="Bold"
@@ -377,7 +389,8 @@
                               Grid.Row="4"
                               Background="Transparent"
                               BorderThickness="0"
-                              Padding="0,5">
+                              Padding="0,5"
+                              Visibility="Collapsed">
                         <TreeView.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="Expand All" Click="OutlinerExpandAll_Click"/>
@@ -503,12 +516,13 @@
             </Border>
 
             <!-- Splitter 1 -->
-            <GridSplitter Grid.Column="1" 
-                          Width="4" 
-                          HorizontalAlignment="Center" 
-                          VerticalAlignment="Stretch" 
-                          Background="{StaticResource BorderBrush}" 
-                          ResizeBehavior="PreviousAndNext" />
+            <GridSplitter x:Name="ProjectBrowserSplitter" Grid.Column="1"
+                          Width="4"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Stretch"
+                          Background="{StaticResource BorderBrush}"
+                          ResizeBehavior="PreviousAndNext"
+                          Visibility="Collapsed" />
 
             <!-- Canvas, Timeline, and Console -->
             <Grid Grid.Column="2" x:Name="CanvasConsoleGrid">

@@ -10,6 +10,12 @@ public class AppSettingsData
     public bool ShowGrid { get; set; } = true;
     public bool ZoomToFitOnRun { get; set; } = false;
 
+    // Window Visibility Settings
+    public bool ShowProjectBrowser { get; set; } = false;
+    public bool ShowOutliner { get; set; } = false;
+    public bool ShowTimeline { get; set; } = false;
+    public bool ShowToolbar { get; set; } = false;
+
     // Snap Settings
     public bool SnapEndpointEnabled { get; set; } = true;
     public bool SnapMidpointEnabled { get; set; } = true;
