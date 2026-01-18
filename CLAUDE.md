@@ -115,6 +115,56 @@ Due to naming conflicts with WPF types:
 - `Polyline2D` = `Viz2d.Geometry.Polyline`
 - `WpfLine`, `WpfRectangle`, etc. = WPF shape types
 
+## Drawing Tools
+
+### Overview
+Interactive drawing toolbar allows creating shapes directly on the canvas with automatic code generation.
+
+### Toolbar Location
+Below the menu bar, contains buttons for all 12 shape types:
+- **Basic Shapes**: Point, Line, Circle, Rectangle, Ellipse, Arc
+- **Multi-Point Shapes**: Polygon, Polyline, Bezier, Spline
+- **Special Shapes**: Arrow, Text
+
+### Drawing Methods
+| Shape | Method | Clicks |
+|-------|--------|--------|
+| Point | Single click | 1 |
+| Line | Click start, click end | 2 |
+| Circle | Click center, click radius point | 2 |
+| Rectangle | Click corner, click opposite corner | 2 |
+| Ellipse | Click center, drag for radii | 2 |
+| Arc | Click center, click start, click end | 3 |
+| Polygon | Click vertices, double-click to close | N+double |
+| Polyline | Click points, double-click to finish | N+double |
+| Bezier | Click start, ctrl1, ctrl2, end | 4 |
+| Spline | Click control points, double-click | N+double |
+| Arrow | Click start, click end | 2 |
+| Text | Click position | 1 |
+
+### Snap Support
+- Snaps to existing shape endpoints, midpoints, centers
+- Snaps to intersections and nearest points
+- Visual indicators show snap points during drawing
+
+### Orthogonal Constraint
+- Hold **Shift** after first point to constrain to horizontal/vertical
+- Works with Line, Polyline, Polygon, Spline, Bezier, Arrow tools
+- Status bar shows "(Shift: ortho)" hint when available
+
+### Code Generation
+When a shape is completed, corresponding C# code is automatically inserted into the `Main()` method of the entry point file.
+
+Example generated code:
+```csharp
+new VLine(100.00, 50.00, 200.00, 150.00).Draw();
+new VCircle(150.00, 100.00, 75.50).Draw();
+```
+
+### Key Files
+- `Canvas/DrawingTool.cs` - Tool state machine and shape creation logic
+- `Canvas/CodeGenerator.cs` - Generates C# code strings for shapes
+
 ## Current State (v2.0)
 - Module system with multi-file support
 - Tabbed code editor
@@ -124,16 +174,16 @@ Due to naming conflicts with WPF types:
 - Canvas zoom/pan/grid working
 - Code editor with syntax highlighting
 - PNG export functional
+- Drawing toolbar with auto code generation
 - All keyboard shortcuts working
 
 ## Known Issues
 - None currently
 
 ## Future Plans (see docs/TODO.md)
-- Bezier curves and splines
-- Autocomplete in editor
 - SVG export
 - Shape selection
+- Undo/redo for drawing operations
 
 ## Keyboard Shortcuts
 ### File Operations
@@ -158,13 +208,29 @@ Due to naming conflicts with WPF types:
 ### Selection Operations
 - `Shift+Alt+Right` - Expand selection (word → brackets → line → block)
 - `Shift+Alt+Left` - Shrink selection (undo expand)
-- `Ctrl+D` - Add next occurrence
+- `Ctrl+D` - Add next occurrence (multi-cursor support)
 - `Ctrl+Shift+L` - Select all occurrences
+- `Esc` - Exit multi-cursor mode
+
+### Multi-Cursor Editing
+- First `Ctrl+D` selects word at cursor
+- Subsequent `Ctrl+D` adds next occurrence with new cursor
+- Type to insert at all cursors simultaneously
+- Backspace/Delete work at all cursor positions
+- Click elsewhere or `Esc` to exit multi-cursor mode
 
 ### Canvas & Tools
 - `Ctrl+M` - Toggle Measuring Tape tool
 - `Ctrl+G` - Zoom to shape by ID
 - `Esc` - Cancel current tool/operation
+
+### Drawing Tools (when editor not focused)
+- `P` - Point tool
+- `L` - Line tool
+- `C` - Circle tool
+- `R` - Rectangle tool
+- `Shift` (hold) - Orthogonal constraint (H/V lock)
+- `Esc` - Cancel drawing / Return to select mode
 
 ### Built-in AvalonEdit
 - `Ctrl+C/V/X` - Copy/Paste/Cut

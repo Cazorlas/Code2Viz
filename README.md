@@ -116,6 +116,8 @@ ShapeDefaults.Reset();
 
 Code2Viz includes a timeline-based animation system for creating animated visualizations.
 
+> **Note**: The animation timeline panel is automatically hidden when your code has no animations. It appears automatically when you run code that creates a Timeline with animations.
+
 ### Basic Animation Example
 
 ```csharp
@@ -252,6 +254,13 @@ While drawing, the tool automatically snaps to:
 
 Visual indicators show snap points as you move the cursor.
 
+### Orthogonal Constraint (Shift Key)
+When drawing lines, polylines, polygons, splines, arrows, or bezier curves:
+- Hold **Shift** after placing the first point to constrain the line to horizontal or vertical
+- The constraint automatically chooses the axis with the larger movement
+- Status bar shows "(Shift: ortho)" hint when the feature is available
+- Works with snap points - the constraint is applied before snapping
+
 ### Automatic Code Generation
 When you complete drawing a shape, the corresponding code is automatically inserted into the `Main()` method of your entry point file:
 
@@ -271,6 +280,7 @@ When the editor is not focused:
 | `L` | Line tool |
 | `C` | Circle tool |
 | `R` | Rectangle tool |
+| `Shift` (hold) | Orthogonal constraint (H/V lock) |
 | `Esc` | Cancel drawing / Return to select mode |
 
 ---
@@ -351,6 +361,140 @@ File > Export > GIF exports animations as animated GIF files with options:
 - **Duration**: Animation length in seconds
 - **Loop**: Enable/disable infinite looping
 
+### DXF Export
+File > Export > DXF exports shapes to AutoCAD DXF format (R12 ASCII):
+- Compatible with AutoCAD, LibreCAD, and other CAD software
+- Supports all shape types (lines, circles, arcs, polygons, text, etc.)
+- Preserves geometry with high precision
+
+### PDF Export
+File > Export > PDF exports shapes to vector PDF format:
+- High-quality vector graphics output
+- Preserves colors and stroke styles
+- Suitable for printing and documentation
+
+### SVG Export
+File > Export > SVG exports shapes to SVG (Scalable Vector Graphics) format:
+- Web-compatible vector format
+- Opens in any browser or vector editor (Inkscape, Illustrator)
+- XML-based, can be edited as text
+- Supports all shape types with full styling
+
+---
+
+## Boolean Operations
+
+Code2Viz provides polygon boolean operations using the Clipper2 library.
+
+### Available Operations
+
+```csharp
+var poly1 = new VPolygon(new VPoint(0,0), new VPoint(100,0), new VPoint(100,100), new VPoint(0,100));
+var poly2 = new VPolygon(new VPoint(50,50), new VPoint(150,50), new VPoint(150,150), new VPoint(50,150));
+
+// Union - combine two polygons
+var union = poly1.Union(poly2);
+foreach (var p in union) p.Draw();
+
+// Intersection - get overlapping area
+var intersection = poly1.Intersect(poly2);
+
+// Difference - subtract poly2 from poly1
+var difference = poly1.Difference(poly2);
+
+// XOR - symmetric difference
+var xor = poly1.Xor(poly2);
+```
+
+### Utility Methods
+
+```csharp
+// Check if point is inside polygon
+bool inside = polygon.Contains(new VPoint(50, 50));
+
+// Calculate polygon area
+double area = polygon.GetArea();
+
+// Offset polygon (positive = outward, negative = inward)
+var offsetPolygons = BooleanOps.OffsetPolygon(polygon, 10);
+
+// Simplify polygon (remove redundant points)
+var simplified = BooleanOps.Simplify(polygon, tolerance: 0.1);
+```
+
+---
+
+## Array/Pattern Operations
+
+Create arrays and patterns of shapes with built-in array operations.
+
+### Linear Array
+
+```csharp
+var circle = new VCircle(0, 0, 20);
+
+// Array along X axis: 5 copies, 50 units apart
+circle.LinearArrayX(5, 50).DrawAll();
+
+// Array along Y axis: 4 copies, 40 units apart
+circle.LinearArrayY(4, 40).DrawAll();
+
+// Array along custom direction
+circle.LinearArray(new VXYZ(1, 1, 0), 6, 30).DrawAll();
+```
+
+### Rectangular Array
+
+```csharp
+var rect = new VRectangle(0, 0, 30, 20);
+
+// 3 rows, 4 columns with spacing
+rect.RectangularArray(rows: 3, cols: 4, rowSpacing: 40, colSpacing: 50).DrawAll();
+```
+
+### Circular Array
+
+```csharp
+var shape = new VCircle(50, 0, 10);
+var center = new VPoint(0, 0);
+
+// 8 copies in full circle
+shape.CircularArray(center, count: 8).DrawAll();
+
+// 6 copies spanning 180 degrees
+shape.CircularArray(center, count: 6, totalAngleDegrees: 180).DrawAll();
+```
+
+### Path Array
+
+```csharp
+var marker = new VCircle(0, 0, 5);
+var path = new VSpline(new VPoint(0,0), new VPoint(50,100), new VPoint(100,0));
+
+// 10 markers along the path, aligned to path direction
+marker.PathArray(path, count: 10, alignToPath: true).DrawAll();
+```
+
+### Spiral Array
+
+```csharp
+var dot = new VCircle(0, 0, 3);
+var center = new VPoint(0, 0);
+
+// 30 dots in a spiral from radius 20 to 100, 2 revolutions
+dot.SpiralArray(center, count: 30, startRadius: 20, endRadius: 100, totalRevolutions: 2).DrawAll();
+```
+
+### Mirror
+
+```csharp
+var triangle = new VPolygon(new VPoint(0,0), new VPoint(50,0), new VPoint(25,40));
+var mirrorAxis = new VLine(0, -50, 0, 50);  // Y-axis
+
+// Creates original + mirrored copy
+triangle.Mirror(mirrorAxis).DrawAll();
+```
+
 ---
 
 ## Keyboard Shortcuts
@@ -390,8 +534,20 @@ File > Export > GIF exports animations as animated GIF files with options:
 |----------|--------|
 | `Shift+Alt+Right` | Expand selection (word → brackets → line → block) |
 | `Shift+Alt+Left` | Shrink selection (undo expand) |
-| `Ctrl+D` | Add next occurrence (select word, then find next) |
+| `Ctrl+D` | Add next occurrence with multi-cursor support |
 | `Ctrl+Shift+L` | Select all occurrences |
+| `Esc` | Exit multi-cursor mode |
+
+### Multi-Cursor Editing (Ctrl+D)
+Code2Viz supports VS Code-style multi-cursor editing:
+1. **First Ctrl+D**: Selects the word at cursor
+2. **Subsequent Ctrl+D**: Adds the next occurrence to the selection, creating multiple cursors
+3. **Type**: Text is inserted at ALL cursor positions simultaneously
+4. **Backspace/Delete**: Works at all cursor positions
+5. **Escape**: Exits multi-cursor mode
+6. **Click elsewhere**: Clears all multi-cursors
+
+All cursors are visually indicated with white caret lines, and selections are highlighted.
 
 ### Canvas & Tools
 | Shortcut | Action |
