@@ -15,7 +15,7 @@ Viz2d/
 ├── Geometry/           # Shape classes (Point, Line, Arc, Circle, Rectangle, Ellipse, Polygon, Polyline)
 ├── Canvas/             # RenderCanvas (zoom/pan), CanvasRenderer (shape collection)
 ├── Console/            # VizConsole (output), ConsoleOutput (singleton collector)
-├── Editor/             # Syntax highlighting (XSHD), CodeFormatter
+├── Editor/             # Code editor features: IntelliSenseProvider, SemanticHighlighter, CodeLensProvider, HierarchyProvider
 ├── Execution/          # ModuleCompiler (Roslyn CSharpCompilation)
 ├── Project/            # VizCodeFile, VizCodeProject, Templates
 ├── img/                # Logo assets (logo.png, logo.ico)
@@ -231,6 +231,17 @@ new VCircle(150.00, 100.00, 75.50).Draw();
 - `R` - Rectangle tool
 - `Shift` (hold) - Orthogonal constraint (H/V lock)
 - `Esc` - Cancel drawing / Return to select mode
+
+### Code Navigation & Intellisense
+- `F12` - Go to Definition
+- `Shift+F12` - Find All References
+- `Alt+F12` - Peek Definition (inline popup)
+- `Ctrl+.` - Quick Fix (add missing using)
+- `Ctrl+Shift+O` - Document Symbols (outline)
+- `Ctrl+T` - Workspace Symbols (search all files)
+- `Ctrl+Shift+H` - Call Hierarchy
+- `Ctrl+Shift+T` - Type Hierarchy
+- `F2` - Rename Symbol
 
 ### Built-in AvalonEdit
 - `Ctrl+C/V/X` - Copy/Paste/Cut

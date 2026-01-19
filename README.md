@@ -651,6 +651,72 @@ All cursors are visually indicated with white caret lines, and selections are hi
 | `Ctrl+M` | Toggle Measuring Tape tool |
 | `Esc` | Cancel current tool/operation |
 
+### Code Navigation & Intellisense
+| Shortcut | Action |
+|----------|--------|
+| `F12` | Go to Definition |
+| `Shift+F12` | Find All References |
+| `Alt+F12` | Peek Definition |
+| `Ctrl+.` | Quick Fix (add missing using) |
+| `Ctrl+Shift+O` | Document Symbols (outline) |
+| `Ctrl+T` | Workspace Symbols (search all files) |
+| `Ctrl+Shift+H` | Call Hierarchy |
+| `Ctrl+Shift+T` | Type Hierarchy |
+| `F2` | Rename Symbol |
+
+---
+
+## Intellisense & Code Editor Features
+
+Code2Viz includes a full-featured code editor with VSCode-like intellisense powered by Roslyn.
+
+### Autocomplete
+- **Automatic**: Triggered on typing `.` or `Ctrl+Space`
+- **Smart suggestions**: Context-aware completions for types, members, keywords
+- **Signature Help**: Parameter info displayed when typing method calls
+- **Snippets**: Code snippets for common patterns (if, for, foreach, etc.)
+
+### Code Navigation
+| Feature | Shortcut | Description |
+|---------|----------|-------------|
+| **Go to Definition** | `F12` | Jump to the definition of a symbol |
+| **Peek Definition** | `Alt+F12` | View definition in an inline popup without leaving current location |
+| **Find All References** | `Shift+F12` | Find all usages of a symbol (results in console) |
+| **Document Symbols** | `Ctrl+Shift+O` | Quick outline of current file (classes, methods, properties) |
+| **Workspace Symbols** | `Ctrl+T` | Search symbols across all project files |
+
+### Code Analysis
+| Feature | Description |
+|---------|-------------|
+| **Error Squiggles** | Real-time error highlighting with red underlines |
+| **Hover Tooltips** | Documentation and type info on mouse hover |
+| **Quick Fixes** | `Ctrl+.` suggests fixes like adding missing `using` statements |
+
+### Refactoring
+| Feature | Shortcut | Description |
+|---------|----------|-------------|
+| **Rename** | `F2` | Rename symbol across all usages |
+| **Format Document** | `Ctrl+Shift+F` | Auto-format entire document |
+| **Format on Type** | Automatic | Formats line when typing `;` or `}` |
+
+### Advanced Features
+| Feature | Toggle | Description |
+|---------|--------|-------------|
+| **Semantic Highlighting** | View menu | Colors identifiers by semantic meaning (parameters, fields, methods, types) |
+| **Inlay Hints** | View menu | Shows parameter names and inferred types inline |
+| **Code Lens** | View menu | Shows reference counts above methods and types |
+| **Breadcrumb Navigation** | Always on | Shows current location (namespace > class > method) at top of editor |
+| **Call Hierarchy** | `Ctrl+Shift+H` | Shows callers and callees of a method |
+| **Type Hierarchy** | `Ctrl+Shift+T` | Shows base types and derived types |
+
+### Semantic Highlighting Colors
+When enabled, identifiers are colored based on their meaning:
+- **Light Blue**: Local variables, parameters, fields, properties
+- **Light Yellow**: Methods
+- **Teal**: Classes, structs
+- **Light Green**: Interfaces, enums, type parameters
+- **Cyan**: Constants, enum members, static fields
+
 ---
 
 ## Project Structure

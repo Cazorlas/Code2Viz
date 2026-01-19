@@ -1144,6 +1144,16 @@ namespace StartViz
             AddShortcutRow(rowGroup, "C", "Circle drawing tool", false);
             AddShortcutRow(rowGroup, "R", "Rectangle drawing tool", true);
             AddShortcutRow(rowGroup, "Esc", "Cancel drawing / Return to select", false);
+            // Code Navigation & Intellisense
+            AddShortcutRow(rowGroup, "F12", "Go to Definition", true);
+            AddShortcutRow(rowGroup, "Shift+F12", "Find All References", false);
+            AddShortcutRow(rowGroup, "Alt+F12", "Peek Definition", true);
+            AddShortcutRow(rowGroup, "Ctrl+.", "Quick Fix (add using)", false);
+            AddShortcutRow(rowGroup, "Ctrl+Shift+O", "Document Symbols", true);
+            AddShortcutRow(rowGroup, "Ctrl+T", "Workspace Symbols", false);
+            AddShortcutRow(rowGroup, "Ctrl+Shift+H", "Call Hierarchy", true);
+            AddShortcutRow(rowGroup, "Ctrl+Shift+T", "Type Hierarchy", false);
+            AddShortcutRow(rowGroup, "F2", "Rename Symbol", true);
             shortcutsTable.RowGroups.Add(rowGroup);
             doc.Blocks.Add(shortcutsTable);
 
