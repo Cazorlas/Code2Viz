@@ -168,14 +168,41 @@ public static partial class CodeFormatter
         inChar = false;
         inVerbatim = false;
         
+        bool inBlockComment = false;
+
         for (int i = 0; i < line.Length; i++)
         {
             char c = line[i];
-            
+
+            // Check for end of block comment first
+            if (inBlockComment)
+            {
+                currentLiteral.Append(c);
+                if (c == '*' && i + 1 < line.Length && line[i + 1] == '/')
+                {
+                    currentLiteral.Append('/');
+                    i++; // Skip the /
+                    literals.Add(currentLiteral.ToString());
+                    sb.Append($"__LIT_{literals.Count - 1}__");
+                    currentLiteral.Clear();
+                    inBlockComment = false;
+                }
+                continue;
+            }
+
             // Check for start of literal
             if (!inString && !inChar)
             {
-                // Comment //
+                // Block comment /*
+                if (c == '/' && i + 1 < line.Length && line[i + 1] == '*')
+                {
+                    inBlockComment = true;
+                    currentLiteral.Append("/*");
+                    i++; // Skip the *
+                    continue;
+                }
+
+                // Line comment //
                 if (c == '/' && i + 1 < line.Length && line[i + 1] == '/')
                 {
                     string comment = line.Substring(i);
@@ -183,7 +210,7 @@ public static partial class CodeFormatter
                     sb.Append($"__LIT_{literals.Count - 1}__");
                     return (sb.ToString(), literals);
                 }
-                
+
                 // Verbatim String @"
                 if (c == '@' && i + 1 < line.Length && line[i + 1] == '"')
                 {
