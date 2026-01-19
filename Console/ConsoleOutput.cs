@@ -117,6 +117,27 @@ public class ConsoleOutput
         NotifyOutputChanged();
     }
 
+    /// <summary>
+    /// Adds a custom entry (e.g., for Find References output).
+    /// </summary>
+    public void AddEntry(string message, string? filePath = null, int lineNumber = 0, int column = 0, bool isError = false)
+    {
+        lock (_lock)
+        {
+            _entries.Add(new ConsoleEntry
+            {
+                ModuleName = filePath != null ? System.IO.Path.GetFileName(filePath) : "",
+                LineNumber = lineNumber,
+                Column = column,
+                FilePath = filePath,
+                Message = message,
+                IsNewLine = true,
+                IsError = isError
+            });
+        }
+        NotifyOutputChanged();
+    }
+
     public void Clear()
     {
         lock (_lock)

@@ -60,7 +60,15 @@ public partial class MainWindow : Window
     private DispatcherTimer? _animationTimer;
     private System.Diagnostics.Stopwatch _animationStopwatch = new();
 
+    // Peek Definition popup
+    private System.Windows.Controls.Primitives.Popup? _peekPopup;
+
     public static RoutedCommand RenameCommand = new RoutedCommand();
+    public static RoutedCommand GoToDefinitionCommand = new RoutedCommand();
+    public static RoutedCommand FindAllReferencesCommand = new RoutedCommand();
+    public static RoutedCommand PeekDefinitionCommand = new RoutedCommand();
+    public static RoutedCommand DocumentSymbolsCommand = new RoutedCommand();
+    public static RoutedCommand WorkspaceSymbolsCommand = new RoutedCommand();
 
     public MainWindow(VizCodeProject? project = null)
     {
@@ -472,6 +480,26 @@ public partial class MainWindow : Window
         // Refactoring key binding (Ctrl+.)
         CodeEditor.InputBindings.Add(new KeyBinding(RenameCommand, new KeyGesture(Key.OemPeriod, ModifierKeys.Control)));
         CommandBindings.Add(new CommandBinding(RenameCommand, Rename_Executed));
+
+        // Go to Definition (F12)
+        CodeEditor.InputBindings.Add(new KeyBinding(GoToDefinitionCommand, new KeyGesture(Key.F12)));
+        CommandBindings.Add(new CommandBinding(GoToDefinitionCommand, GoToDefinition_Executed));
+
+        // Find All References (Shift+F12)
+        CodeEditor.InputBindings.Add(new KeyBinding(FindAllReferencesCommand, new KeyGesture(Key.F12, ModifierKeys.Shift)));
+        CommandBindings.Add(new CommandBinding(FindAllReferencesCommand, FindAllReferences_Executed));
+
+        // Peek Definition (Alt+F12)
+        CodeEditor.InputBindings.Add(new KeyBinding(PeekDefinitionCommand, new KeyGesture(Key.F12, ModifierKeys.Alt)));
+        CommandBindings.Add(new CommandBinding(PeekDefinitionCommand, PeekDefinition_Executed));
+
+        // Document Symbols (Ctrl+Shift+O)
+        CodeEditor.InputBindings.Add(new KeyBinding(DocumentSymbolsCommand, new KeyGesture(Key.O, ModifierKeys.Control | ModifierKeys.Shift)));
+        CommandBindings.Add(new CommandBinding(DocumentSymbolsCommand, DocumentSymbols_Executed));
+
+        // Workspace Symbols (Ctrl+T)
+        CodeEditor.InputBindings.Add(new KeyBinding(WorkspaceSymbolsCommand, new KeyGesture(Key.T, ModifierKeys.Control)));
+        CommandBindings.Add(new CommandBinding(WorkspaceSymbolsCommand, WorkspaceSymbols_Executed));
 
         // Setup autocomplete
         CodeEditor.TextArea.TextEntered += TextArea_TextEntered;
@@ -1056,11 +1084,86 @@ public partial class MainWindow : Window
                 }
             }
         }
+        else if (e.Text == ";")
+        {
+            // Format on type - format the current line when semicolon is typed
+            FormatCurrentLineOnType();
+        }
         else if (char.IsLetter(e.Text[0]))
         {
             // Show general completions after typing a letter
             ShowGeneralCompletion();
         }
+    }
+
+    private void FormatCurrentLineOnType()
+    {
+        try
+        {
+            var document = CodeEditor.Document;
+            var line = document.GetLineByOffset(CodeEditor.CaretOffset);
+            var lineText = document.GetText(line.Offset, line.Length);
+
+            // Only format if the line has actual code (not just whitespace or comments)
+            var trimmed = lineText.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("//"))
+                return;
+
+            // Format the line
+            var formatted = FormatLineForOnType(lineText);
+
+            // Only replace if different
+            if (formatted != lineText)
+            {
+                var caretInLine = CodeEditor.CaretOffset - line.Offset;
+                document.Replace(line.Offset, line.Length, formatted);
+
+                // Try to maintain caret position relative to end of line
+                var newOffset = line.Offset + Math.Min(caretInLine + (formatted.Length - lineText.Length), formatted.Length);
+                CodeEditor.CaretOffset = Math.Max(line.Offset, Math.Min(newOffset, line.Offset + formatted.Length));
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"FormatCurrentLineOnType error: {ex.Message}");
+        }
+    }
+
+    private string FormatLineForOnType(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return line;
+
+        // Preserve leading whitespace (indentation)
+        var leadingWhitespace = "";
+        var i = 0;
+        while (i < line.Length && char.IsWhiteSpace(line[i]))
+        {
+            leadingWhitespace += line[i];
+            i++;
+        }
+
+        var content = line.Substring(i).TrimEnd();
+        if (string.IsNullOrEmpty(content))
+            return line;
+
+        // Basic formatting rules (minimal to avoid breaking code)
+        // Add space after keywords
+        content = System.Text.RegularExpressions.Regex.Replace(content, @"\b(if|else|for|foreach|while|switch|using|return|throw|new|var|catch|finally)\(", "$1 (");
+
+        // Add space around = but not ==, !=, <=, >=, +=, -=, etc.
+        content = System.Text.RegularExpressions.Regex.Replace(content, @"([^=!<>+\-*/%&|^])=([^=])", "$1 = $2");
+
+        // Add space after comma (but not inside strings)
+        content = System.Text.RegularExpressions.Regex.Replace(content, @",([^\s])", ", $1");
+
+        // Remove space before semicolon
+        content = System.Text.RegularExpressions.Regex.Replace(content, @"\s+;", ";");
+
+        // Remove multiple spaces
+        content = System.Text.RegularExpressions.Regex.Replace(content, @"  +", " ");
+
+        return leadingWhitespace + content;
     }
 
     /// <summary>
@@ -5842,10 +5945,12 @@ public partial class MainWindow : Window
         _currentToolTip.Background = new SolidColorBrush(Color.FromRgb(30, 30, 30));
         _currentToolTip.BorderBrush = new SolidColorBrush(Color.FromRgb(60, 60, 60));
 
-        var panel = new StackPanel { Orientation = Orientation.Horizontal };
+        var mainPanel = new StackPanel();
+
+        var headerPanel = new StackPanel { Orientation = Orientation.Horizontal };
 
         // Category in gray: (local), (parameter), (type), etc.
-        panel.Children.Add(new TextBlock
+        headerPanel.Children.Add(new TextBlock
         {
             Text = $"({category}) ",
             Foreground = new SolidColorBrush(Color.FromRgb(128, 128, 128)),
@@ -5853,7 +5958,7 @@ public partial class MainWindow : Window
         });
 
         // Type name in teal
-        panel.Children.Add(new TextBlock
+        headerPanel.Children.Add(new TextBlock
         {
             Text = typeName,
             Foreground = new SolidColorBrush(Color.FromRgb(78, 201, 176)),
@@ -5863,7 +5968,7 @@ public partial class MainWindow : Window
         // Identifier name in light blue (only if different from type)
         if (identifier != typeName && category != "type" && category != "class" && category != "struct")
         {
-            panel.Children.Add(new TextBlock
+            headerPanel.Children.Add(new TextBlock
             {
                 Text = $" {identifier}",
                 Foreground = new SolidColorBrush(Color.FromRgb(156, 220, 254)),
@@ -5871,7 +5976,54 @@ public partial class MainWindow : Window
             });
         }
 
-        _currentToolTip.Content = panel;
+        mainPanel.Children.Add(headerPanel);
+
+        // Try to get documentation
+        string? documentation = null;
+
+        // First try built-in documentation
+        if (category == "type" || category == "class" || category == "struct")
+        {
+            documentation = Editor.XmlDocumentationProvider.GetBuiltInDocumentation(identifier);
+        }
+        else
+        {
+            // Try to get documentation from the type's member
+            documentation = Editor.XmlDocumentationProvider.GetBuiltInDocumentation(typeName, identifier);
+        }
+
+        // If no built-in doc, try reflection-based XML docs
+        if (documentation == null)
+        {
+            var resolvedType = Editor.TypeInspector.ResolveType(typeName);
+            if (resolvedType != null)
+            {
+                if (category == "type" || category == "class" || category == "struct")
+                {
+                    documentation = Editor.XmlDocumentationProvider.GetTypeSummary(resolvedType);
+                }
+            }
+        }
+
+        if (!string.IsNullOrEmpty(documentation))
+        {
+            mainPanel.Children.Add(new Separator
+            {
+                Margin = new Thickness(0, 4, 0, 4),
+                Background = new SolidColorBrush(Color.FromRgb(60, 60, 60))
+            });
+
+            mainPanel.Children.Add(new TextBlock
+            {
+                Text = documentation,
+                Foreground = new SolidColorBrush(Color.FromRgb(200, 200, 200)),
+                FontSize = 11,
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 350
+            });
+        }
+
+        _currentToolTip.Content = mainPanel;
         _currentToolTip.IsOpen = true;
     }
 
@@ -6026,6 +6178,652 @@ public partial class MainWindow : Window
 
         document.Insert(insertOffset, textToInsert);
         SetStatus($"Added using {namespaceName};", false);
+    }
+
+    private async void GoToDefinition_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (_currentProject == null || _activeFile == null || _refactoringProvider == null) return;
+
+        // Sync current content
+        _activeFile.Content = CodeEditor.Text;
+        var offset = CodeEditor.CaretOffset;
+
+        SetStatus("Finding definition...", false);
+
+        var result = await _refactoringProvider.GetDefinitionAsync(_currentProject, _activeFile.FilePath, offset);
+
+        if (result.Success && result.FilePath != null)
+        {
+            // Navigate to definition
+            NavigateToLocation(result.FilePath, result.Line, result.Column);
+            SetStatus($"Definition: {result.SymbolKind} {result.SymbolName}", false);
+        }
+        else
+        {
+            SetStatus(result.Error ?? "Definition not found", true);
+        }
+    }
+
+    private async void FindAllReferences_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (_currentProject == null || _activeFile == null || _refactoringProvider == null) return;
+
+        // Sync current content
+        _activeFile.Content = CodeEditor.Text;
+        var offset = CodeEditor.CaretOffset;
+
+        SetStatus("Finding references...", false);
+
+        var result = await _refactoringProvider.FindAllReferencesAsync(_currentProject, _activeFile.FilePath, offset);
+
+        if (result.Success)
+        {
+            if (result.References.Count == 0)
+            {
+                SetStatus("No references found", true);
+                return;
+            }
+
+            // If only one reference (the definition itself), just navigate to it
+            if (result.References.Count == 1)
+            {
+                var singleRef = result.References[0];
+                NavigateToLocation(singleRef.FilePath, singleRef.Line, singleRef.Column);
+                SetStatus($"Found 1 reference to '{result.SymbolName}'", false);
+                return;
+            }
+
+            // Show references in console panel
+            ShowReferencesInConsole(result.SymbolName ?? "Symbol", result.References);
+            SetStatus($"Found {result.References.Count} references to '{result.SymbolName}'", false);
+        }
+        else
+        {
+            SetStatus(result.Error ?? "Find references failed", true);
+        }
+    }
+
+    private void ShowReferencesInConsole(string symbolName, List<Editor.RefactoringProvider.ReferenceLocation> references)
+    {
+        // Clear console and show references
+        Console.ConsoleOutput.Instance.Clear();
+        Console.ConsoleOutput.Instance.AddEntry($"References to '{symbolName}' ({references.Count} found):");
+        Console.ConsoleOutput.Instance.AddEntry(new string('-', 50));
+
+        foreach (var reference in references)
+        {
+            var prefix = reference.IsDefinition ? "[Definition] " : "";
+            var message = $"{prefix}{reference.LineText}";
+
+            Console.ConsoleOutput.Instance.AddEntry(
+                message,
+                reference.FilePath,
+                reference.Line,
+                reference.Column
+            );
+        }
+
+        Console.ConsoleOutput.Instance.AddEntry(new string('-', 50));
+        Console.ConsoleOutput.Instance.AddEntry("Double-click to navigate to reference");
+
+        // Ensure console panel is visible
+        if (ConsoleRow.Height.Value < 100)
+        {
+            ConsoleRow.Height = new GridLength(200);
+        }
+    }
+
+    private void NavigateToLocation(string filePath, int line, int column)
+    {
+        if (_currentProject == null) return;
+
+        // Find and open the file in the project
+        var file = _currentProject.Files.FirstOrDefault(f =>
+            string.Equals(f.FilePath, filePath, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Path.GetFileName(f.FilePath), Path.GetFileName(filePath), StringComparison.OrdinalIgnoreCase));
+
+        if (file != null)
+        {
+            // Switch to the file's tab
+            SelectFile(file);
+
+            // Navigate to the line and column
+            try
+            {
+                if (line > 0 && line <= CodeEditor.Document.LineCount)
+                {
+                    var lineObj = CodeEditor.Document.GetLineByNumber(line);
+                    var col = Math.Max(1, Math.Min(column, lineObj.Length + 1));
+                    var offset = CodeEditor.Document.GetOffset(line, col);
+
+                    CodeEditor.CaretOffset = offset;
+                    CodeEditor.ScrollToLine(line);
+                    CodeEditor.Focus();
+
+                    // Select the identifier at this location
+                    var wordEnd = offset;
+                    while (wordEnd < CodeEditor.Document.TextLength)
+                    {
+                        var c = CodeEditor.Document.GetCharAt(wordEnd);
+                        if (!char.IsLetterOrDigit(c) && c != '_') break;
+                        wordEnd++;
+                    }
+                    if (wordEnd > offset)
+                    {
+                        CodeEditor.Select(offset, wordEnd - offset);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"NavigateToLocation: {ex.Message}");
+            }
+        }
+        else
+        {
+            SetStatus($"File not found in project: {Path.GetFileName(filePath)}", true);
+        }
+    }
+
+    private async void PeekDefinition_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (_currentProject == null || _activeFile == null || _refactoringProvider == null) return;
+
+        // Close any existing peek popup
+        ClosePeekPopup();
+
+        // Sync current content
+        _activeFile.Content = CodeEditor.Text;
+        var offset = CodeEditor.CaretOffset;
+
+        SetStatus("Finding definition...", false);
+
+        var result = await _refactoringProvider.GetDefinitionAsync(_currentProject, _activeFile.FilePath, offset);
+
+        if (result.Success && result.FilePath != null)
+        {
+            ShowPeekDefinition(result);
+        }
+        else
+        {
+            SetStatus(result.Error ?? "Definition not found", true);
+        }
+    }
+
+    private void ShowPeekDefinition(Editor.RefactoringProvider.DefinitionResult result)
+    {
+        if (_currentProject == null || result.FilePath == null) return;
+
+        // Find the file content
+        var file = _currentProject.Files.FirstOrDefault(f =>
+            string.Equals(f.FilePath, result.FilePath, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Path.GetFileName(f.FilePath), Path.GetFileName(result.FilePath), StringComparison.OrdinalIgnoreCase));
+
+        if (file == null)
+        {
+            SetStatus($"File not found: {Path.GetFileName(result.FilePath)}", true);
+            return;
+        }
+
+        // Get context around the definition (5 lines before and 15 lines after)
+        var lines = file.Content.Split('\n');
+        var startLine = Math.Max(0, result.Line - 6);
+        var endLine = Math.Min(lines.Length, result.Line + 15);
+        var contextLines = lines.Skip(startLine).Take(endLine - startLine).ToList();
+        var contextText = string.Join("\n", contextLines);
+
+        // Create peek popup
+        _peekPopup = new System.Windows.Controls.Primitives.Popup
+        {
+            PlacementTarget = CodeEditor,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Relative,
+            StaysOpen = false,
+            AllowsTransparency = true
+        };
+
+        // Calculate position based on caret
+        var caretPos = CodeEditor.TextArea.Caret.CalculateCaretRectangle();
+        var visualPos = CodeEditor.TextArea.TextView.GetVisualPosition(
+            new ICSharpCode.AvalonEdit.TextViewPosition(CodeEditor.TextArea.Caret.Line, CodeEditor.TextArea.Caret.Column),
+            ICSharpCode.AvalonEdit.Rendering.VisualYPosition.LineBottom);
+
+        _peekPopup.HorizontalOffset = 50;
+        _peekPopup.VerticalOffset = visualPos.Y + 5;
+
+        // Create content
+        var border = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0, 122, 204)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(3),
+            Width = 600,
+            MaxHeight = 350
+        };
+
+        var grid = new Grid();
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        // Header
+        var header = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(45, 45, 45)),
+            Padding = new Thickness(10, 5, 10, 5)
+        };
+        var headerPanel = new StackPanel { Orientation = Orientation.Horizontal };
+        headerPanel.Children.Add(new TextBlock
+        {
+            Text = Path.GetFileName(result.FilePath),
+            Foreground = new SolidColorBrush(Color.FromRgb(78, 201, 176)),
+            FontWeight = FontWeights.SemiBold
+        });
+        headerPanel.Children.Add(new TextBlock
+        {
+            Text = $" : {result.Line}",
+            Foreground = new SolidColorBrush(Color.FromRgb(156, 220, 254))
+        });
+        headerPanel.Children.Add(new TextBlock
+        {
+            Text = $"  ({result.SymbolKind} {result.SymbolName})",
+            Foreground = new SolidColorBrush(Color.FromRgb(128, 128, 128)),
+            Margin = new Thickness(10, 0, 0, 0)
+        });
+        header.Child = headerPanel;
+        Grid.SetRow(header, 0);
+        grid.Children.Add(header);
+
+        // Code preview with AvalonEdit
+        var previewEditor = new TextEditor
+        {
+            Text = contextText,
+            IsReadOnly = true,
+            ShowLineNumbers = true,
+            Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+            Foreground = Brushes.White,
+            FontFamily = CodeEditor.FontFamily,
+            FontSize = CodeEditor.FontSize - 1,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Padding = new Thickness(5)
+        };
+
+        // Apply syntax highlighting
+        previewEditor.SyntaxHighlighting = CodeEditor.SyntaxHighlighting;
+
+        // Set line number starting offset
+        previewEditor.TextArea.TextView.LineTransformers.Clear();
+
+        // Scroll to show the definition line in context
+        var defLineInContext = result.Line - startLine - 1;
+        if (defLineInContext > 0 && defLineInContext <= previewEditor.Document.LineCount)
+        {
+            previewEditor.ScrollToLine(defLineInContext);
+            // Highlight the definition line
+            var defLineObj = previewEditor.Document.GetLineByNumber(Math.Min(defLineInContext + 1, previewEditor.Document.LineCount));
+            previewEditor.Select(defLineObj.Offset, defLineObj.Length);
+        }
+
+        Grid.SetRow(previewEditor, 1);
+        grid.Children.Add(previewEditor);
+
+        // Footer with actions
+        var footer = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(45, 45, 45)),
+            Padding = new Thickness(10, 5, 10, 5)
+        };
+        var footerPanel = new StackPanel { Orientation = Orientation.Horizontal };
+
+        var goToButton = new Button
+        {
+            Content = "Go to Definition (Enter)",
+            Padding = new Thickness(10, 3, 10, 3),
+            Margin = new Thickness(0, 0, 10, 0),
+            Background = new SolidColorBrush(Color.FromRgb(60, 60, 60)),
+            Foreground = Brushes.White,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80))
+        };
+        goToButton.Click += (s, args) =>
+        {
+            ClosePeekPopup();
+            NavigateToLocation(result.FilePath, result.Line, result.Column);
+        };
+        footerPanel.Children.Add(goToButton);
+
+        var closeText = new TextBlock
+        {
+            Text = "Press Escape to close",
+            Foreground = new SolidColorBrush(Color.FromRgb(128, 128, 128)),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        footerPanel.Children.Add(closeText);
+
+        footer.Child = footerPanel;
+        Grid.SetRow(footer, 2);
+        grid.Children.Add(footer);
+
+        border.Child = grid;
+        _peekPopup.Child = border;
+
+        // Handle keyboard events
+        _peekPopup.KeyDown += (s, args) =>
+        {
+            if (args.Key == Key.Escape)
+            {
+                ClosePeekPopup();
+                CodeEditor.Focus();
+                args.Handled = true;
+            }
+            else if (args.Key == Key.Enter)
+            {
+                ClosePeekPopup();
+                NavigateToLocation(result.FilePath, result.Line, result.Column);
+                args.Handled = true;
+            }
+        };
+
+        _peekPopup.Closed += (s, args) => _peekPopup = null;
+
+        _peekPopup.IsOpen = true;
+        previewEditor.Focus();
+
+        SetStatus($"Peek: {result.SymbolKind} {result.SymbolName} in {Path.GetFileName(result.FilePath)}:{result.Line}", false);
+    }
+
+    private void ClosePeekPopup()
+    {
+        if (_peekPopup != null)
+        {
+            _peekPopup.IsOpen = false;
+            _peekPopup = null;
+        }
+    }
+
+    // Symbol picker popup
+    private System.Windows.Controls.Primitives.Popup? _symbolsPopup;
+
+    private async void DocumentSymbols_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (_currentProject == null || _activeFile == null || _refactoringProvider == null) return;
+
+        // Sync current content
+        _activeFile.Content = CodeEditor.Text;
+
+        SetStatus("Loading document symbols...", false);
+
+        var result = await _refactoringProvider.GetDocumentSymbolsAsync(_currentProject, _activeFile.FilePath);
+
+        if (result.Success)
+        {
+            ShowSymbolPicker(result.Symbols, "Go to Symbol in Editor", false);
+        }
+        else
+        {
+            SetStatus(result.Error ?? "Failed to load symbols", true);
+        }
+    }
+
+    private async void WorkspaceSymbols_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (_currentProject == null || _refactoringProvider == null) return;
+
+        // Sync current content if we have an active file
+        if (_activeFile != null)
+        {
+            _activeFile.Content = CodeEditor.Text;
+        }
+
+        SetStatus("Loading workspace symbols...", false);
+
+        var result = await _refactoringProvider.GetWorkspaceSymbolsAsync(_currentProject);
+
+        if (result.Success)
+        {
+            ShowSymbolPicker(result.Symbols, "Go to Symbol in Workspace", true);
+        }
+        else
+        {
+            SetStatus(result.Error ?? "Failed to load symbols", true);
+        }
+    }
+
+    private void ShowSymbolPicker(List<Editor.RefactoringProvider.DocumentSymbol> symbols, string title, bool showFilePath)
+    {
+        // Close existing popup
+        CloseSymbolsPopup();
+
+        _symbolsPopup = new System.Windows.Controls.Primitives.Popup
+        {
+            PlacementTarget = CodeEditor,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Center,
+            StaysOpen = false,
+            AllowsTransparency = true
+        };
+
+        // Create content
+        var border = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0, 122, 204)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(5),
+            Width = 500,
+            MaxHeight = 400
+        };
+
+        var grid = new Grid();
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+        // Title
+        var titleBlock = new TextBlock
+        {
+            Text = title,
+            Foreground = Brushes.White,
+            FontWeight = FontWeights.SemiBold,
+            Padding = new Thickness(10, 8, 10, 5)
+        };
+        Grid.SetRow(titleBlock, 0);
+        grid.Children.Add(titleBlock);
+
+        // Search box
+        var searchBox = new TextBox
+        {
+            Margin = new Thickness(10, 5, 10, 5),
+            Padding = new Thickness(5),
+            Background = new SolidColorBrush(Color.FromRgb(45, 45, 45)),
+            Foreground = Brushes.White,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(80, 80, 80)),
+            CaretBrush = Brushes.White
+        };
+        Grid.SetRow(searchBox, 1);
+        grid.Children.Add(searchBox);
+
+        // Symbols list
+        var listBox = new ListBox
+        {
+            Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+            Foreground = Brushes.White,
+            BorderThickness = new Thickness(0),
+            MaxHeight = 300
+        };
+
+        // Flatten symbols including children
+        var flatSymbols = new List<Editor.RefactoringProvider.DocumentSymbol>();
+        void AddSymbolsRecursive(List<Editor.RefactoringProvider.DocumentSymbol> list, int indent = 0)
+        {
+            foreach (var symbol in list)
+            {
+                symbol.Detail = (indent > 0 ? new string(' ', indent * 2) : "") + symbol.Detail;
+                flatSymbols.Add(symbol);
+                if (symbol.Children.Count > 0)
+                {
+                    AddSymbolsRecursive(symbol.Children, indent + 1);
+                }
+            }
+        }
+        AddSymbolsRecursive(symbols);
+
+        void PopulateList(string filter)
+        {
+            listBox.Items.Clear();
+            var filtered = string.IsNullOrEmpty(filter)
+                ? flatSymbols
+                : flatSymbols.Where(s => s.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            foreach (var symbol in filtered.Take(100)) // Limit to 100 items
+            {
+                var itemPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(5, 3, 5, 3) };
+
+                // Symbol kind icon/color
+                var kindBrush = symbol.Kind switch
+                {
+                    "Class" => new SolidColorBrush(Color.FromRgb(78, 201, 176)),
+                    "Interface" => new SolidColorBrush(Color.FromRgb(184, 215, 163)),
+                    "Method" => new SolidColorBrush(Color.FromRgb(220, 220, 170)),
+                    "Property" => new SolidColorBrush(Color.FromRgb(156, 220, 254)),
+                    "Field" => new SolidColorBrush(Color.FromRgb(86, 156, 214)),
+                    "Constructor" => new SolidColorBrush(Color.FromRgb(220, 220, 170)),
+                    "Enum" => new SolidColorBrush(Color.FromRgb(184, 215, 163)),
+                    "Event" => new SolidColorBrush(Color.FromRgb(255, 198, 109)),
+                    _ => Brushes.White
+                };
+
+                var kindIcon = symbol.Kind switch
+                {
+                    "Class" => "C",
+                    "Interface" => "I",
+                    "Method" => "M",
+                    "Property" => "P",
+                    "Field" => "F",
+                    "Constructor" => "C",
+                    "Enum" => "E",
+                    "Event" => "V",
+                    "Struct" => "S",
+                    "Record" => "R",
+                    _ => "?"
+                };
+
+                itemPanel.Children.Add(new Border
+                {
+                    Width = 18,
+                    Height = 18,
+                    Background = kindBrush,
+                    CornerRadius = new CornerRadius(2),
+                    Margin = new Thickness(0, 0, 8, 0),
+                    Child = new TextBlock
+                    {
+                        Text = kindIcon,
+                        Foreground = Brushes.Black,
+                        FontWeight = FontWeights.Bold,
+                        FontSize = 11,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    }
+                });
+
+                itemPanel.Children.Add(new TextBlock
+                {
+                    Text = symbol.Name,
+                    Foreground = Brushes.White,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+
+                if (!string.IsNullOrEmpty(symbol.Detail))
+                {
+                    itemPanel.Children.Add(new TextBlock
+                    {
+                        Text = "  " + symbol.Detail,
+                        Foreground = new SolidColorBrush(Color.FromRgb(128, 128, 128)),
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+                }
+
+                if (showFilePath)
+                {
+                    itemPanel.Children.Add(new TextBlock
+                    {
+                        Text = $"  : {symbol.Line}",
+                        Foreground = new SolidColorBrush(Color.FromRgb(100, 100, 100)),
+                        VerticalAlignment = VerticalAlignment.Center
+                    });
+                }
+
+                var item = new ListBoxItem
+                {
+                    Content = itemPanel,
+                    Tag = symbol,
+                    Background = Brushes.Transparent
+                };
+                item.MouseDoubleClick += (s, args) => NavigateToSymbol(symbol);
+                listBox.Items.Add(item);
+            }
+
+            if (listBox.Items.Count > 0)
+            {
+                listBox.SelectedIndex = 0;
+            }
+        }
+
+        PopulateList("");
+
+        searchBox.TextChanged += (s, args) => PopulateList(searchBox.Text);
+        searchBox.PreviewKeyDown += (s, args) =>
+        {
+            if (args.Key == Key.Down && listBox.Items.Count > 0)
+            {
+                listBox.SelectedIndex = Math.Min(listBox.SelectedIndex + 1, listBox.Items.Count - 1);
+                listBox.ScrollIntoView(listBox.SelectedItem);
+                args.Handled = true;
+            }
+            else if (args.Key == Key.Up && listBox.Items.Count > 0)
+            {
+                listBox.SelectedIndex = Math.Max(listBox.SelectedIndex - 1, 0);
+                listBox.ScrollIntoView(listBox.SelectedItem);
+                args.Handled = true;
+            }
+            else if (args.Key == Key.Enter && listBox.SelectedItem is ListBoxItem selectedItem && selectedItem.Tag is Editor.RefactoringProvider.DocumentSymbol symbol)
+            {
+                NavigateToSymbol(symbol);
+                args.Handled = true;
+            }
+            else if (args.Key == Key.Escape)
+            {
+                CloseSymbolsPopup();
+                CodeEditor.Focus();
+                args.Handled = true;
+            }
+        };
+
+        Grid.SetRow(listBox, 2);
+        grid.Children.Add(listBox);
+
+        border.Child = grid;
+        _symbolsPopup.Child = border;
+
+        _symbolsPopup.Closed += (s, args) => _symbolsPopup = null;
+        _symbolsPopup.IsOpen = true;
+        searchBox.Focus();
+
+        SetStatus($"Found {flatSymbols.Count} symbols", false);
+    }
+
+    private void NavigateToSymbol(Editor.RefactoringProvider.DocumentSymbol symbol)
+    {
+        CloseSymbolsPopup();
+        NavigateToLocation(symbol.FilePath, symbol.Line, symbol.Column);
+    }
+
+    private void CloseSymbolsPopup()
+    {
+        if (_symbolsPopup != null)
+        {
+            _symbolsPopup.IsOpen = false;
+            _symbolsPopup = null;
+        }
     }
 
     private string GetWordAtOffset(TextDocument document, int offset)
