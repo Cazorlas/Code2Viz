@@ -15,6 +15,7 @@ public class AppSettingsData
     public bool ShowOutliner { get; set; } = false;
     public bool ShowTimeline { get; set; } = false;
     public bool ShowToolbar { get; set; } = false;
+    public bool ShowConsole { get; set; } = true;
 
     // Snap Settings
     public bool SnapEndpointEnabled { get; set; } = true;

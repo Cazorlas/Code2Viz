@@ -286,6 +286,14 @@ public class RenderCanvas : FrameworkElement
 
                 RedrawAll();
                 e.Handled = true;
+                return;
+            }
+
+            // Double-click on empty space: Zoom to Fit
+            if (e.ClickCount == 2)
+            {
+                ZoomExtents(_currentShapes);
+                e.Handled = true;
             }
         }
         else if (e.RightButton == MouseButtonState.Pressed)

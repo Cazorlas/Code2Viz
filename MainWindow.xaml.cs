@@ -4122,6 +4122,22 @@ public partial class MainWindow : Window
         ApplicationSettings.Save();
     }
 
+    private void ShowConsoleMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var isVisible = ShowConsoleMenuItem.IsChecked;
+        SetConsoleVisibility(isVisible);
+
+        ApplicationSettings.Instance.ShowConsole = isVisible;
+        ApplicationSettings.Save();
+    }
+
+    private void SetConsoleVisibility(bool isVisible)
+    {
+        ConsolePanel.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
+        ConsoleSplitter.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
+        ConsoleRow.Height = isVisible ? new GridLength(200) : new GridLength(0);
+    }
+
     private void ApplyWindowVisibilitySettings()
     {
         // Apply saved settings on startup
@@ -4138,6 +4154,9 @@ public partial class MainWindow : Window
 
         ShowToolbarMenuItem.IsChecked = settings.ShowToolbar;
         DrawingToolbarPanel.Visibility = settings.ShowToolbar ? Visibility.Visible : Visibility.Collapsed;
+
+        ShowConsoleMenuItem.IsChecked = settings.ShowConsole;
+        SetConsoleVisibility(settings.ShowConsole);
     }
 
     #endregion
