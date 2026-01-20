@@ -939,6 +939,25 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Handle Ctrl+Alt+Up/Down for adding cursors (catch before AvalonEdit)
+        if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Alt))
+        {
+            // Check both e.Key and e.SystemKey - behavior varies
+            var actualKey = e.Key == Key.System ? e.SystemKey : e.Key;
+            if (actualKey == Key.Up)
+            {
+                _multiSelectionRenderer?.AddCursorAbove();
+                e.Handled = true;
+                return;
+            }
+            else if (actualKey == Key.Down)
+            {
+                _multiSelectionRenderer?.AddCursorBelow();
+                e.Handled = true;
+                return;
+            }
+        }
+
         if (e.Key == Key.Enter && !AutoIndentMenuItem.IsChecked)
             return;
 
@@ -1271,19 +1290,22 @@ public partial class MainWindow : Window
         }
         else if (e.Text == ",")
         {
-            // Move to next parameter in signature help
+            // Close existing signature help window if open
             if (_insightWindow != null)
             {
-                // Reshow signature help to update parameter highlighting
                 _insightWindow.Close();
-                ShowSignatureHelp();
             }
 
-            // Show argument completion if inside method arguments
-            if (IsInsideMethodArguments(CodeEditor.CaretOffset))
+            // Always show signature help when comma is typed inside parentheses
+            // Use Dispatcher to ensure the window is fully closed before reopening
+            Dispatcher.BeginInvoke(new Action(() =>
             {
-                ShowArgumentCompletion();
-            }
+                if (IsInsideMethodArguments(CodeEditor.CaretOffset))
+                {
+                    ShowSignatureHelp();
+                    ShowArgumentCompletion();
+                }
+            }), System.Windows.Threading.DispatcherPriority.Input);
         }
         else if (e.Text == " ")
         {
@@ -2476,6 +2498,17 @@ public partial class MainWindow : Window
 
         // Select the first item
         _completionWindow.CompletionList.SelectedItem = _completionWindow.CompletionList.CompletionData[0];
+
+        // If signature help is visible, offset the completion window below it
+        if (_insightWindow != null)
+        {
+            _completionWindow.Loaded += (s, e) =>
+            {
+                // Get the insight window's actual height and add offset
+                var insightHeight = _insightWindow?.ActualHeight ?? 30;
+                _completionWindow.Top += insightHeight + 2;
+            };
+        }
 
         _completionWindow.Show();
         _completionWindow.Closed += (s, e) => _completionWindow = null;
@@ -4205,6 +4238,18 @@ public partial class MainWindow : Window
         MoveLineDown();
     }
 
+    private void AddCursorAboveMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        CodeEditor.Focus();
+        AddCursorAbove();
+    }
+
+    private void AddCursorBelowMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        CodeEditor.Focus();
+        AddCursorBelow();
+    }
+
     private void ToggleCommentMenuItem_Click(object sender, RoutedEventArgs e)
     {
         ToggleComment();
@@ -4380,7 +4425,8 @@ public partial class MainWindow : Window
         else if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Alt))
         {
             // Ctrl+Alt+Up/Down: Add cursor above/below (like VSCode)
-            switch (e.SystemKey)
+            var actualKey = e.Key == Key.System ? e.SystemKey : e.Key;
+            switch (actualKey)
             {
                 case Key.Up:
                     AddCursorAbove();
@@ -6442,15 +6488,28 @@ public partial class MainWindow : Window
             hasItems = true;
         }
 
-        // 3. Check for missing namespaces (always check, just in case)
+        // 3. Check for missing namespaces (types and extension methods)
         var word = GetWordAtOffset(CodeEditor.Document, offset);
         if (!string.IsNullOrEmpty(word))
         {
-            var namespaces = TypeInspector.FindNamespacesForType(word);
-            
-            // Filter out namespaces that are already in the file
             var currentCode = CodeEditor.Text;
-            var newNamespaces = namespaces.Where(ns => !currentCode.Contains($"using {ns};")).ToList();
+
+            // First check for types
+            var namespaces = TypeInspector.FindNamespacesForType(word);
+
+            // Also check for extension methods (like LINQ's Select, Where, etc.)
+            var extensionNamespaces = TypeInspector.FindNamespacesForExtensionMethod(word);
+            foreach (var ns in extensionNamespaces)
+            {
+                namespaces.Add(ns);
+            }
+
+            // Filter out namespaces that are already in the file
+            var newNamespaces = namespaces.Distinct()
+                .Where(ns => !currentCode.Contains($"using {ns};"))
+                .OrderByDescending(n => n.StartsWith("Code2Viz"))
+                .ThenBy(n => n)
+                .ToList();
 
             if (newNamespaces.Count > 0)
             {
@@ -6469,16 +6528,20 @@ public partial class MainWindow : Window
         // 4. Show menu or feedback
         if (hasItems)
         {
-            // Position the menu near the caret/variable, not at mouse cursor
-            var caretPos = CodeEditor.TextArea.Caret.CalculateCaretRectangle();
-            var visualPos = CodeEditor.TextArea.TextView.GetVisualPosition(
+            // Get visual position below the caret
+            var textView = CodeEditor.TextArea.TextView;
+            var pos = textView.GetVisualPosition(
                 new TextViewPosition(CodeEditor.TextArea.Caret.Line, CodeEditor.TextArea.Caret.Column),
                 ICSharpCode.AvalonEdit.Rendering.VisualYPosition.LineBottom);
-            var screenPos = CodeEditor.TextArea.TextView.PointToScreen(visualPos);
 
-            contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.AbsolutePoint;
-            contextMenu.HorizontalOffset = screenPos.X;
-            contextMenu.VerticalOffset = screenPos.Y;
+            // Adjust for scrolling
+            pos = new System.Windows.Point(pos.X - textView.ScrollOffset.X, pos.Y - textView.ScrollOffset.Y);
+
+            // Position relative to TextView
+            contextMenu.PlacementTarget = textView;
+            contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.RelativePoint;
+            contextMenu.HorizontalOffset = pos.X;
+            contextMenu.VerticalOffset = pos.Y;
 
             CodeEditor.ContextMenu = contextMenu;
             contextMenu.IsOpen = true;

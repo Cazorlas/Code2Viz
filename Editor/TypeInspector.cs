@@ -908,4 +908,82 @@ public static class TypeInspector
             .ThenBy(n => n)
             .ToList();
     }
+
+    /// <summary>
+    /// Find namespaces that contain extension methods with the given name.
+    /// This is useful for suggesting "using System.Linq;" when Select, Where, etc. are used.
+    /// </summary>
+    public static List<string> FindNamespacesForExtensionMethod(string methodName)
+    {
+        var namespaces = new HashSet<string>();
+
+        if (string.IsNullOrWhiteSpace(methodName))
+            return namespaces.ToList();
+
+        // Common extension method sources to check
+        var extensionMethodSources = new[]
+        {
+            typeof(Enumerable),           // System.Linq
+            typeof(Queryable),            // System.Linq
+        };
+
+        foreach (var sourceType in extensionMethodSources)
+        {
+            try
+            {
+                var methods = sourceType.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                    .Where(m => m.IsDefined(typeof(System.Runtime.CompilerServices.ExtensionAttribute), false));
+
+                if (methods.Any(m => m.Name.Equals(methodName, StringComparison.Ordinal)))
+                {
+                    if (!string.IsNullOrEmpty(sourceType.Namespace))
+                    {
+                        namespaces.Add(sourceType.Namespace);
+                    }
+                }
+            }
+            catch
+            {
+                // Ignored
+            }
+        }
+
+        // Also search for extension methods in Code2Viz namespaces
+        var code2vizAssembly = typeof(Geometry.VPoint).Assembly;
+        try
+        {
+            foreach (var type in code2vizAssembly.GetExportedTypes())
+            {
+                if (!type.IsAbstract || !type.IsSealed) // Static classes are abstract and sealed
+                    continue;
+
+                try
+                {
+                    var methods = type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                        .Where(m => m.IsDefined(typeof(System.Runtime.CompilerServices.ExtensionAttribute), false));
+
+                    if (methods.Any(m => m.Name.Equals(methodName, StringComparison.Ordinal)))
+                    {
+                        if (!string.IsNullOrEmpty(type.Namespace))
+                        {
+                            namespaces.Add(type.Namespace);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignored
+                }
+            }
+        }
+        catch
+        {
+            // Ignored
+        }
+
+        return namespaces
+            .OrderByDescending(n => n.StartsWith("Code2Viz"))
+            .ThenBy(n => n)
+            .ToList();
+    }
 }
