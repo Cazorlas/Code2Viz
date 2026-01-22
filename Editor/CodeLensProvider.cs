@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Media.TextFormatting;
 using ICSharpCode.AvalonEdit;
 using ICSharpCode.AvalonEdit.Document;
 using ICSharpCode.AvalonEdit.Rendering;
@@ -21,6 +22,7 @@ namespace Code2Viz.Editor
     public class CodeLensGenerator : VisualLineElementGenerator
     {
         private readonly TextDocument _document;
+        private readonly object _lock = new();
         private List<CodeLensItem> _items = new();
         private bool _enabled = true;
 
@@ -44,9 +46,16 @@ namespace Code2Viz.Editor
         /// </summary>
         public void UpdateCodeLens(string code)
         {
-            _items.Clear();
+            if (!_enabled)
+            {
+                lock (_lock)
+                {
+                    _items.Clear();
+                }
+                return;
+            }
 
-            if (!_enabled) return;
+            var newItems = new List<CodeLensItem>();
 
             try
             {
@@ -64,6 +73,9 @@ namespace Code2Viz.Editor
                 // Build a map of symbol usages
                 var usageMap = BuildUsageMap(root);
 
+                // Snapshot the document line count to avoid race conditions
+                var lineCount = _document.LineCount;
+
                 // Find class/struct/interface declarations
                 foreach (var typeDecl in root.DescendantNodes().OfType<TypeDeclarationSyntax>())
                 {
@@ -73,10 +85,13 @@ namespace Code2Viz.Editor
                     var lineSpan = typeDecl.Identifier.GetLocation().GetLineSpan();
                     var lineNumber = lineSpan.StartLinePosition.Line + 1; // 1-based
 
+                    // Validate line number is within bounds
+                    if (lineNumber < 1 || lineNumber > lineCount) continue;
+
                     // Get the start of the line (before any content)
                     var line = _document.GetLineByNumber(lineNumber);
 
-                    _items.Add(new CodeLensItem
+                    newItems.Add(new CodeLensItem
                     {
                         Offset = line.Offset,
                         Line = lineNumber,
@@ -95,9 +110,12 @@ namespace Code2Viz.Editor
                     var lineSpan = methodDecl.Identifier.GetLocation().GetLineSpan();
                     var lineNumber = lineSpan.StartLinePosition.Line + 1;
 
+                    // Validate line number is within bounds
+                    if (lineNumber < 1 || lineNumber > lineCount) continue;
+
                     var line = _document.GetLineByNumber(lineNumber);
 
-                    _items.Add(new CodeLensItem
+                    newItems.Add(new CodeLensItem
                     {
                         Offset = line.Offset,
                         Line = lineNumber,
@@ -116,9 +134,12 @@ namespace Code2Viz.Editor
                     var lineSpan = propDecl.Identifier.GetLocation().GetLineSpan();
                     var lineNumber = lineSpan.StartLinePosition.Line + 1;
 
+                    // Validate line number is within bounds
+                    if (lineNumber < 1 || lineNumber > lineCount) continue;
+
                     var line = _document.GetLineByNumber(lineNumber);
 
-                    _items.Add(new CodeLensItem
+                    newItems.Add(new CodeLensItem
                     {
                         Offset = line.Offset,
                         Line = lineNumber,
@@ -129,11 +150,17 @@ namespace Code2Viz.Editor
                 }
 
                 // Sort by offset
-                _items.Sort((a, b) => a.Offset.CompareTo(b.Offset));
+                newItems.Sort((a, b) => a.Offset.CompareTo(b.Offset));
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"CodeLens error: {ex.Message}");
+            }
+
+            // Atomically swap the items list
+            lock (_lock)
+            {
+                _items = newItems;
             }
         }
 
@@ -188,12 +215,27 @@ namespace Code2Viz.Editor
 
         public override int GetFirstInterestedOffset(int startOffset)
         {
-            if (!_enabled || _items.Count == 0) return -1;
+            if (!_enabled) return -1;
 
-            foreach (var item in _items)
+            try
             {
-                if (item.Offset >= startOffset)
-                    return item.Offset;
+                List<CodeLensItem> snapshot;
+                lock (_lock)
+                {
+                    snapshot = _items;
+                }
+
+                if (snapshot.Count == 0) return -1;
+
+                foreach (var item in snapshot)
+                {
+                    if (item.Offset >= startOffset)
+                        return item.Offset;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"CodeLens GetFirstInterestedOffset error: {ex.Message}");
             }
 
             return -1;
@@ -203,10 +245,24 @@ namespace Code2Viz.Editor
         {
             if (!_enabled) return null;
 
-            var item = _items.FirstOrDefault(i => i.Offset == offset);
-            if (item == null) return null;
+            try
+            {
+                List<CodeLensItem> snapshot;
+                lock (_lock)
+                {
+                    snapshot = _items;
+                }
 
-            return new CodeLensElement(item.Text);
+                var item = snapshot.FirstOrDefault(i => i.Offset == offset);
+                if (item == null) return null;
+
+                return new CodeLensElement(item.Text);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"CodeLens ConstructElement error: {ex.Message}");
+                return null;
+            }
         }
     }
 
@@ -234,44 +290,60 @@ namespace Code2Viz.Editor
     {
         private readonly string _text;
 
-        public CodeLensElement(string text) : base(0, 0)
+        public CodeLensElement(string text) : base(ComputeVisualLength(text), 0)
         {
+            // Visual length must match the TextRun length
+            // Document length = 0 (doesn't consume any document characters)
             _text = text + " | ";
         }
 
-        public override System.Windows.Media.TextFormatting.TextRun CreateTextRun(
+        private static int ComputeVisualLength(string text)
+        {
+            return (text + " | ").Length;
+        }
+
+        public override TextRun CreateTextRun(
             int startVisualColumn,
             ITextRunConstructionContext context)
         {
-            var props = new CodeLensTextRunProperties(context.GlobalTextRunProperties);
-            return new CodeLensTextRun(_text, props);
+            try
+            {
+                var props = new CodeLensTextRunProperties(context.GlobalTextRunProperties);
+                return new CodeLensTextRun(_text, props);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"CodeLens CreateTextRun error: {ex.Message}");
+                // Return a minimal text run on error
+                return new TextCharacters(" ", context.GlobalTextRunProperties);
+            }
         }
     }
 
-    public class CodeLensTextRun : System.Windows.Media.TextFormatting.TextRun
+    public class CodeLensTextRun : TextRun
     {
-        private readonly string _text;
-        private readonly System.Windows.Media.TextFormatting.TextRunProperties _properties;
+        private readonly char[] _textChars;
+        private readonly TextRunProperties _properties;
 
-        public CodeLensTextRun(string text, System.Windows.Media.TextFormatting.TextRunProperties properties)
+        public CodeLensTextRun(string text, TextRunProperties properties)
         {
-            _text = text;
+            _textChars = text.ToCharArray();
             _properties = properties;
         }
 
-        public override System.Windows.Media.TextFormatting.CharacterBufferReference CharacterBufferReference =>
-            new System.Windows.Media.TextFormatting.CharacterBufferReference(_text.ToCharArray(), 0);
+        public override CharacterBufferReference CharacterBufferReference =>
+            new CharacterBufferReference(_textChars, 0);
 
-        public override int Length => _text.Length;
+        public override int Length => _textChars.Length;
 
-        public override System.Windows.Media.TextFormatting.TextRunProperties Properties => _properties;
+        public override TextRunProperties Properties => _properties;
     }
 
-    public class CodeLensTextRunProperties : System.Windows.Media.TextFormatting.TextRunProperties
+    public class CodeLensTextRunProperties : TextRunProperties
     {
-        private readonly System.Windows.Media.TextFormatting.TextRunProperties _baseProperties;
+        private readonly TextRunProperties _baseProperties;
 
-        public CodeLensTextRunProperties(System.Windows.Media.TextFormatting.TextRunProperties baseProperties)
+        public CodeLensTextRunProperties(TextRunProperties baseProperties)
         {
             _baseProperties = baseProperties;
         }

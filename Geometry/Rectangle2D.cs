@@ -8,6 +8,9 @@ public class VRectangle : Shape, ICurve
     public double Width { get; set; }
     public double Height { get; set; }
 
+    /// <summary>Rotation angle in degrees (counter-clockwise) for the rectangle's intrinsic orientation.</summary>
+    public new double RotationAngle { get; set; } = 0;
+
     /// <summary>Gets the start point of the rectangle (same as Corner).</summary>
     public VPoint StartPoint => Corner;
 
@@ -17,14 +20,8 @@ public class VRectangle : Shape, ICurve
     /// <summary>A rectangle is never self-intersecting.</summary>
     public bool SelfIntersecting => false;
 
-    /// <summary>Gets the four corner vertices of the rectangle.</summary>
-    public List<VPoint> Vertices => new List<VPoint>
-    {
-        Corner,
-        new VPoint(Corner.X + Width, Corner.Y),
-        new VPoint(Corner.X + Width, Corner.Y + Height),
-        new VPoint(Corner.X, Corner.Y + Height)
-    };
+    /// <summary>Gets the four corner vertices of the rectangle, accounting for rotation.</summary>
+    public List<VPoint> Vertices => GetRotatedCorners().Take(4).ToList();
 
     public VRectangle(VPoint corner, double width, double height)
     {
@@ -50,6 +47,7 @@ public class VRectangle : Shape, ICurve
     public override Shape Clone()
     {
         var clone = new VRectangle((VPoint)Corner.Clone(), Width, Height);
+        clone.RotationAngle = RotationAngle;
         CopyStyleTo(clone);
         return clone;
     }
@@ -61,8 +59,10 @@ public class VRectangle : Shape, ICurve
 
     public override void Rotate(VPoint pivot, double angleDegrees)
     {
-        // Rotating rectangle corner; note that rotated rectangle would need polygon representation
+        // Rotate the corner point around the pivot
         Corner.Rotate(pivot, angleDegrees);
+        // Accumulate the rotation angle for the rectangle's own orientation
+        RotationAngle += angleDegrees;
     }
 
     public override void Flip(VLine mirrorLine)
@@ -79,10 +79,12 @@ public class VRectangle : Shape, ICurve
 
     public override (VPoint min, VPoint max) GetBounds()
     {
-        return (
-            new VPoint(Corner.X, Corner.Y),
-            new VPoint(Corner.X + Width, Corner.Y + Height)
-        );
+        var corners = GetRotatedCorners();
+        double minX = corners.Take(4).Min(p => p.X);
+        double minY = corners.Take(4).Min(p => p.Y);
+        double maxX = corners.Take(4).Max(p => p.X);
+        double maxY = corners.Take(4).Max(p => p.Y);
+        return (new VPoint(minX, minY), new VPoint(maxX, maxY));
     }
 
     public override bool Contains(VPoint point)
@@ -324,14 +326,37 @@ public class VRectangle : Shape, ICurve
     
     private List<VPoint> GetCorners()
     {
-        return new List<VPoint>
+        return GetRotatedCorners();
+    }
+
+    /// <summary>
+    /// Gets the four corners of the rectangle with rotation applied.
+    /// Returns 5 points (first point repeated at end for closed loop).
+    /// </summary>
+    private List<VPoint> GetRotatedCorners()
+    {
+        // Unrotated corners relative to Corner
+        var p0 = new VPoint(Corner.X, Corner.Y);
+        var p1 = new VPoint(Corner.X + Width, Corner.Y);
+        var p2 = new VPoint(Corner.X + Width, Corner.Y + Height);
+        var p3 = new VPoint(Corner.X, Corner.Y + Height);
+
+        if (Math.Abs(RotationAngle) < 1e-9)
         {
-            Corner,
-            new VPoint(Corner.X + Width, Corner.Y),
-            new VPoint(Corner.X + Width, Corner.Y + Height),
-            new VPoint(Corner.X, Corner.Y + Height),
-            Corner 
-        };
+            return new List<VPoint> { p0, p1, p2, p3, p0 };
+        }
+
+        // Rotate around the rectangle's center
+        double centerX = Corner.X + Width / 2;
+        double centerY = Corner.Y + Height / 2;
+        var center = new VPoint(centerX, centerY);
+
+        p0.Rotate(center, RotationAngle);
+        p1.Rotate(center, RotationAngle);
+        p2.Rotate(center, RotationAngle);
+        p3.Rotate(center, RotationAngle);
+
+        return new List<VPoint> { p0, p1, p2, p3, p0 };
     }
 
     public VXYZ NormalAtPoint(VPoint p)

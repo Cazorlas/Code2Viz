@@ -1401,23 +1401,46 @@ public class RenderCanvas : FrameworkElement
         var applyOpacity = rect.Opacity < 1.0;
         if (applyOpacity) dc.PushOpacity(rect.Opacity);
 
-        // Apply rotation transform if needed
-        var applyRotation = rect.RotationAngle != 0 && rect.RotationPivot != null;
-        if (applyRotation)
-        {
-            var pivot = WorldToScreen(rect.RotationPivot!.X + rect.OffsetX, rect.RotationPivot!.Y + rect.OffsetY);
-            dc.PushTransform(new RotateTransform(-rect.RotationAngle, pivot.X, pivot.Y));
-        }
-
         // Apply offset for move animation
         var offsetX = rect.OffsetX;
         var offsetY = rect.OffsetY;
 
+        var fill = GetCachedBrush(rect.FillColor);
+        var pen = GetCachedPen(rect.StrokeColor, rect.StrokeThickness);
+
+        // If rectangle has internal rotation, draw as polygon
+        if (Math.Abs(rect.RotationAngle) > 1e-9)
+        {
+            var vertices = rect.Vertices;
+            var geometry = new StreamGeometry();
+            using (var ctx = geometry.Open())
+            {
+                var first = WorldToScreen(vertices[0].X + offsetX, vertices[0].Y + offsetY);
+                ctx.BeginFigure(first, fill != null, true);
+                for (int i = 1; i < vertices.Count; i++)
+                {
+                    var pt = WorldToScreen(vertices[i].X + offsetX, vertices[i].Y + offsetY);
+                    ctx.LineTo(pt, true, false);
+                }
+            }
+            geometry.Freeze();
+            dc.DrawGeometry(fill, pen, geometry);
+
+            if (applyOpacity) dc.Pop();
+            return;
+        }
+
+        // Apply external rotation transform if needed (for animations)
+        var applyRotation = rect.RotationPivot != null;
+        if (applyRotation)
+        {
+            var pivot = WorldToScreen(rect.RotationPivot!.X + offsetX, rect.RotationPivot!.Y + offsetY);
+            dc.PushTransform(new RotateTransform(-rect.RotationAngle, pivot.X, pivot.Y));
+        }
+
         var corner = WorldToScreen(rect.Corner.X + offsetX, rect.Corner.Y + rect.Height + offsetY);
         var screenWidth = rect.Width * _viewport.Scale;
         var screenHeight = rect.Height * _viewport.Scale;
-        var fill = GetCachedBrush(rect.FillColor);
-        var pen = GetCachedPen(rect.StrokeColor, rect.StrokeThickness);
 
         // Apply DrawFactor - draw partial rectangle outline
         if (rect.DrawFactor < 1.0)

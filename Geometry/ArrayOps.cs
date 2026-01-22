@@ -73,7 +73,7 @@ public static class ArrayOps
     /// <param name="center">Center point of the circular array.</param>
     /// <param name="count">Number of copies to create.</param>
     /// <param name="totalAngleDegrees">Total angle span in degrees (360 = full circle).</param>
-    /// <param name="rotateItems">Whether to rotate each copy to face outward.</param>
+    /// <param name="rotateItems">Whether to rotate each copy to face outward from center.</param>
     /// <returns>List of shapes including the original.</returns>
     public static List<Shape> CircularArray(Shape shape, VPoint center, int count, double totalAngleDegrees = 360, bool rotateItems = true)
     {
@@ -93,8 +93,34 @@ public static class ArrayOps
             var clone = shape.Clone();
             double angleDegrees = angleStep * i;
 
-            // Rotate around center
-            clone.Rotate(center, angleDegrees);
+            if (rotateItems)
+            {
+                // Rotate around center - this moves the shape AND rotates its orientation
+                clone.Rotate(center, angleDegrees);
+            }
+            else
+            {
+                // Only move the shape without rotating its orientation
+                var bounds = clone.GetBounds();
+                var shapeCenter = new VPoint(
+                    (bounds.min.X + bounds.max.X) / 2,
+                    (bounds.min.Y + bounds.max.Y) / 2
+                );
+
+                // Calculate new position by rotating the shape center around the array center
+                double angleRadians = angleDegrees * Math.PI / 180;
+                double cos = Math.Cos(angleRadians);
+                double sin = Math.Sin(angleRadians);
+
+                double dx = shapeCenter.X - center.X;
+                double dy = shapeCenter.Y - center.Y;
+
+                double newCenterX = center.X + dx * cos - dy * sin;
+                double newCenterY = center.Y + dx * sin + dy * cos;
+
+                // Move by the difference
+                clone.Move(new VXYZ(newCenterX - shapeCenter.X, newCenterY - shapeCenter.Y, 0));
+            }
 
             result.Add(clone);
         }
