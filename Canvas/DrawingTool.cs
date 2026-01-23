@@ -684,8 +684,8 @@ public class DrawingTool
             DrawingMode.Ellipse => Points.Count == 0 ? "Ellipse: Click center" : "Ellipse: Drag to set radii",
             DrawingMode.Arc => Points.Count switch
             {
-                0 => "Arc: Click center",
-                1 => "Arc: Click start point",
+                0 => "Arc: Click start point",
+                1 => "Arc: Click point on arc",
                 _ => "Arc: Click end point"
             },
             DrawingMode.Polygon => Points.Count == 0 ? "Polygon: Click point 1" : Points.Count < 3 ? $"Polygon: Click point {Points.Count + 1}{orthoHint}" : $"Polygon: Click point {Points.Count + 1} (double-click to finish){orthoHint}",
@@ -740,12 +740,102 @@ public class DrawingTool
 
     private VArc CreateArc()
     {
-        // Arc: center, start point, end point
-        var center = Points[0];
-        var radius = center.DistanceTo(Points[1]);
-        var startAngle = Math.Atan2(Points[1].Y - center.Y, Points[1].X - center.X) * 180 / Math.PI;
-        var endAngle = Math.Atan2(Points[2].Y - center.Y, Points[2].X - center.X) * 180 / Math.PI;
-        return new VArc(center, radius, startAngle, endAngle);
+        // Three-point arc: start point, point on arc, end point
+        var p1 = Points[0]; // Start
+        var p2 = Points[1]; // Point on arc (midpoint)
+        var p3 = Points[2]; // End
+
+        var (center, radius) = CalculateCircumcircle(p1, p2, p3);
+
+        // Calculate angles from center to start and end points
+        var startAngle = Math.Atan2(p1.Y - center.Y, p1.X - center.X) * 180 / Math.PI;
+        var midAngle = Math.Atan2(p2.Y - center.Y, p2.X - center.X) * 180 / Math.PI;
+        var endAngle = Math.Atan2(p3.Y - center.Y, p3.X - center.X) * 180 / Math.PI;
+
+        // Determine the correct arc direction based on midpoint
+        // The midpoint should be on the arc, so check if going from start to end
+        // through the midpoint requires going clockwise or counter-clockwise
+        var (adjustedStart, adjustedEnd) = DetermineArcDirection(startAngle, midAngle, endAngle);
+
+        return new VArc(center, radius, adjustedStart, adjustedEnd);
+    }
+
+    /// <summary>
+    /// Calculates the circumcircle (center and radius) from three points.
+    /// </summary>
+    private static (VPoint center, double radius) CalculateCircumcircle(VPoint p1, VPoint p2, VPoint p3)
+    {
+        var x1 = p1.X; var y1 = p1.Y;
+        var x2 = p2.X; var y2 = p2.Y;
+        var x3 = p3.X; var y3 = p3.Y;
+
+        var d = 2 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
+
+        // Check for collinear points (d ≈ 0)
+        if (Math.Abs(d) < 1e-10)
+        {
+            // Points are nearly collinear, return midpoint as center with large radius
+            var midX = (x1 + x3) / 2;
+            var midY = (y1 + y3) / 2;
+            return (new VPoint(midX, midY), p1.DistanceTo(p3) / 2);
+        }
+
+        var sq1 = x1 * x1 + y1 * y1;
+        var sq2 = x2 * x2 + y2 * y2;
+        var sq3 = x3 * x3 + y3 * y3;
+
+        var cx = (sq1 * (y2 - y3) + sq2 * (y3 - y1) + sq3 * (y1 - y2)) / d;
+        var cy = (sq1 * (x3 - x2) + sq2 * (x1 - x3) + sq3 * (x2 - x1)) / d;
+
+        var center = new VPoint(cx, cy);
+        var radius = center.DistanceTo(p1);
+
+        return (center, radius);
+    }
+
+    /// <summary>
+    /// Determines the correct start and end angles so the arc passes through the midpoint.
+    /// </summary>
+    private static (double start, double end) DetermineArcDirection(double startAngle, double midAngle, double endAngle)
+    {
+        // Normalize all angles to (-180, 180] for easier comparison
+        startAngle = NormalizeAngleSigned(startAngle);
+        midAngle = NormalizeAngleSigned(midAngle);
+        endAngle = NormalizeAngleSigned(endAngle);
+
+        // Calculate angular distance from start to mid and start to end (going CCW, positive direction)
+        double toMid = NormalizeAngleSigned(midAngle - startAngle);
+        double toEnd = NormalizeAngleSigned(endAngle - startAngle);
+
+        // Determine if mid is "between" start and end when going CCW (positive direction)
+        // This happens if toMid has the same sign as toEnd and |toMid| < |toEnd|
+        bool midBetweenCCW;
+        if (toEnd >= 0)
+        {
+            midBetweenCCW = toMid >= 0 && toMid <= toEnd;
+        }
+        else
+        {
+            midBetweenCCW = toMid <= 0 && toMid >= toEnd;
+        }
+
+        if (midBetweenCCW)
+        {
+            // Arc from start to end (CCW direction if toEnd > 0) passes through mid
+            return (startAngle, endAngle);
+        }
+        else
+        {
+            // Need to go the other way - swap to reverse direction
+            return (endAngle, startAngle);
+        }
+    }
+
+    private static double NormalizeAngleSigned(double angle)
+    {
+        while (angle <= -180) angle += 360;
+        while (angle > 180) angle -= 360;
+        return angle;
     }
 
     private VPolygon CreatePolygon()
@@ -827,29 +917,29 @@ public class DrawingTool
         return ellipse;
     }
 
-    private VArc? CreatePreviewArc(VPoint endPoint)
+    private Shape? CreatePreviewArc(VPoint endPoint)
     {
         if (Points.Count < 1) return null;
 
-        var center = Points[0];
+        var p1 = Points[0]; // Start point
 
         if (Points.Count == 1)
         {
-            // Show radius preview as a line
-            var radius = center.DistanceTo(endPoint);
-            var circle = new VCircle(center, radius);
-            circle.StrokeColor = "Gray";
-            circle.FillColor = "Transparent";
-            return null; // For now, return null as we need a different shape type
+            // Only have start point, show line to current position as preview
+            var line = new VLine(p1, endPoint);
+            line.StrokeColor = "Gray";
+            return line;
         }
 
-        var radius2 = center.DistanceTo(Points[1]);
-        var startAngle = Math.Atan2(Points[1].Y - center.Y, Points[1].X - center.X) * 180 / Math.PI;
-        var endAngle = Math.Atan2(endPoint.Y - center.Y, endPoint.X - center.X) * 180 / Math.PI;
+        // Have start and mid point - show two lines instead of arc preview
+        // This avoids confusion since arc preview may not match final result exactly
+        var p2 = Points[1]; // Point on arc
+        var p3 = endPoint;  // End point (preview)
 
-        var arc = new VArc(center, radius2, startAngle, endAngle);
-        arc.StrokeColor = "Gray";
-        return arc;
+        // Return a polyline showing: start -> mid -> end (cursor)
+        var polyline = new VPolyline(p1, p2, p3);
+        polyline.StrokeColor = "Gray";
+        return polyline;
     }
 
     private VPolygon? CreatePreviewPolygon(VPoint endPoint)

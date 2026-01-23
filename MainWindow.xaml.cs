@@ -545,6 +545,9 @@ public partial class MainWindow : Window
     // Flag to prevent clearing multi-selections when AddNextOccurrence changes the selection
     private bool _isAddingNextOccurrence;
 
+    // Flag to suppress marking file as unsaved during programmatic text changes
+    private bool _suppressUnsavedMarking;
+
     private void TextArea_SelectionChanged_ClearMultiSelect(object? sender, EventArgs e)
     {
         // Don't clear if we're in the middle of AddNextOccurrence or multi-cursor editing
@@ -642,7 +645,7 @@ public partial class MainWindow : Window
         // Track changes in active file
         CodeEditor.TextChanged += (s, e) =>
         {
-            if (_activeFile != null)
+            if (_activeFile != null && !_suppressUnsavedMarking)
             {
                 _activeFile.HasUnsavedChanges = true;
                 RefreshFileTabs();
@@ -2605,8 +2608,12 @@ public partial class MainWindow : Window
         SaveCurrentEditorContent();
 
         _activeFile = file;
+
+        // Suppress unsaved marking when loading file content
+        _suppressUnsavedMarking = true;
         CodeEditor.Text = file.Content;
-        
+        _suppressUnsavedMarking = false;
+
         UpdateSyntaxHighlighting(file.FileName);
 
         // Select the tab without triggering SelectionChanged recursively
@@ -4755,12 +4762,15 @@ public partial class MainWindow : Window
             RefreshFileTabs();
         }
 
-        // Clear selection
+        // Clear selection first
         var count = selectedShapes.Count;
         RenderCanvas.SelectionTool.ClearSelection();
 
-        // Re-run code to update canvas (shapes will be removed)
-        RunButton_Click(this, new RoutedEventArgs());
+        // Remove shapes from canvas directly (no need to re-run code)
+        foreach (var shape in selectedShapes)
+        {
+            RenderCanvas.RemoveShape(shape);
+        }
 
         SetStatus($"Deleted {count} shape{(count != 1 ? "s" : "")}", isError: false);
     }

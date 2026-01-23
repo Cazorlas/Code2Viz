@@ -114,7 +114,8 @@ public class CodeSyncManager
             var match = regex.Match(content);
             if (match.Success)
             {
-                // Remove the entire line containing the shape
+                // Find all lines related to this shape (declaration + property assignments + Draw call)
+                var varName = shape.Name;
                 var startIndex = content.LastIndexOf('\n', match.Index);
                 if (startIndex < 0) startIndex = 0;
                 else startIndex++; // Move past the newline
@@ -122,6 +123,31 @@ public class CodeSyncManager
                 var endIndex = content.IndexOf('\n', match.Index + match.Length);
                 if (endIndex < 0) endIndex = content.Length;
                 else endIndex++; // Include the newline
+
+                // If we have a variable name, also remove subsequent lines that use it
+                if (!string.IsNullOrEmpty(varName))
+                {
+                    // Look for lines like: varName.StrokeColor = ...; varName.Draw();
+                    var varUsagePattern = new Regex($@"^\s*{Regex.Escape(varName)}\.\w+.*;\s*$", RegexOptions.Multiline);
+                    var searchStart = endIndex;
+
+                    while (searchStart < content.Length)
+                    {
+                        var nextLineEnd = content.IndexOf('\n', searchStart);
+                        if (nextLineEnd < 0) nextLineEnd = content.Length;
+
+                        var nextLine = content.Substring(searchStart, nextLineEnd - searchStart);
+                        if (varUsagePattern.IsMatch(nextLine))
+                        {
+                            endIndex = nextLineEnd < content.Length ? nextLineEnd + 1 : nextLineEnd;
+                            searchStart = endIndex;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                }
 
                 var newContent = content.Remove(startIndex, endIndex - startIndex);
                 return (newContent, true);
@@ -135,15 +161,34 @@ public class CodeSyncManager
     {
         var patterns = new List<string>();
         var shapeType = shape.GetType().Name;
+        var varName = shape.Name;
 
-        // Pattern for: new VCircle(...).Draw();
-        patterns.Add($@"new\s+{shapeType}\s*\([^)]*\)\s*\.Draw\s*\(\s*\)\s*;");
+        // If we have a specific variable name, use it for precise matching
+        if (!string.IsNullOrEmpty(varName))
+        {
+            var escapedName = Regex.Escape(varName);
 
-        // Pattern for: var name = new VCircle(...);
-        patterns.Add($@"var\s+\w+\s*=\s*new\s+{shapeType}\s*\([^)]*\)\s*;");
+            // Pattern for: var line3 = new VLine(...);
+            patterns.Add($@"var\s+{escapedName}\s*=\s*new\s+{shapeType}\s*\([^)]*\)\s*;");
 
-        // Pattern for explicit type: VCircle name = new VCircle(...);
-        patterns.Add($@"{shapeType}\s+\w+\s*=\s*new\s+{shapeType}\s*\([^)]*\)\s*;");
+            // Pattern for explicit type: VLine line3 = new VLine(...);
+            patterns.Add($@"{shapeType}\s+{escapedName}\s*=\s*new\s+{shapeType}\s*\([^)]*\)\s*;");
+
+            // Pattern with object initializer: var line3 = new VLine(...) { ... };
+            patterns.Add($@"var\s+{escapedName}\s*=\s*new\s+{shapeType}\s*\([^)]*\)\s*\{{[^}}]*\}}\s*;");
+        }
+        else
+        {
+            // Fallback to generic patterns if no name (should be rare)
+            // Pattern for: new VCircle(...).Draw();
+            patterns.Add($@"new\s+{shapeType}\s*\([^)]*\)\s*\.Draw\s*\(\s*\)\s*;");
+
+            // Pattern for: var name = new VCircle(...);
+            patterns.Add($@"var\s+\w+\s*=\s*new\s+{shapeType}\s*\([^)]*\)\s*;");
+
+            // Pattern for explicit type: VCircle name = new VCircle(...);
+            patterns.Add($@"{shapeType}\s+\w+\s*=\s*new\s+{shapeType}\s*\([^)]*\)\s*;");
+        }
 
         return patterns;
     }
