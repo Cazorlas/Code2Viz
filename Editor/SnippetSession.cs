@@ -44,6 +44,12 @@ public class SnippetSession
             }
         }
 
+        // Get the indentation of the current line to apply to snippet lines
+        var currentLineIndent = GetCurrentLineIndentation(offset);
+
+        // Apply indentation to all lines except the first
+        snippetCode = ApplyIndentationToSnippet(snippetCode, currentLineIndent);
+
         // Parse placeholders ($1, $2, ..., $0)
         var placeholderPattern = new Regex(@"\$(\d+)");
         var matches = placeholderPattern.Matches(snippetCode);
@@ -236,5 +242,52 @@ public class SnippetSession
 
         // The current class is the top of the stack (if any)
         return classStack.Count > 0 ? classStack.Peek().Name : null;
+    }
+
+    /// <summary>
+    /// Gets the indentation (leading whitespace) of the line containing the given offset.
+    /// </summary>
+    private string GetCurrentLineIndentation(int offset)
+    {
+        var document = _editor.Document;
+        var line = document.GetLineByOffset(offset);
+        var lineText = document.GetText(line.Offset, line.Length);
+
+        // Extract leading whitespace
+        int i = 0;
+        while (i < lineText.Length && (lineText[i] == ' ' || lineText[i] == '\t'))
+        {
+            i++;
+        }
+
+        return lineText.Substring(0, i);
+    }
+
+    /// <summary>
+    /// Applies indentation to all lines of a snippet except the first line.
+    /// </summary>
+    private static string ApplyIndentationToSnippet(string snippetCode, string indentation)
+    {
+        if (string.IsNullOrEmpty(indentation))
+            return snippetCode;
+
+        // Split by newlines, preserving the newline characters
+        var lines = snippetCode.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+
+        if (lines.Length <= 1)
+            return snippetCode;
+
+        // First line keeps its original form, subsequent lines get indentation prepended
+        var result = new System.Text.StringBuilder();
+        result.Append(lines[0]);
+
+        for (int i = 1; i < lines.Length; i++)
+        {
+            result.Append(Environment.NewLine);
+            result.Append(indentation);
+            result.Append(lines[i]);
+        }
+
+        return result.ToString();
     }
 }

@@ -756,12 +756,13 @@ public static class CompletionProvider
         // Pattern: foreach (var varName in collection) or foreach (Type varName in collection)
         // Need to infer element type from collection
         // Use non-greedy .+? to match type including nested generics like List<List<VPoint>>
-        var foreachPattern = $@"foreach\s*\(\s*(.+?)\s+{escapedVarName}\s+in\s+(\w+)";
+        // Collection can be a simple variable (items) or member access (result.Curves)
+        var foreachPattern = $@"foreach\s*\(\s*(.+?)\s+{escapedVarName}\s+in\s+([\w.]+)";
         match = Regex.Match(text, foreachPattern);
         if (match.Success)
         {
             var declaredType = match.Groups[1].Value.Trim();
-            var collectionName = match.Groups[2].Value;
+            var collectionExpr = match.Groups[2].Value;
 
             if (declaredType != "var")
             {
@@ -770,11 +771,22 @@ public static class CompletionProvider
             }
 
             // Need to find the collection's element type
-            // First, find the type of the collection
-            var collectionType = FindVariableType(text, collectionName, allCode);
+            // Check if it's a member access expression (e.g., result.Curves)
+            string? collectionType = null;
+            if (collectionExpr.Contains('.'))
+            {
+                // It's a chained expression like "result.Curves"
+                collectionType = ResolveChainedExpression(text, collectionExpr, allCode);
+            }
+            else
+            {
+                // Simple variable name
+                collectionType = FindVariableType(text, collectionExpr, allCode);
+            }
+
             if (!string.IsNullOrEmpty(collectionType))
             {
-                // Extract element type from generic collection (e.g., List<VPoint> -> VPoint)
+                // Extract element type from generic collection (e.g., List<VPoint> -> VPoint, List<ICurve> -> ICurve)
                 var genericMatch = Regex.Match(collectionType, @"<(.+)>$");
                 if (genericMatch.Success)
                 {

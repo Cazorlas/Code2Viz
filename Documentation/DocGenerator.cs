@@ -1333,6 +1333,7 @@ triangle.Mirror(mirrorAxis).DrawAll();" }
                 { "VPolygon.SplitAtPoint", "Splits the polygon at the specified point into two polylines." },
                 { "VPolygon.NormalAtPoint", "Returns the outward normal vector at the specified point on the polygon." },
                 { "VPolygon.Intersect", "Computes intersection with another curve." },
+                { "VPolygon.Slice", "Slices the polygon along an infinite line defined by two points, returning a list of resulting polygons." },
                 { "VPolygon.ToString", "Returns a string representation of the polygon." },
 
                 // VPolyline Properties

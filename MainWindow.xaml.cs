@@ -5156,30 +5156,59 @@ public partial class MainWindow : Window
         if (!CodeEditor.IsKeyboardFocusWithin) return;
 
         var document = CodeEditor.Document;
-        var caret = CodeEditor.TextArea.Caret;
-        var currentLineNumber = caret.Line;
+        var textArea = CodeEditor.TextArea;
+        var selection = textArea.Selection;
 
-        if (currentLineNumber <= 1) return;
+        // Get the range of lines to move
+        int startLine, endLine;
+        bool hadSelection = !selection.IsEmpty;
+        if (selection.IsEmpty)
+        {
+            startLine = endLine = textArea.Caret.Line;
+        }
+        else
+        {
+            startLine = document.GetLineByOffset(selection.SurroundingSegment.Offset).LineNumber;
+            endLine = document.GetLineByOffset(selection.SurroundingSegment.EndOffset).LineNumber;
+            // If selection ends at start of a line, don't include that line
+            var endLineObj = document.GetLineByNumber(endLine);
+            if (selection.SurroundingSegment.EndOffset == endLineObj.Offset && endLine > startLine)
+                endLine--;
+        }
 
-        var currentLine = document.GetLineByNumber(currentLineNumber);
-        var previousLine = document.GetLineByNumber(currentLineNumber - 1);
+        if (startLine <= 1) return;
 
-        var currentText = document.GetText(currentLine.Offset, currentLine.Length);
-        var previousText = document.GetText(previousLine.Offset, previousLine.Length);
+        var firstLine = document.GetLineByNumber(startLine);
+        var lastLine = document.GetLineByNumber(endLine);
+        var lineAbove = document.GetLineByNumber(startLine - 1);
+
+        var selectedText = document.GetText(firstLine.Offset, lastLine.EndOffset - firstLine.Offset);
+        var aboveText = document.GetText(lineAbove.Offset, lineAbove.Length);
 
         document.BeginUpdate();
         try
         {
-            document.Replace(previousLine.Offset, previousLine.Length, currentText);
-            var newCurrentLine = document.GetLineByNumber(currentLineNumber);
-            document.Replace(newCurrentLine.Offset, newCurrentLine.Length, previousText);
+            // Remove the selected lines and the line above, then insert in swapped order
+            int blockStart = lineAbove.Offset;
+            int blockLength = lastLine.EndOffset - lineAbove.Offset;
+
+            // Build the new text: selected lines + newline + line that was above
+            string newText = selectedText + Environment.NewLine + aboveText;
+
+            document.Replace(blockStart, blockLength, newText);
         }
         finally
         {
             document.EndUpdate();
         }
 
-        caret.Line = currentLineNumber - 1;
+        // Always restore selection at new position to allow continuous moving
+        var newFirstLine = document.GetLineByNumber(startLine - 1);
+        var newLastLine = document.GetLineByNumber(endLine - 1);
+
+        // Select from start of first line to end of last line
+        textArea.Caret.Position = new ICSharpCode.AvalonEdit.TextViewPosition(startLine - 1, 1);
+        textArea.Selection = ICSharpCode.AvalonEdit.Editing.Selection.Create(textArea, newFirstLine.Offset, newLastLine.EndOffset);
     }
 
     private void MoveLineDown()
@@ -5187,30 +5216,59 @@ public partial class MainWindow : Window
         if (!CodeEditor.IsKeyboardFocusWithin) return;
 
         var document = CodeEditor.Document;
-        var caret = CodeEditor.TextArea.Caret;
-        var currentLineNumber = caret.Line;
+        var textArea = CodeEditor.TextArea;
+        var selection = textArea.Selection;
 
-        if (currentLineNumber >= document.LineCount) return;
+        // Get the range of lines to move
+        int startLine, endLine;
+        bool hadSelection = !selection.IsEmpty;
+        if (selection.IsEmpty)
+        {
+            startLine = endLine = textArea.Caret.Line;
+        }
+        else
+        {
+            startLine = document.GetLineByOffset(selection.SurroundingSegment.Offset).LineNumber;
+            endLine = document.GetLineByOffset(selection.SurroundingSegment.EndOffset).LineNumber;
+            // If selection ends at start of a line, don't include that line
+            var endLineObj = document.GetLineByNumber(endLine);
+            if (selection.SurroundingSegment.EndOffset == endLineObj.Offset && endLine > startLine)
+                endLine--;
+        }
 
-        var currentLine = document.GetLineByNumber(currentLineNumber);
-        var nextLine = document.GetLineByNumber(currentLineNumber + 1);
+        if (endLine >= document.LineCount) return;
 
-        var currentText = document.GetText(currentLine.Offset, currentLine.Length);
-        var nextText = document.GetText(nextLine.Offset, nextLine.Length);
+        var firstLine = document.GetLineByNumber(startLine);
+        var lastLine = document.GetLineByNumber(endLine);
+        var lineBelow = document.GetLineByNumber(endLine + 1);
+
+        var selectedText = document.GetText(firstLine.Offset, lastLine.EndOffset - firstLine.Offset);
+        var belowText = document.GetText(lineBelow.Offset, lineBelow.Length);
 
         document.BeginUpdate();
         try
         {
-            document.Replace(nextLine.Offset, nextLine.Length, currentText);
-            var newCurrentLine = document.GetLineByNumber(currentLineNumber);
-            document.Replace(newCurrentLine.Offset, newCurrentLine.Length, nextText);
+            // Remove the selected lines and the line below, then insert in swapped order
+            int blockStart = firstLine.Offset;
+            int blockLength = lineBelow.EndOffset - firstLine.Offset;
+
+            // Build the new text: line that was below + newline + selected lines
+            string newText = belowText + Environment.NewLine + selectedText;
+
+            document.Replace(blockStart, blockLength, newText);
         }
         finally
         {
             document.EndUpdate();
         }
 
-        caret.Line = currentLineNumber + 1;
+        // Always restore selection at new position to allow continuous moving
+        var newFirstLine = document.GetLineByNumber(startLine + 1);
+        var newLastLine = document.GetLineByNumber(endLine + 1);
+
+        // Select from start of first line to end of last line
+        textArea.Caret.Position = new ICSharpCode.AvalonEdit.TextViewPosition(startLine + 1, 1);
+        textArea.Selection = ICSharpCode.AvalonEdit.Editing.Selection.Create(textArea, newFirstLine.Offset, newLastLine.EndOffset);
     }
 
     private void AddCursorAbove()

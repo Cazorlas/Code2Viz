@@ -756,17 +756,39 @@ public static class TypeInspector
         var property = type.GetProperty(memberName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
         if (property != null)
         {
-            return property.PropertyType.Name;
+            return FormatTypeName(property.PropertyType);
         }
 
         // Check fields (instance and static, including inherited)
         var field = type.GetField(memberName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
         if (field != null)
         {
-            return field.FieldType.Name;
+            return FormatTypeName(field.FieldType);
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Formats a Type to a readable type name including generic arguments.
+    /// E.g., List&lt;ICurve&gt; instead of List`1
+    /// </summary>
+    private static string FormatTypeName(Type type)
+    {
+        if (!type.IsGenericType)
+            return type.Name;
+
+        // Get the base name without the `N suffix
+        var baseName = type.Name;
+        var tickIndex = baseName.IndexOf('`');
+        if (tickIndex > 0)
+            baseName = baseName.Substring(0, tickIndex);
+
+        // Get the generic arguments
+        var genericArgs = type.GetGenericArguments();
+        var argNames = genericArgs.Select(FormatTypeName);
+
+        return $"{baseName}<{string.Join(", ", argNames)}>";
     }
 
     /// <summary>

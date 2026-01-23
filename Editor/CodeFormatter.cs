@@ -83,14 +83,20 @@ public static partial class CodeFormatter
         maskedLine = KeywordSpaceRegex().Replace(maskedLine, "$1 $2");
 
         // Add space around operators
-        // Add space around operators, but NOT around ++ or --
-        maskedLine = OperatorSpaceRegex().Replace(maskedLine, match => 
+        // Add space around operators, but NOT around ++, --, or standalone = when part of =>
+        maskedLine = OperatorSpaceRegex().Replace(maskedLine, match =>
         {
             var op = match.Groups[1].Value;
             if (op == "++" || op == "--")
                 return op; // Return operator as-is (no extra spaces)
+            if (op == "=>")
+                return " => "; // Lambda arrow - ensure proper spacing
             return " " + op + " ";
         });
+
+        // Fix any accidentally split lambda arrows (= >) back to =>
+        maskedLine = maskedLine.Replace("= >", "=>");
+        maskedLine = maskedLine.Replace("= >", "=>"); // In case of multiple spaces
 
         // Clean up multiple spaces
         maskedLine = MultiSpaceRegex().Replace(maskedLine, " ");
@@ -430,7 +436,9 @@ public static partial class CodeFormatter
     [GeneratedRegex(@"\b(if|else|for|foreach|while|switch|catch|using)\b(\()")]
     private static partial Regex KeywordSpaceRegex();
 
-    [GeneratedRegex(@"\s*(\+\+|--|==|!=|<=|>=|=>|&&|\|\||[+\-*/=!&|]=?)\s*")]
+    // Order matters: longer/compound operators first, then single char operators
+    // Use negative lookahead to prevent = from matching when followed by >
+    [GeneratedRegex(@"\s*(=>|\+\+|--|==|!=|<=|>=|&&|\|\||\+=|-=|\*=|/=|%=|&=|\|=|\^=|=(?!>)|[+\-*/%&|^])\s*")]
     private static partial Regex OperatorSpaceRegex();
 
     [GeneratedRegex(@"  +")]
