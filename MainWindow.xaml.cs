@@ -7590,21 +7590,24 @@ public partial class MainWindow : Window
         }
     }
 
-    private void PerformRename(string originalName)
+    private void PerformRename(string originalName, int offset = -1)
     {
+        // Capture offset before dialog if not provided
+        if (offset < 0)
+            offset = CodeEditor.CaretOffset;
+
         var dialog = new RenameDialog(originalName);
         dialog.Owner = this;
         if (dialog.ShowDialog() == true && dialog.NewName != originalName)
         {
-             ExecuteRename(dialog.NewName);
+             ExecuteRename(dialog.NewName, offset);
         }
     }
 
-    private async void ExecuteRename(string newName)
+    private async void ExecuteRename(string newName, int offset)
     {
         if (_currentProject == null || _activeFile == null || _refactoringProvider == null) return;
 
-        var offset = CodeEditor.CaretOffset;
         var result = await _refactoringProvider.GetRenameEditsAsync(_currentProject, _activeFile.FilePath, offset, newName);
 
         if (result.Success && result.Changes != null)
@@ -7648,7 +7651,7 @@ public partial class MainWindow : Window
         }
 
         var wordToRename = text.Substring(start, end - start);
-        PerformRename(wordToRename);
+        PerformRename(wordToRename, offset);
     }
 
     private static bool IsIdentifierChar(char c)
