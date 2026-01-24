@@ -86,6 +86,7 @@ public partial class MainWindow : Window
     public static RoutedCommand WorkspaceSymbolsCommand = new RoutedCommand();
     public static RoutedCommand CallHierarchyCommand = new RoutedCommand();
     public static RoutedCommand TypeHierarchyCommand = new RoutedCommand();
+    public static RoutedCommand DirectRenameCommand = new RoutedCommand();
 
     public MainWindow(VizCodeProject? project = null)
     {
@@ -694,6 +695,10 @@ public partial class MainWindow : Window
         // Type Hierarchy (Ctrl+Shift+T)
         CodeEditor.InputBindings.Add(new KeyBinding(TypeHierarchyCommand, new KeyGesture(Key.T, ModifierKeys.Control | ModifierKeys.Shift)));
         CommandBindings.Add(new CommandBinding(TypeHierarchyCommand, TypeHierarchy_Executed));
+
+        // Direct Rename (F2)
+        CodeEditor.InputBindings.Add(new KeyBinding(DirectRenameCommand, new KeyGesture(Key.F2)));
+        CommandBindings.Add(new CommandBinding(DirectRenameCommand, DirectRename_Executed));
 
         // Setup autocomplete
         CodeEditor.TextArea.TextEntered += TextArea_TextEntered;
@@ -7598,10 +7603,10 @@ public partial class MainWindow : Window
     private async void ExecuteRename(string newName)
     {
         if (_currentProject == null || _activeFile == null || _refactoringProvider == null) return;
-        
+
         var offset = CodeEditor.CaretOffset;
         var result = await _refactoringProvider.GetRenameEditsAsync(_currentProject, _activeFile.FilePath, offset, newName);
-        
+
         if (result.Success && result.Changes != null)
         {
             ApplyRefactoring(result.Changes);
@@ -7611,6 +7616,44 @@ public partial class MainWindow : Window
         {
             SetStatus(result.Error ?? "Rename failed", true);
         }
+    }
+
+    private void DirectRename_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (_currentProject == null || _activeFile == null) return;
+
+        // Get the word at the current caret position
+        var offset = CodeEditor.CaretOffset;
+        var document = CodeEditor.Document;
+        var text = document.Text;
+
+        if (offset < 0 || offset > text.Length) return;
+
+        // Find word boundaries
+        int start = offset;
+        int end = offset;
+
+        // Move start backward to find word start
+        while (start > 0 && IsIdentifierChar(text[start - 1]))
+            start--;
+
+        // Move end forward to find word end
+        while (end < text.Length && IsIdentifierChar(text[end]))
+            end++;
+
+        if (start == end)
+        {
+            SetStatus("Place cursor on an identifier to rename", true);
+            return;
+        }
+
+        var wordToRename = text.Substring(start, end - start);
+        PerformRename(wordToRename);
+    }
+
+    private static bool IsIdentifierChar(char c)
+    {
+        return char.IsLetterOrDigit(c) || c == '_';
     }
 
     private void AddUsingStatement(string namespaceName)
