@@ -7608,7 +7608,8 @@ public partial class MainWindow : Window
     {
         if (_currentProject == null || _activeFile == null || _refactoringProvider == null) return;
 
-        var result = await _refactoringProvider.GetRenameEditsAsync(_currentProject, _activeFile.FilePath, offset, newName);
+        string currentContent = CodeEditor.Text; // Should be main thread, safe to access
+        var result = await _refactoringProvider.GetRenameEditsAsync(_currentProject, _activeFile.FilePath, offset, newName, currentContent);
 
         if (result.Success && result.Changes != null)
         {

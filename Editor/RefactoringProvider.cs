@@ -382,7 +382,7 @@ namespace Code2Viz.Editor
             public List<DocumentSymbol> Symbols { get; set; } = new();
         }
 
-        public async Task<RenameResult> GetRenameEditsAsync(VizCodeProject project, string filePath, int offset, string newName)
+        public async Task<RenameResult> GetRenameEditsAsync(VizCodeProject project, string filePath, int offset, string newName, string? currentContent = null)
         {
             var result = new RenameResult();
 
@@ -391,9 +391,37 @@ namespace Code2Viz.Editor
                 var (compilation, _) = await _compiler.CreateCompilationAsync(project);
                 
                 // Find the document/tree for the requested file
-                var tree = compilation.SyntaxTrees.FirstOrDefault(t => 
-                    string.Equals(t.FilePath, filePath, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(System.IO.Path.GetFileName(t.FilePath), System.IO.Path.GetFileName(filePath), StringComparison.OrdinalIgnoreCase));
+                // If currentContent is provided, parse it and replace the tree in the compilation
+                SyntaxTree? tree = null;
+                
+                if (currentContent != null)
+                {
+                    var newTree = CSharpSyntaxTree.ParseText(
+                        currentContent,
+                        path: filePath,
+                        options: new CSharpParseOptions(LanguageVersion.Latest));
+                        
+                    var oldTree = compilation.SyntaxTrees.FirstOrDefault(t => 
+                        string.Equals(t.FilePath, filePath, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(System.IO.Path.GetFileName(t.FilePath), System.IO.Path.GetFileName(filePath), StringComparison.OrdinalIgnoreCase));
+                        
+                    if (oldTree != null)
+                    {
+                        compilation = compilation.ReplaceSyntaxTree(oldTree, newTree);
+                        tree = newTree;
+                    }
+                    else
+                    {
+                        compilation = compilation.AddSyntaxTrees(newTree);
+                        tree = newTree;
+                    }
+                }
+                else
+                {
+                     tree = compilation.SyntaxTrees.FirstOrDefault(t => 
+                        string.Equals(t.FilePath, filePath, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(System.IO.Path.GetFileName(t.FilePath), System.IO.Path.GetFileName(filePath), StringComparison.OrdinalIgnoreCase));
+                }
                 
                 if (tree == null)
                 {
