@@ -89,10 +89,7 @@ public class VArrow : Shape
         return (wing1, wing2);
     }
 
-    public override void Draw()
-    {
-        CanvasRenderer.Instance.AddShape(this);
-    }
+
 
     public override Shape Clone()
     {

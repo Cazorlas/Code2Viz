@@ -147,13 +147,7 @@ public class VGrid : Shape
     /// <summary>
     /// Draws all points in the grid.
     /// </summary>
-    public override void Draw()
-    {
-        foreach (var point in Points)
-        {
-            point.Draw();
-        }
-    }
+
 
     /// <summary>
     /// Creates a deep copy of this grid.

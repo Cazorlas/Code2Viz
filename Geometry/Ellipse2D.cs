@@ -35,10 +35,7 @@ public class VEllipse : Shape, ICurve
         EndAngle = endAngle;
     }
 
-    public override void Draw()
-    {
-        CanvasRenderer.Instance.AddShape(this);
-    }
+
 
     public override Shape Clone()
     {

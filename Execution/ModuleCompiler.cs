@@ -294,7 +294,7 @@ public class ModuleCompiler
         var shapes = CanvasRenderer.Instance.GetShapes();
         foreach (var drawable in shapes)
         {
-            if (drawable is Geometry.Shape shape && string.IsNullOrEmpty(shape.Name))
+            if (drawable is Geometry.Shape shape && string.IsNullOrEmpty(shape.Name) && !shape.IsExplicitlyDrawn)
             {
                 shape.IsVisible = false;
             }

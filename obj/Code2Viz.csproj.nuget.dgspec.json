@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Work\\Nicety\\Projects\\Code2Viz\\Code2Viz.csproj": {}
+    "c:\\Work\\Nicety\\Projects\\Code2Viz\\Code2Viz.csproj": {}
   },
   "projects": {
-    "C:\\Work\\Nicety\\Projects\\Code2Viz\\Code2Viz.csproj": {
+    "c:\\Work\\Nicety\\Projects\\Code2Viz\\Code2Viz.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Work\\Nicety\\Projects\\Code2Viz\\Code2Viz.csproj",
+        "projectUniqueName": "c:\\Work\\Nicety\\Projects\\Code2Viz\\Code2Viz.csproj",
         "projectName": "Code2Viz",
-        "projectPath": "C:\\Work\\Nicety\\Projects\\Code2Viz\\Code2Viz.csproj",
+        "projectPath": "c:\\Work\\Nicety\\Projects\\Code2Viz\\Code2Viz.csproj",
         "packagesPath": "C:\\Users\\haril\\.nuget\\packages\\",
-        "outputPath": "C:\\Work\\Nicety\\Projects\\Code2Viz\\obj\\",
+        "outputPath": "c:\\Work\\Nicety\\Projects\\Code2Viz\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

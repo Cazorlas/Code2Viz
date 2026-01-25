@@ -88,10 +88,7 @@ public class VLine : Shape, ICurve
         return points;
     }
 
-    public override void Draw()
-    {
-        CanvasRenderer.Instance.AddShape(this);
-    }
+
 
     public override Shape Clone()
     {

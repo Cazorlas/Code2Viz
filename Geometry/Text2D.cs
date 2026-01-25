@@ -34,10 +34,7 @@ public class VText : Shape
         FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
     }
 
-    public override void Draw()
-    {
-        CanvasRenderer.Instance.AddShape(this);
-    }
+
 
     public override Shape Clone()
     {

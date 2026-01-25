@@ -192,4 +192,103 @@ public class RoslynCompletionService
             return (new List<string>(), 0);
         }
     }
+    public async Task<(string Kind, string TypeName, string Name, string Documentation)?> GetQuickInfoAsync(string code, int position)
+    {
+        try
+        {
+            var syntaxTree = CSharpSyntaxTree.ParseText(code);
+            var compilation = CSharpCompilation.Create(
+                "QuickInfoAnalysis",
+                new[] { syntaxTree },
+                _references,
+                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+            var semanticModel = compilation.GetSemanticModel(syntaxTree);
+            var root = await syntaxTree.GetRootAsync();
+            var token = root.FindToken(position);
+
+            // If we are on a keyword or whitespace, maybe move slightly?
+            // Actually FindToken(position) finds the token that contains the position.
+            
+            // Check lookup symbol
+            var node = token.Parent;
+            if (node == null) return null;
+
+            ISymbol? symbol = null;
+            
+            // Try GetSymbolInfo
+            var symbolInfo = semanticModel.GetSymbolInfo(node);
+            symbol = symbolInfo.Symbol;
+
+            // Fallback for declarations (GetDeclaredSymbol)
+            if (symbol == null)
+            {
+                 symbol = semanticModel.GetDeclaredSymbol(node);
+            }
+
+            if (symbol == null) return null;
+
+            // Extract Info
+            var kind = GetKindString(symbol);
+            var typeName = GetSymbolType(symbol);
+            var name = symbol.Name;
+            var doc = symbol.GetDocumentationCommentXml();
+            
+            // If internal XML doc is empty, try to get standard description
+            if (string.IsNullOrEmpty(doc))
+            {
+                // We will rely on UI to render simple description if doc is missing
+                // Or we can parse the XML here.
+                // Let's return the raw XML or summary.
+                // For simplicity, let's just return the DisplayString as fallback documentation if XML is missing?
+                // Actually, let's leave documentation null if missing, UI handles it.
+            }
+            else
+            {
+                // Parse XML to just get summary
+                try 
+                {
+                    var xmlDoc = new System.Xml.XmlDocument();
+                    xmlDoc.LoadXml(doc);
+                    var summary = xmlDoc.SelectSingleNode("//summary")?.InnerText?.Trim();
+                    if (!string.IsNullOrEmpty(summary)) doc = summary;
+                }
+                catch { /* ignore xml parse error */ }
+            }
+
+            return (kind, typeName, name, doc);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"QuickInfo Error: {ex.Message}");
+            return null;
+        }
+    }
+
+    private string GetKindString(ISymbol symbol)
+    {
+        return symbol.Kind switch
+        {
+            SymbolKind.Local => "local",
+            SymbolKind.Parameter => "parameter",
+            SymbolKind.Field => "field",
+            SymbolKind.Property => "property",
+            SymbolKind.Method => "method",
+            SymbolKind.NamedType => symbol is INamedTypeSymbol nt && nt.TypeKind == TypeKind.Interface ? "interface" : 
+                                    symbol is INamedTypeSymbol nt2 && nt2.TypeKind == TypeKind.Struct ? "struct" : "class",
+            _ => "symbol"
+        };
+    }
+
+    private string GetSymbolType(ISymbol symbol)
+    {
+        if (symbol is ILocalSymbol local) return local.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        if (symbol is IParameterSymbol param) return param.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        if (symbol is IFieldSymbol field) return field.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        if (symbol is IPropertySymbol prop) return prop.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        if (symbol is IMethodSymbol method) return method.ReturnType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        if (symbol is INamedTypeSymbol type) return type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        
+        return symbol.Name;
+    }
 }

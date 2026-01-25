@@ -185,7 +185,16 @@ public abstract class Shape : IDrawable
     /// </summary>
     public bool IsVisible { get; set; } = true;
 
-    public abstract void Draw();
+    /// <summary>
+    /// Indicates whether this shape was explicitly drawn by the user calling .Draw()
+    /// </summary>
+    public bool IsExplicitlyDrawn { get; set; } = false;
+
+    public virtual void Draw()
+    {
+        IsExplicitlyDrawn = true;
+        CanvasRenderer.Instance.AddShape(this);
+    }
 
     /// <summary>
     /// Shows this shape on the canvas (sets IsVisible to true).

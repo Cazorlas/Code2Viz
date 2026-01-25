@@ -5597,7 +5597,7 @@ public partial class MainWindow : Window
     {
         if (ProjectTreeView.SelectedItem is ProjectTreeItem item)
         {
-            // Handle References node - open Add Reference dialog
+            // Handle References node - keep double-click for this dialog
             if (item.IsReferencesNode)
             {
                 if (_currentProject != null)
@@ -5612,49 +5612,60 @@ public partial class MainWindow : Window
                 }
                 return;
             }
+        }
+    }
 
-            // Ignore reference items (no action on double-click)
-            if (item.IsReferenceItem)
+    private void ProjectTreeView_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+    {
+        if (e.NewValue is ProjectTreeItem item)
+        {
+            OpenFileFromProjectTree(item);
+        }
+    }
+
+    private void OpenFileFromProjectTree(ProjectTreeItem item)
+    {
+        // Ignore reference items
+        if (item.IsReferencesNode || item.IsReferenceItem)
+        {
+            return;
+        }
+
+        // Handle regular files (ignore directories for opening)
+        if (!item.IsDirectory)
+        {
+            // Check if file is already loaded
+            var existingFile = _currentProject?.Files.FirstOrDefault(f => f.FilePath.Equals(item.FullPath, StringComparison.OrdinalIgnoreCase));
+
+            if (existingFile != null)
             {
-                return;
-            }
-
-            // Handle regular files
-            if (!item.IsDirectory)
-            {
-                // Check if file is already loaded
-                var existingFile = _currentProject?.Files.FirstOrDefault(f => f.FilePath.Equals(item.FullPath, StringComparison.OrdinalIgnoreCase));
-
-                if (existingFile != null)
+                // Reopen the tab if it was closed
+                if (!existingFile.IsOpen)
                 {
-                    // Reopen the tab if it was closed
-                    if (!existingFile.IsOpen)
-                    {
-                        existingFile.IsOpen = true;
-                        RefreshFileTabs();
-                    }
-                    SelectFile(existingFile);
+                    existingFile.IsOpen = true;
+                    RefreshFileTabs();
                 }
-                else if (File.Exists(item.FullPath) && _currentProject != null)
+                SelectFile(existingFile);
+            }
+            else if (File.Exists(item.FullPath) && _currentProject != null)
+            {
+                try
                 {
-                    try
+                    // Open generic file
+                    var newFile = new VizCodeFile
                     {
-                        // Open generic file
-                        var newFile = new VizCodeFile
-                        {
-                            FilePath = item.FullPath,
-                            Content = File.ReadAllText(item.FullPath),
-                            HasUnsavedChanges = false
-                        };
-                        
-                        _currentProject.Files.Add(newFile);
-                        RefreshFileTabs();
-                        SelectFile(newFile);
-                    }
-                    catch (Exception ex)
-                    {
-                         SetStatus($"Error opening file: {ex.Message}", true);
-                    }
+                        FilePath = item.FullPath,
+                        Content = File.ReadAllText(item.FullPath),
+                        HasUnsavedChanges = false
+                    };
+                    
+                    _currentProject.Files.Add(newFile);
+                    RefreshFileTabs();
+                    SelectFile(newFile);
+                }
+                catch (Exception ex)
+                {
+                        SetStatus($"Error opening file: {ex.Message}", true);
                 }
             }
         }
@@ -6072,7 +6083,7 @@ public partial class MainWindow : Window
 
     private ToolTip? _currentToolTip;
 
-    private void TextEditor_MouseHover(object sender, MouseEventArgs e)
+    private async void TextEditor_MouseHover(object sender, MouseEventArgs e)
     {
         try
         {
@@ -6102,7 +6113,22 @@ public partial class MainWindow : Window
                 return;
             }
 
-            // No method call - try to show type information for identifier under cursor
+            // Roslyn-based Quick Info
+            // We use a fire-and-forget approach here because MouseHover is synchronous
+            // and we don't want to block the UI thread.
+            var code = CodeEditor.Text;
+            var service = new Editor.RoslynCompletionService(_compiler.GetReferences());
+            var quickInfo = await service.GetQuickInfoAsync(code, offset);
+
+            if (quickInfo != null)
+            {
+                 ShowStyledTypeTooltip(quickInfo.Value.Kind, quickInfo.Value.TypeName, quickInfo.Value.Name, quickInfo.Value.Documentation);
+                 e.Handled = true;
+                 return;
+            }
+
+            // Fallback: No method call - try to show type information for identifier under cursor using partial reflection if Roslyn fails (or during typing)
+            // Ideally Roslyn should handle everything.
             var typeInfo = GetTypeInfoAtOffset(offset);
             if (typeInfo != null)
             {
@@ -6437,7 +6463,7 @@ public partial class MainWindow : Window
         _currentToolTip.IsOpen = true;
     }
 
-    private void ShowStyledTypeTooltip(string category, string typeName, string identifier)
+    private void ShowStyledTypeTooltip(string category, string typeName, string identifier, string? documentation = null)
     {
         if (_currentToolTip != null)
         {
@@ -6483,28 +6509,31 @@ public partial class MainWindow : Window
         mainPanel.Children.Add(headerPanel);
 
         // Try to get documentation
-        string? documentation = null;
-
-        // First try built-in documentation
-        if (category == "type" || category == "class" || category == "struct")
-        {
-            documentation = Editor.XmlDocumentationProvider.GetBuiltInDocumentation(identifier);
-        }
-        else
-        {
-            // Try to get documentation from the type's member
-            documentation = Editor.XmlDocumentationProvider.GetBuiltInDocumentation(typeName, identifier);
-        }
-
-        // If no built-in doc, try reflection-based XML docs
+        // string? documentation is now passed in as argument
+        
         if (documentation == null)
         {
-            var resolvedType = Editor.TypeInspector.ResolveType(typeName);
-            if (resolvedType != null)
+            // First try built-in documentation
+            if (category == "type" || category == "class" || category == "struct")
             {
-                if (category == "type" || category == "class" || category == "struct")
+                documentation = Editor.XmlDocumentationProvider.GetBuiltInDocumentation(identifier);
+            }
+            else
+            {
+                // Try to get documentation from the type's member
+                documentation = Editor.XmlDocumentationProvider.GetBuiltInDocumentation(typeName, identifier);
+            }
+
+            // If no built-in doc, try reflection-based XML docs
+            if (documentation == null)
+            {
+                var resolvedType = Editor.TypeInspector.ResolveType(typeName);
+                if (resolvedType != null)
                 {
-                    documentation = Editor.XmlDocumentationProvider.GetTypeSummary(resolvedType);
+                    if (category == "type" || category == "class" || category == "struct")
+                    {
+                        documentation = Editor.XmlDocumentationProvider.GetTypeSummary(resolvedType);
+                    }
                 }
             }
         }

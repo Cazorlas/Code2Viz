@@ -60,10 +60,7 @@ public class VCircle : Shape, ICurve
         StrokeColor = ShapeDefaults.GlobalStrokeColor ?? "Yellow";
     }
 
-    public override void Draw()
-    {
-        CanvasRenderer.Instance.AddShape(this);
-    }
+
 
     public override Shape Clone()
     {

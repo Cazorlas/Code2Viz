@@ -94,10 +94,7 @@ public class VDimension : Shape
         return (dimStart, dimEnd, textPos, ext1Start, ext1End, ext2Start, ext2End);
     }
 
-    public override void Draw()
-    {
-        CanvasRenderer.Instance.AddShape(this);
-    }
+
 
     public override Shape Clone()
     {

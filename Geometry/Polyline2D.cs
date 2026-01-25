@@ -43,10 +43,7 @@ public class VPolyline : Shape, ICurve
         Points.Add(new VPoint(x, y));
     }
 
-    public override void Draw()
-    {
-        CanvasRenderer.Instance.AddShape(this);
-    }
+
 
     public override Shape Clone()
     {

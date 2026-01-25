@@ -94,10 +94,7 @@ public class VXLine : Shape, ICurve
         return GetPointAtParameter(mappedParam);
     }
 
-    public override void Draw()
-    {
-        CanvasRenderer.Instance.AddShape(this);
-    }
+
 
     public override Shape Clone()
     {

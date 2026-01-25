@@ -65,10 +65,7 @@ public class VPoint : Shape
     // Scalar division
     public static VPoint operator /(VPoint a, double scalar) => Internal(a.X / scalar, a.Y / scalar);
 
-    public override void Draw()
-    {
-        CanvasRenderer.Instance.AddShape(this);
-    }
+
 
     public override Shape Clone()
     {

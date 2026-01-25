@@ -114,10 +114,7 @@ public class VRay : Shape, ICurve
         return GetPointAtDistance(parameter * RenderExtent);
     }
 
-    public override void Draw()
-    {
-        CanvasRenderer.Instance.AddShape(this);
-    }
+
 
     public override Shape Clone()
     {

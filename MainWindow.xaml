@@ -586,6 +586,7 @@
                         Padding="0,5"
                         Background="Transparent"
                         BorderThickness="0"
+                        SelectedItemChanged="ProjectTreeView_SelectedItemChanged"
                         MouseDoubleClick="ProjectTreeView_MouseDoubleClick"
                         PreviewMouseRightButtonDown="ProjectTreeView_PreviewMouseRightButtonDown">
                         <TreeView.Resources>

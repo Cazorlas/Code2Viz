@@ -136,12 +136,7 @@ public class VGroup : Shape
     /// Draws the group as a single entity.
     /// The group is added to the renderer and rendered as one selectable unit.
     /// </summary>
-    public override void Draw()
-    {
-        // Add the group itself to the renderer, not individual shapes
-        // This allows the group to be selected and manipulated as a single entity
-        CanvasRenderer.Instance.AddShape(this);
-    }
+
 
     /// <summary>
     /// Creates a deep copy of this group and all its shapes.
