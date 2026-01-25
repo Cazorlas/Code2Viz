@@ -191,34 +191,140 @@ namespace Code2Viz.Editor
                     // If cursor is on the class identifier
                     if (token.Parent == classDecl && token.IsKind(SyntaxKind.IdentifierToken))
                     {
-                        actions.Add(new QuickActionItem 
-                        { 
-                            Title = "Move type to file matching name", 
+                        actions.Add(new QuickActionItem
+                        {
+                            Title = "Move type to file matching name",
                             ActionId = "MoveTypeToFile",
                             Data = { ["TypeName"] = classDecl.Identifier.Text }
                         });
 
-                        actions.Add(new QuickActionItem 
-                        { 
-                            Title = "Extract Interface...", 
+                        actions.Add(new QuickActionItem
+                        {
+                            Title = "Extract Interface...",
                             ActionId = "ExtractInterface",
                             Data = { ["TypeName"] = classDecl.Identifier.Text }
                         });
-                        
-                        actions.Add(new QuickActionItem 
-                        { 
-                            Title = "Sync File Name", 
+
+                        actions.Add(new QuickActionItem
+                        {
+                            Title = "Sync File Name",
                             ActionId = "SyncFileName",
                             Data = { ["TypeName"] = classDecl.Identifier.Text }
                         });
                     }
 
                     // Constructor generation (if inside class body)
-                    actions.Add(new QuickActionItem 
-                    { 
-                        Title = "Generate Constructor...", 
+                    actions.Add(new QuickActionItem
+                    {
+                        Title = "Generate Constructor...",
                         ActionId = "GenerateConstructor",
                         Data = { ["TypeName"] = classDecl.Identifier.Text }
+                    });
+
+                    // Check if cursor is on an interface name in the base list
+                    var baseType = node?.AncestorsAndSelf().OfType<SimpleBaseTypeSyntax>().FirstOrDefault();
+                    if (baseType != null && token.IsKind(SyntaxKind.IdentifierToken))
+                    {
+                        var interfaceName = token.Text;
+                        // Get the symbol to check if it's actually an interface
+                        var typeSymbol = model.GetSymbolInfo(baseType.Type).Symbol as INamedTypeSymbol;
+                        if (typeSymbol != null && typeSymbol.TypeKind == TypeKind.Interface)
+                        {
+                            // Check if there are unimplemented members
+                            var classSymbol = model.GetDeclaredSymbol(classDecl) as INamedTypeSymbol;
+                            if (classSymbol != null)
+                            {
+                                var unimplementedMembers = GetUnimplementedInterfaceMembers(classSymbol, typeSymbol);
+                                if (unimplementedMembers.Count > 0)
+                                {
+                                    actions.Add(new QuickActionItem
+                                    {
+                                        Title = $"Implement interface '{interfaceName}'",
+                                        ActionId = "ImplementInterface",
+                                        Data = {
+                                            ["InterfaceName"] = interfaceName,
+                                            ["ClassName"] = classDecl.Identifier.Text
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 2b. Interface Context
+                var interfaceDecl = node?.AncestorsAndSelf().OfType<InterfaceDeclarationSyntax>().FirstOrDefault();
+                if (interfaceDecl != null && token.Parent == interfaceDecl && token.IsKind(SyntaxKind.IdentifierToken))
+                {
+                    actions.Add(new QuickActionItem
+                    {
+                        Title = "Move type to file matching name",
+                        ActionId = "MoveTypeToFile",
+                        Data = { ["TypeName"] = interfaceDecl.Identifier.Text }
+                    });
+
+                    actions.Add(new QuickActionItem
+                    {
+                        Title = "Sync File Name",
+                        ActionId = "SyncFileName",
+                        Data = { ["TypeName"] = interfaceDecl.Identifier.Text }
+                    });
+                }
+
+                // 2c. Enum Context
+                var enumDecl = node?.AncestorsAndSelf().OfType<EnumDeclarationSyntax>().FirstOrDefault();
+                if (enumDecl != null && token.Parent == enumDecl && token.IsKind(SyntaxKind.IdentifierToken))
+                {
+                    actions.Add(new QuickActionItem
+                    {
+                        Title = "Move type to file matching name",
+                        ActionId = "MoveTypeToFile",
+                        Data = { ["TypeName"] = enumDecl.Identifier.Text }
+                    });
+
+                    actions.Add(new QuickActionItem
+                    {
+                        Title = "Sync File Name",
+                        ActionId = "SyncFileName",
+                        Data = { ["TypeName"] = enumDecl.Identifier.Text }
+                    });
+                }
+
+                // 2d. Struct Context
+                var structDecl = node?.AncestorsAndSelf().OfType<StructDeclarationSyntax>().FirstOrDefault();
+                if (structDecl != null && token.Parent == structDecl && token.IsKind(SyntaxKind.IdentifierToken))
+                {
+                    actions.Add(new QuickActionItem
+                    {
+                        Title = "Move type to file matching name",
+                        ActionId = "MoveTypeToFile",
+                        Data = { ["TypeName"] = structDecl.Identifier.Text }
+                    });
+
+                    actions.Add(new QuickActionItem
+                    {
+                        Title = "Sync File Name",
+                        ActionId = "SyncFileName",
+                        Data = { ["TypeName"] = structDecl.Identifier.Text }
+                    });
+                }
+
+                // 2e. Record Context
+                var recordDecl = node?.AncestorsAndSelf().OfType<RecordDeclarationSyntax>().FirstOrDefault();
+                if (recordDecl != null && token.Parent == recordDecl && token.IsKind(SyntaxKind.IdentifierToken))
+                {
+                    actions.Add(new QuickActionItem
+                    {
+                        Title = "Move type to file matching name",
+                        ActionId = "MoveTypeToFile",
+                        Data = { ["TypeName"] = recordDecl.Identifier.Text }
+                    });
+
+                    actions.Add(new QuickActionItem
+                    {
+                        Title = "Sync File Name",
+                        ActionId = "SyncFileName",
+                        Data = { ["TypeName"] = recordDecl.Identifier.Text }
                     });
                 }
 
@@ -1052,6 +1158,118 @@ namespace Code2Viz.Editor
         private static string GetModifiers(SyntaxTokenList modifiers)
         {
             return string.Join(" ", modifiers.Select(m => m.Text));
+        }
+
+        /// <summary>
+        /// Gets the list of interface members that are not yet implemented by the class.
+        /// </summary>
+        private static List<ISymbol> GetUnimplementedInterfaceMembers(INamedTypeSymbol classSymbol, INamedTypeSymbol interfaceSymbol)
+        {
+            var unimplemented = new List<ISymbol>();
+
+            foreach (var member in interfaceSymbol.GetMembers())
+            {
+                // Skip special members like .ctor
+                if (member.IsImplicitlyDeclared) continue;
+                if (member.Kind == SymbolKind.Method && ((IMethodSymbol)member).MethodKind != MethodKind.Ordinary) continue;
+
+                // Check if the class implements this member
+                var implementation = classSymbol.FindImplementationForInterfaceMember(member);
+                if (implementation == null)
+                {
+                    unimplemented.Add(member);
+                }
+            }
+
+            return unimplemented;
+        }
+
+        /// <summary>
+        /// Generates the implementation stubs for unimplemented interface members.
+        /// </summary>
+        public async Task<string?> GenerateInterfaceImplementationAsync(VizCodeProject project, string filePath, string className, string interfaceName)
+        {
+            try
+            {
+                var (compilation, _) = await CreateCompilationAsync(project);
+
+                var tree = compilation.SyntaxTrees.FirstOrDefault(t =>
+                    string.Equals(t.FilePath, filePath, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(System.IO.Path.GetFileName(t.FilePath), System.IO.Path.GetFileName(filePath), StringComparison.OrdinalIgnoreCase));
+
+                if (tree == null) return null;
+
+                var root = await tree.GetRootAsync();
+                var model = compilation.GetSemanticModel(tree);
+
+                // Find the class
+                var classDecl = root.DescendantNodes()
+                    .OfType<ClassDeclarationSyntax>()
+                    .FirstOrDefault(c => c.Identifier.Text == className);
+
+                if (classDecl == null) return null;
+
+                var classSymbol = model.GetDeclaredSymbol(classDecl) as INamedTypeSymbol;
+                if (classSymbol == null) return null;
+
+                // Find the interface
+                var interfaceSymbol = classSymbol.Interfaces.FirstOrDefault(i => i.Name == interfaceName);
+                if (interfaceSymbol == null) return null;
+
+                var unimplemented = GetUnimplementedInterfaceMembers(classSymbol, interfaceSymbol);
+                if (unimplemented.Count == 0) return null;
+
+                // Generate implementation stubs
+                var sb = new System.Text.StringBuilder();
+
+                foreach (var member in unimplemented)
+                {
+                    sb.AppendLine();
+
+                    if (member is IPropertySymbol prop)
+                    {
+                        var typeName = prop.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+                        sb.AppendLine($"        public {typeName} {prop.Name}");
+                        sb.AppendLine("        {");
+                        if (prop.GetMethod != null)
+                        {
+                            sb.AppendLine("            get => throw new NotImplementedException();");
+                        }
+                        if (prop.SetMethod != null)
+                        {
+                            sb.AppendLine("            set => throw new NotImplementedException();");
+                        }
+                        sb.AppendLine("        }");
+                    }
+                    else if (member is IMethodSymbol method)
+                    {
+                        var returnType = method.ReturnsVoid ? "void" : method.ReturnType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+                        var parameters = string.Join(", ", method.Parameters.Select(p =>
+                            $"{p.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)} {p.Name}"));
+
+                        sb.AppendLine($"        public {returnType} {method.Name}({parameters})");
+                        sb.AppendLine("        {");
+                        sb.AppendLine("            throw new NotImplementedException();");
+                        sb.AppendLine("        }");
+                    }
+                    else if (member is IEventSymbol evt)
+                    {
+                        var typeName = evt.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+                        sb.AppendLine($"        public event {typeName} {evt.Name};");
+                    }
+                }
+
+                return sb.ToString();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private async Task<(CSharpCompilation Compilation, HashSet<string> AllDlls)> CreateCompilationAsync(VizCodeProject project)
+        {
+            return await _compiler.CreateCompilationAsync(project);
         }
     }
 }

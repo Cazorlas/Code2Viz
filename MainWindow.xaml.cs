@@ -7427,9 +7427,11 @@ public partial class MainWindow : Window
             // Adjust for scrolling
             pos = new System.Windows.Point(pos.X - textView.ScrollOffset.X, pos.Y - textView.ScrollOffset.Y);
 
-            // Position relative to TextView
+            // Position relative to TextView at caret position
             contextMenu.PlacementTarget = textView;
-            contextMenu.PlacementRectangle = new Rect(pos, new Size(1, 1));
+            contextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.RelativePoint;
+            contextMenu.HorizontalOffset = pos.X;
+            contextMenu.VerticalOffset = pos.Y;
             contextMenu.IsOpen = true;
             SetStatus("Quick actions available", false);
         }
@@ -7450,13 +7452,22 @@ public partial class MainWindow : Window
         }
         else if (action.ActionId == "MoveTypeToFile")
         {
-            // Trigger existing logic if possible, or new logic
-            // Using existing handler for now if applicable
-            MoveTypeMenuItem_Click(null, null);
+            if (action.Data.TryGetValue("TypeName", out var typeName))
+            {
+                MoveTypeToNewFile(typeName);
+            }
         }
         else if (action.ActionId == "ExtractInterface")
         {
              MessageBox.Show("Extract Interface: Coming soon!", "Refactoring", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else if (action.ActionId == "ImplementInterface")
+        {
+            if (action.Data.TryGetValue("InterfaceName", out var interfaceName) &&
+                action.Data.TryGetValue("ClassName", out var className))
+            {
+                await ImplementInterfaceAsync(className, interfaceName);
+            }
         }
         else if (action.ActionId == "FixFormatting")
         {
@@ -8752,22 +8763,22 @@ public partial class MainWindow : Window
         }
     }
 
-    private void MoveTypeToNewFile(string className)
+    private void MoveTypeToNewFile(string typeName)
     {
         if (_activeFile == null || _currentProject == null) return;
 
         var code = CodeEditor.Text;
         if (string.IsNullOrEmpty(code)) return;
-        
-        // Find class definition
-        var match = Regex.Match(code, $@"\b(?:public\s+|private\s+|internal\s+)?class\s+{className}\b");
+
+        // Find type definition (class, interface, enum, struct, record)
+        var match = Regex.Match(code, $@"\b(?:public\s+|private\s+|internal\s+|protected\s+)?(?:partial\s+)?(?:static\s+)?(?:abstract\s+|sealed\s+)?(?:class|interface|enum|struct|record)\s+{Regex.Escape(typeName)}\b");
         if (!match.Success) return;
 
-        var classStart = match.Index;
-        var openBrace = code.IndexOf('{', classStart);
+        var typeStart = match.Index;
+        var openBrace = code.IndexOf('{', typeStart);
         if (openBrace == -1) return;
 
-        // Find end of class by counting braces
+        // Find end of type by counting braces
         int braceCount = 1;
         int endPos = -1;
         for (int i = openBrace + 1; i < code.Length; i++)
@@ -8786,11 +8797,11 @@ public partial class MainWindow : Window
 
         if (endPos == -1) return;
 
-        // Extract class code
-        var classCode = code.Substring(classStart, endPos - classStart);
-        
+        // Extract type code
+        var typeCode = code.Substring(typeStart, endPos - typeStart);
+
         // Remove from current file (and potentially trailing newline)
-        var newCode = code.Remove(classStart, endPos - classStart).TrimEnd();
+        var newCode = code.Remove(typeStart, endPos - typeStart).TrimEnd();
         CodeEditor.Text = newCode;
         _activeFile.Content = newCode;
 
@@ -8799,27 +8810,27 @@ public partial class MainWindow : Window
         var ext = Path.GetExtension(fileName);
         if (string.IsNullOrEmpty(ext))
             ext = _currentProject.ProjectFile.Language == ProjectLanguage.FSharp ? ".fs" : ".cs";
-        var newFileName = $"{className}{ext}";
-        
-        // Basic template for new file (preserving usings if possible, or just the class)
+        var newFileName = $"{typeName}{ext}";
+
+        // Basic template for new file (preserving usings if possible, or just the type)
         // Ideally we copy using statements from original file
         var usings = Regex.Matches(code, @"^using\s+[\w\.]+;", RegexOptions.Multiline)
                           .Select(m => m.Value)
                           .Distinct();
         var header = string.Join(Environment.NewLine, usings);
-        
+
         // Check for namespace
         var nsMatch = Regex.Match(code, @"\bnamespace\s+([\w\.]+)");
         string newFileContent;
-        
+
         if (nsMatch.Success)
         {
             var ns = nsMatch.Groups[1].Value;
-            newFileContent = $"{header}\n\nnamespace {ns}\n{{\n    {classCode}\n}}";
+            newFileContent = $"{header}\n\nnamespace {ns}\n{{\n    {typeCode}\n}}";
         }
         else
         {
-            newFileContent = $"{header}\n\n{classCode}";
+            newFileContent = $"{header}\n\n{typeCode}";
         }
 
         // Create the file in project
@@ -8830,11 +8841,76 @@ public partial class MainWindow : Window
             HasUnsavedChanges = true,
             IsNew = true
         };
-        
+
         _currentProject.Files.Add(newFile);
         RefreshFileTabs();
-        
-        SetStatus($"Moved '{className}' to {newFileName}", false);
+        LoadProjectTree();
+
+        SetStatus($"Moved '{typeName}' to {newFileName}", false);
+    }
+
+    private async Task ImplementInterfaceAsync(string className, string interfaceName)
+    {
+        if (_activeFile == null || _currentProject == null || _refactoringProvider == null) return;
+
+        try
+        {
+            SetStatus($"Implementing {interfaceName}...", false);
+
+            var implementation = await _refactoringProvider.GenerateInterfaceImplementationAsync(
+                _currentProject, _activeFile.FilePath, className, interfaceName);
+
+            if (string.IsNullOrEmpty(implementation))
+            {
+                SetStatus("No members to implement.", false);
+                return;
+            }
+
+            // Find the class and insert before its closing brace
+            var code = CodeEditor.Text;
+            var classPattern = $@"class\s+{Regex.Escape(className)}\b";
+            var classMatch = Regex.Match(code, classPattern);
+
+            if (!classMatch.Success)
+            {
+                SetStatus($"Could not find class '{className}'", true);
+                return;
+            }
+
+            // Find the opening brace of the class
+            var openBrace = code.IndexOf('{', classMatch.Index);
+            if (openBrace == -1) return;
+
+            // Find the closing brace by counting braces
+            int braceCount = 1;
+            int closeBrace = -1;
+            for (int i = openBrace + 1; i < code.Length; i++)
+            {
+                if (code[i] == '{') braceCount++;
+                else if (code[i] == '}')
+                {
+                    braceCount--;
+                    if (braceCount == 0)
+                    {
+                        closeBrace = i;
+                        break;
+                    }
+                }
+            }
+
+            if (closeBrace == -1) return;
+
+            // Insert implementation before the closing brace
+            CodeEditor.Document.Insert(closeBrace, implementation);
+            _activeFile.Content = CodeEditor.Text;
+            _activeFile.HasUnsavedChanges = true;
+
+            SetStatus($"Implemented interface '{interfaceName}'", false);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Failed to implement interface: {ex.Message}", true);
+        }
     }
 
 
