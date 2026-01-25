@@ -83,13 +83,44 @@ public abstract class Shape : IDrawable
     public string Name { get; set; } = "";
 
     /// <summary>
-    /// Base constructor that auto-registers the shape with the canvas.
+    /// When false, shapes will not auto-register with the canvas on construction.
+    /// Use this for algorithms that create many temporary shapes.
+    /// Default is true for normal usage.
+    /// </summary>
+    public static bool AutoRegister { get; set; } = true;
+
+    /// <summary>
+    /// Base constructor that auto-registers the shape with the canvas (if AutoRegister is true).
     /// Shapes are automatically displayed when created - no need to call Draw().
     /// </summary>
     protected Shape()
     {
         // Auto-register with canvas (Draw() calls will be no-ops due to IsPlaced check)
-        CanvasRenderer.Instance.AddShape(this);
+        if (AutoRegister)
+        {
+            CanvasRenderer.Instance.AddShape(this);
+        }
+    }
+
+    /// <summary>
+    /// Protected constructor that allows skipping auto-registration.
+    /// Used internally by geometry classes for intermediate calculations.
+    /// </summary>
+    /// <param name="register">If false, the shape will not be auto-registered with the canvas.</param>
+    protected Shape(bool register)
+    {
+        if (register && AutoRegister)
+        {
+            CanvasRenderer.Instance.AddShape(this);
+        }
+    }
+
+    /// <summary>
+    /// Removes this shape from the canvas.
+    /// </summary>
+    public void Remove()
+    {
+        CanvasRenderer.Instance.RemoveShape(this);
     }
 
     /// <summary>

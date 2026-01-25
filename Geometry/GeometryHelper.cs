@@ -22,7 +22,8 @@ public static class GeometryHelper
         double newX = pivot.X + dx * cos - dy * sin;
         double newY = pivot.Y + dx * sin + dy * cos;
 
-        return new VPoint(newX, newY);
+        // Use Internal() to avoid auto-registering intermediate points
+        return VPoint.Internal(newX, newY);
     }
 
     /// <summary>
@@ -53,7 +54,8 @@ public static class GeometryHelper
         double newX = 2 * projX - point.X;
         double newY = 2 * projY - point.Y;
 
-        return new VPoint(newX, newY);
+        // Use Internal() to avoid auto-registering intermediate points
+        return VPoint.Internal(newX, newY);
     }
 
     /// <summary>
@@ -61,7 +63,8 @@ public static class GeometryHelper
     /// </summary>
     public static VPoint MovePoint(VPoint point, VXYZ vector)
     {
-        return new VPoint(point.X + vector.X, point.Y + vector.Y);
+        // Use Internal() to avoid auto-registering intermediate points
+        return VPoint.Internal(point.X + vector.X, point.Y + vector.Y);
     }
 
     /// <summary>
@@ -107,7 +110,8 @@ public static class GeometryHelper
         {
             double ix = x1 + ua * (x2 - x1);
             double iy = y1 + ua * (y2 - y1);
-            return new VPoint(ix, iy);
+            // Use Internal() to avoid auto-registering intermediate points
+            return VPoint.Internal(ix, iy);
         }
 
         return null;

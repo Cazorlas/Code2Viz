@@ -18,7 +18,15 @@
       "Bash(ls:*)",
       "Bash(find:*)",
       "Bash(dotnet add:*)",
-      "Bash(del \"C:\\\\Work\\\\Nicety\\\\Projects\\\\Code2Viz\\\\Export\\\\SvgExporter.cs\")"
+      "Bash(del \"C:\\\\Work\\\\Nicety\\\\Projects\\\\Code2Viz\\\\Export\\\\SvgExporter.cs\")",
+      "Bash(findstr:*)",
+      "Bash(Select-String -Pattern \"error|Build succeeded\")",
+      "Bash(dotnet run)",
+      "Bash(start \"\" \"bin\\\\Debug\\\\net9.0-windows\\\\Code2Viz.exe\")",
+      "Bash(Select-String -Pattern \"error|Build succeeded|Build FAILED\")",
+      "Bash(more:*)",
+      "Bash(Get-Content \"C:\\\\Users\\\\haril\\\\.claude\\\\projects\\\\C--Work-Nicety-Projects-Code2Viz\\\\d2a53175-a60c-425e-a80c-88a945154df6\\\\tool-results\\\\toolu_01LoD9TWveXxxRE13HsegQBa.txt\" -Tail 50)",
+      "Bash(powershell -command:*)"
     ]
   }
 }

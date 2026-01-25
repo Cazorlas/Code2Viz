@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using Code2Viz.Geometry;
+using Point = System.Windows.Point;
+using Rect = System.Windows.Rect;
 
 namespace Code2Viz.Canvas
 {

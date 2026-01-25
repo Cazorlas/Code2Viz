@@ -8,6 +8,11 @@ using WpfShapes = System.Windows.Shapes;
 using WpfCanvas = System.Windows.Controls.Canvas;
 using Code2Viz.Animation;
 using Code2Viz.Geometry;
+using MouseEventArgs = System.Windows.Input.MouseEventArgs;
+using Cursors = System.Windows.Input.Cursors;
+using Color = System.Windows.Media.Color;
+using Brushes = System.Windows.Media.Brushes;
+using SolidColorBrush = System.Windows.Media.SolidColorBrush;
 
 namespace Code2Viz;
 

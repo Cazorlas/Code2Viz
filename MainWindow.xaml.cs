@@ -700,6 +700,13 @@ public partial class MainWindow : Window
 
         CodeEditor.TextArea.TextView.Services.AddService(typeof(VizTextMarkerService), _textMarkerService);
         
+        // Initial options
+        CodeEditor.Options.ConvertTabsToSpaces = true;
+        CodeEditor.Options.IndentationSize = 4;
+        
+        // Handle KeyDown for shortcuts
+        CodeEditor.TextArea.KeyDown += CodeEditor_KeyDown;
+        
         // Marker events
         CodeEditor.MouseHover += TextEditor_MouseHover;
         CodeEditor.MouseHoverStopped += TextEditor_MouseHoverStopped;
@@ -904,20 +911,19 @@ public partial class MainWindow : Window
 
         if (e.Text.Length > 0 && _completionWindow != null)
         {
-            var ch = e.Text[0];
-            if (!char.IsLetterOrDigit(ch))
-            {
-                // Space should close completion without committing (allows typing variable names)
-                if (ch == ' ')
-                {
-                    _completionWindow.Close();
-                }
-                else
-                {
-                    // Commit completion on punctuation (.;,() etc.)
-                    _completionWindow.CompletionList.RequestInsertion(e);
-                }
-            }
+            // Filter existing window
+        }
+        else if (e.Text == ".")
+        {
+             // Trigger completion on dot
+             TriggerManualCompletion();
+        }
+        else if (e.Text.Length > 0 && char.IsLetter(e.Text[0]) && _completionWindow == null)
+        {
+            // Optional: Trigger completion on typing letters (Intellisense style)
+            // For now, let's stick to Ctrl+Space or Dot, unless specifically requested to auto-popup
+            // But VS does popup on typing.
+            // TriggerManualCompletion(); 
         }
     }
 
@@ -1029,6 +1035,14 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Handle Ctrl+Space for manual completion
+        if (e.Key == Key.Space && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            TriggerManualCompletion();
+            e.Handled = true;
+            return;
+        }
+
         // Handle Ctrl+Alt+Up/Down for adding cursors (catch before AvalonEdit)
         if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Alt))
         {
@@ -1060,168 +1074,50 @@ public partial class MainWindow : Window
     /// <summary>
     /// Triggers completion based on context (Ctrl+Space).
     /// </summary>
-    private void TriggerManualCompletion()
+    /// <summary>
+    /// Triggers completion based on context (Ctrl+Space or typing).
+    /// </summary>
+    private async void TriggerManualCompletion()
     {
         if (_completionWindow != null)
             return;
 
         var offset = CodeEditor.CaretOffset;
-        if (offset <= 0)
+        var code = CodeEditor.Text;
+
+        try 
         {
-            ShowGeneralCompletion();
-            return;
-        }
+             // Use Roslyn Completion Service
+             var service = new Editor.RoslynCompletionService(_compiler.GetReferences());
+             var completions = await service.GetCompletionsAsync(code, offset);
 
-        // Check if we're right after a dot - show member completion
-        var charBefore = CodeEditor.Document.GetCharAt(offset - 1);
-        if (charBefore == '.')
-        {
-            ShowMemberCompletion();
-            return;
-        }
+             if (completions.Count > 0)
+             {
+                 _completionWindow = new CompletionWindow(CodeEditor.TextArea);
+                 var data = _completionWindow.CompletionList.CompletionData;
+                 foreach (var item in completions)
+                 {
+                     data.Add(item);
+                 }
+                 
+                 // Add snippets
+                 foreach (var (trigger, description) in Editor.CodeSnippets.GetAll())
+                 {
+                     data.Add(new Editor.SnippetCompletionData(trigger, description, Editor.CodeSnippets.GetSnippet(trigger)!));
+                 }
 
-        // Check if we're inside method arguments - show argument completion
-        if (IsInsideMethodArguments(offset))
-        {
-            ShowArgumentCompletion();
-            return;
-        }
-
-        // Check if we're completing an identifier after a dot
-        var identifierStart = FindIdentifierStart(CodeEditor.Document, offset);
-        if (identifierStart > 0 && CodeEditor.Document.GetCharAt(identifierStart - 1) == '.')
-        {
-            // We're completing a partial member name (e.g., "tl.AddAni|")
-            ShowMemberCompletionWithPrefix(identifierStart);
-            return;
-        }
-
-        // Default: show general completion
-        ShowGeneralCompletion();
-    }
-
-    /// <summary>
-    /// Shows member completion with a prefix filter (for partial member names).
-    /// </summary>
-    private void ShowMemberCompletionWithPrefix(int identifierStart)
-    {
-        try
-        {
-            var offset = CodeEditor.CaretOffset;
-            var prefix = CodeEditor.Document.GetText(identifierStart, offset - identifierStart);
-            var dotOffset = identifierStart - 1;
-
-            if (dotOffset < 0)
-                return;
-
-            var allCode = GetAllProjectCode();
-            string? typeName = null;
-
-            // Find the identifier before the dot
-            var beforeDotStart = FindDottedIdentifierStart(CodeEditor.Document, dotOffset);
-            if (beforeDotStart >= dotOffset)
-                return;
-
-            var fullIdentifier = CodeEditor.Document.GetText(beforeDotStart, dotOffset - beforeDotStart);
-            if (string.IsNullOrEmpty(fullIdentifier))
-                return;
-
-            // Resolve variable type
-            var textBefore = CodeEditor.Document.GetText(0, beforeDotStart);
-            if (!fullIdentifier.Contains('.'))
-            {
-                typeName = CompletionProvider.FindVariableType(textBefore, fullIdentifier, allCode) ?? fullIdentifier;
-            }
-            else
-            {
-                // Resolve chained member access (e.g., wall.Geometry -> VPolygon)
-                typeName = CompletionProvider.ResolveChainedExpression(textBefore, fullIdentifier, allCode) ?? fullIdentifier;
-            }
-
-            if (string.IsNullOrEmpty(typeName))
-                return;
-
-            var completions = CompletionProvider.GetMemberCompletions(typeName, allCode)
-                .Where(c => c.Text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            if (completions.Count == 0)
-                return;
-
-            _completionWindow = new CompletionWindow(CodeEditor.TextArea);
-            _completionWindow.StartOffset = identifierStart;
-            StyleCompletionWindow(_completionWindow);
-
-            var data = _completionWindow.CompletionList.CompletionData;
-            foreach (var item in completions)
-            {
-                data.Add(item);
-            }
-
-            ShowCompletionWindowWithSelection();
+                 ShowCompletionWindowWithSelection();
+                 _completionWindow.Closed += (s, args) => _completionWindow = null;
+             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"ShowMemberCompletionWithPrefix error: {ex}");
+             System.Diagnostics.Debug.WriteLine($"Completion Error: {ex.Message}");
         }
     }
 
-    /// <summary>
-    /// Checks if the caret is inside method arguments (between parentheses of a method call).
-    /// </summary>
-    private bool IsInsideMethodArguments(int offset)
-    {
-        var text = CodeEditor.Document.Text;
-        var parenDepth = 0;
+    // Legacy methods removed
 
-        // Scan backwards to find if we're inside parentheses
-        for (int i = offset - 1; i >= 0; i--)
-        {
-            var c = text[i];
-            if (c == ')')
-                parenDepth++;
-            else if (c == '(')
-            {
-                if (parenDepth == 0)
-                {
-                    // Found unmatched opening paren - check if it's a method call
-                    if (i > 0)
-                    {
-                        var beforeParen = i - 1;
-                        while (beforeParen >= 0 && char.IsWhiteSpace(text[beforeParen]))
-                            beforeParen--;
-
-                        if (beforeParen >= 0 && (char.IsLetterOrDigit(text[beforeParen]) || text[beforeParen] == '_'))
-                            return true;
-                    }
-                    return false;
-                }
-                parenDepth--;
-            }
-            else if (c == ';' || c == '{' || c == '}')
-            {
-                // Statement boundary - not in method arguments
-                return false;
-            }
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// Finds the start of an identifier (letters, digits, underscore).
-    /// </summary>
-    private static int FindIdentifierStart(ICSharpCode.AvalonEdit.Document.TextDocument document, int offset)
-    {
-        while (offset > 0)
-        {
-            var c = document.GetCharAt(offset - 1);
-            if (char.IsLetterOrDigit(c) || c == '_')
-                offset--;
-            else
-                break;
-        }
-        return offset;
-    }
 
     private bool HandleAutoIndentEnter()
     {
@@ -1326,7 +1222,7 @@ public partial class MainWindow : Window
         if (e.Text == ".")
         {
             // Dot completion - show members
-            ShowMemberCompletion();
+            TriggerManualCompletion();
         }
         else if (e.Text == "(")
         {
@@ -1390,11 +1286,8 @@ public partial class MainWindow : Window
             // Use Dispatcher to ensure the window is fully closed before reopening
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                if (IsInsideMethodArguments(CodeEditor.CaretOffset))
-                {
-                    ShowSignatureHelp();
-                    ShowArgumentCompletion();
-                }
+                ShowSignatureHelp();
+                TriggerManualCompletion();
             }), System.Windows.Threading.DispatcherPriority.Input);
         }
         else if (e.Text == " ")
@@ -1406,7 +1299,7 @@ public partial class MainWindow : Window
                 var textBefore = CodeEditor.Document.GetText(offset - 4, 3);
                 if (textBefore == "new")
                 {
-                    ShowNewKeywordCompletion();
+                    TriggerManualCompletion();
                 }
             }
         }
@@ -1418,7 +1311,7 @@ public partial class MainWindow : Window
         else if (char.IsLetter(e.Text[0]))
         {
             // Show general completions after typing a letter
-            ShowGeneralCompletion();
+            TriggerManualCompletion();
         }
     }
 
@@ -1781,22 +1674,7 @@ public partial class MainWindow : Window
     private void ShowCompletionWindow()
     {
         // Triggered by Ctrl+Space
-        if (_completionWindow != null)
-            return;
-
-        var offset = CodeEditor.CaretOffset;
-        var wordStart = FindWordStart(CodeEditor.Document, offset);
-        var prefix = CodeEditor.Document.GetText(wordStart, offset - wordStart);
-
-        // Check if we're after a dot
-        if (wordStart > 0 && CodeEditor.Document.GetCharAt(wordStart - 1) == '.')
-        {
-            ShowMemberCompletion();
-        }
-        else
-        {
-            ShowGeneralCompletion();
-        }
+        TriggerManualCompletion();
     }
 
     private string GetAllProjectCode()
@@ -1810,540 +1688,11 @@ public partial class MainWindow : Window
         return string.Join("\n\n", _currentProject.Files.Select(f => f.Content));
     }
 
-    private void ShowGeneralCompletion()
-    {
-        if (_completionWindow != null)
-            return;
+    // Legacy methods removed
 
-        try
-        {
-            var offset = CodeEditor.CaretOffset;
-            var wordStart = FindWordStart(CodeEditor.Document, offset);
-            var prefix = CodeEditor.Document.GetText(wordStart, offset - wordStart);
 
-            var allCode = GetAllProjectCode();
-            var textBeforeCursor = CodeEditor.Document.GetText(0, wordStart);
-            var completions = CompletionProvider.GetCompletions(prefix, allCode, textBeforeCursor).ToList();
-            if (completions.Count == 0)
-                return;
+    // Legacy inference methods removed
 
-            _completionWindow = new CompletionWindow(CodeEditor.TextArea);
-            _completionWindow.StartOffset = wordStart;
-            StyleCompletionWindow(_completionWindow);
-
-            var data = _completionWindow.CompletionList.CompletionData;
-            foreach (var item in completions)
-            {
-                data.Add(item);
-            }
-
-            ShowCompletionWindowWithSelection();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"ShowGeneralCompletion error: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Shows completion for method arguments - variables, types, and expressions.
-    /// </summary>
-    private void ShowArgumentCompletion()
-    {
-        if (_completionWindow != null)
-            return;
-
-        try
-        {
-            var offset = CodeEditor.CaretOffset;
-            var wordStart = FindWordStart(CodeEditor.Document, offset);
-            var prefix = CodeEditor.Document.GetText(wordStart, offset - wordStart);
-
-            var allCode = GetAllProjectCode();
-            var textBeforeCursor = CodeEditor.Document.GetText(0, wordStart);
-
-            // Get argument-appropriate completions (variables, types, no keywords except true/false/null)
-            var completions = CompletionProvider.GetArgumentCompletions(prefix, allCode, textBeforeCursor).ToList();
-            if (completions.Count == 0)
-                return;
-
-            _completionWindow = new CompletionWindow(CodeEditor.TextArea);
-            _completionWindow.StartOffset = wordStart;
-            StyleCompletionWindow(_completionWindow);
-
-            var data = _completionWindow.CompletionList.CompletionData;
-            foreach (var item in completions)
-            {
-                data.Add(item);
-            }
-
-            ShowCompletionWindowWithSelection();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"ShowArgumentCompletion error: {ex.Message}");
-        }
-    }
-
-    private void ShowNewKeywordCompletion()
-    {
-        if (_completionWindow != null)
-            return;
-
-        try
-        {
-            var allCode = GetAllProjectCode();
-            var textBeforeCursor = CodeEditor.Document.GetText(0, CodeEditor.CaretOffset);
-
-            // Get only type completions (no keywords) since we're after 'new'
-            var completions = CompletionProvider.GetTypeCompletions(allCode, textBeforeCursor).ToList();
-            if (completions.Count == 0)
-                return;
-
-            _completionWindow = new CompletionWindow(CodeEditor.TextArea);
-            _completionWindow.StartOffset = CodeEditor.CaretOffset;
-            StyleCompletionWindow(_completionWindow);
-
-            var data = _completionWindow.CompletionList.CompletionData;
-            foreach (var item in completions)
-            {
-                data.Add(item);
-            }
-
-            ShowCompletionWindowWithSelection();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"ShowNewKeywordCompletion error: {ex.Message}");
-        }
-    }
-
-    private void ShowMemberCompletion()
-    {
-        if (_completionWindow != null)
-            return;
-
-        try
-        {
-            var offset = CodeEditor.CaretOffset;
-            var dotOffset = offset - 1;
-
-            if (dotOffset < 0)
-                return;
-
-            var allCode = GetAllProjectCode();
-            string? typeName = null;
-
-            // Check if the character before the dot is ')' - method call or parenthesized expression
-            // dotOffset is the position of the dot, so dotOffset-1 is the character before it
-            if (dotOffset > 0)
-            {
-                var charBeforeDot = CodeEditor.Document.GetCharAt(dotOffset - 1);
-                if (charBeforeDot == ')')
-                {
-                    // Find matching opening parenthesis (starting from the ')' position)
-                    var closeParenPos = dotOffset - 1;
-                    var openParen = FindMatchingOpenParen(closeParenPos);
-                    if (openParen >= 0)
-                    {
-                        // Check if this is a method call: identifier( or identifier.method(
-                        // Look for method name before the opening paren
-                        var methodCallType = InferMethodCallReturnType(openParen, allCode);
-                        if (methodCallType != null)
-                        {
-                            typeName = methodCallType;
-                        }
-                        else
-                        {
-                            // Fallback: treat as parenthesized expression
-                            var expr = CodeEditor.Document.GetText(openParen + 1, closeParenPos - openParen - 1);
-                            var textBefore = CodeEditor.Document.GetText(0, openParen);
-                            typeName = InferExpressionType(expr, textBefore, allCode);
-                        }
-                    }
-                }
-            }
-
-            // If not a parenthesized expression or couldn't infer type, try normal identifier
-            if (typeName == null)
-            {
-                // Find the full dotted identifier before the dot (e.g., "System.Numerics")
-                var identifierStart = FindDottedIdentifierStart(CodeEditor.Document, dotOffset);
-
-                // Safety check to avoid negative length
-                if (identifierStart >= dotOffset)
-                    return;
-
-                var fullIdentifier = CodeEditor.Document.GetText(identifierStart, dotOffset - identifierStart);
-
-                if (string.IsNullOrEmpty(fullIdentifier))
-                    return;
-
-                // For simple identifiers (no dots), try to find variable type
-                var textBefore = CodeEditor.Document.GetText(0, identifierStart);
-                if (!fullIdentifier.Contains('.'))
-                {
-                    typeName = CompletionProvider.FindVariableType(textBefore, fullIdentifier, allCode) ?? fullIdentifier;
-                }
-                else
-                {
-                    // Resolve chained member access (e.g., wall.Geometry -> VPolygon)
-                    typeName = CompletionProvider.ResolveChainedExpression(textBefore, fullIdentifier, allCode) ?? fullIdentifier;
-                }
-            }
-
-            if (string.IsNullOrEmpty(typeName))
-                return;
-
-            var completions = CompletionProvider.GetMemberCompletions(typeName, allCode).ToList();
-            if (completions.Count == 0)
-                return;
-
-            _completionWindow = new CompletionWindow(CodeEditor.TextArea);
-            _completionWindow.StartOffset = offset;
-            StyleCompletionWindow(_completionWindow);
-
-            var data = _completionWindow.CompletionList.CompletionData;
-            foreach (var item in completions)
-            {
-                data.Add(item);
-            }
-
-            ShowCompletionWindowWithSelection();
-        }
-        catch (Exception ex)
-        {
-            // Log to debug output
-            System.Diagnostics.Debug.WriteLine($"ShowMemberCompletion error: {ex}");
-            SetStatus($"Autocomplete error: {ex.Message}", true);
-        }
-    }
-
-    /// <summary>
-    /// Finds the matching opening parenthesis for a closing paren at the given offset.
-    /// </summary>
-    private int FindMatchingOpenParen(int closeParenOffset)
-    {
-        var document = CodeEditor.Document;
-        var depth = 1;
-
-        for (int i = closeParenOffset - 1; i >= 0; i--)
-        {
-            var c = document.GetCharAt(i);
-            if (c == ')')
-                depth++;
-            else if (c == '(')
-            {
-                depth--;
-                if (depth == 0)
-                    return i;
-            }
-        }
-        return -1;
-    }
-
-    /// <summary>
-    /// Infers the result type of an expression like "p1 - p2" or "a + b".
-    /// </summary>
-    private string? InferExpressionType(string expression, string textBefore, string allCode)
-    {
-        expression = expression.Trim();
-
-        // Handle binary operations: look for +, -, *, / operators
-        // Find the last operator at depth 0 (not inside nested parens)
-        var operatorIndex = -1;
-        var depth = 0;
-        for (int i = expression.Length - 1; i >= 0; i--)
-        {
-            var c = expression[i];
-            if (c == ')') depth++;
-            else if (c == '(') depth--;
-            else if (depth == 0 && (c == '+' || c == '-' || c == '*' || c == '/'))
-            {
-                // Make sure it's a binary operator, not unary
-                if (i > 0 && !IsOperatorChar(expression[i - 1]))
-                {
-                    operatorIndex = i;
-                    break;
-                }
-            }
-        }
-
-        if (operatorIndex > 0)
-        {
-            // Binary expression - get the left operand and infer its type
-            var leftOperand = expression.Substring(0, operatorIndex).Trim();
-
-            // Extract the identifier from the left operand
-            var leftId = ExtractLastIdentifier(leftOperand);
-            if (!string.IsNullOrEmpty(leftId))
-            {
-                var leftType = CompletionProvider.FindVariableType(textBefore, leftId, allCode);
-                if (leftType != null)
-                {
-                    // For arithmetic operations on same type, result is usually same type
-                    return leftType;
-                }
-            }
-        }
-
-        // Single identifier or method call
-        var identifier = ExtractLastIdentifier(expression);
-        if (!string.IsNullOrEmpty(identifier))
-        {
-            return CompletionProvider.FindVariableType(textBefore, identifier, allCode);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Infers the return type of a method call expression like "points.First()" or "list.Where(x => x > 0)".
-    /// </summary>
-    /// <param name="openParenOffset">The offset of the opening parenthesis of the method call.</param>
-    /// <param name="allCode">All code in the project for context.</param>
-    /// <returns>The inferred return type, or null if cannot be determined.</returns>
-    private string? InferMethodCallReturnType(int openParenOffset, string allCode)
-    {
-        try
-        {
-            // Find the method name before the opening paren
-            var methodNameEnd = openParenOffset;
-            var methodNameStart = methodNameEnd;
-            while (methodNameStart > 0 && char.IsLetterOrDigit(CodeEditor.Document.GetCharAt(methodNameStart - 1)))
-                methodNameStart--;
-
-            if (methodNameStart >= methodNameEnd)
-                return null;
-
-            var methodName = CodeEditor.Document.GetText(methodNameStart, methodNameEnd - methodNameStart);
-
-            // Check if there's a dot before the method name (object.Method pattern)
-            if (methodNameStart > 0 && CodeEditor.Document.GetCharAt(methodNameStart - 1) == '.')
-            {
-                var dotPos = methodNameStart - 1;
-
-                // Find what's before the dot - could be another method call like "points.First().Count()"
-                // or a simple identifier like "points.First()"
-                string? objectType = null;
-
-                // Check if there's a ')' before the dot (chained method call)
-                if (dotPos > 0 && CodeEditor.Document.GetCharAt(dotPos - 1) == ')')
-                {
-                    // Recursive: find the return type of the preceding method call
-                    var prevCloseParen = dotPos - 1;
-                    var prevOpenParen = FindMatchingOpenParen(prevCloseParen);
-                    if (prevOpenParen >= 0)
-                    {
-                        objectType = InferMethodCallReturnType(prevOpenParen, allCode);
-                    }
-                }
-                else
-                {
-                    // Simple identifier before the dot
-                    var identStart = FindDottedIdentifierStart(CodeEditor.Document, dotPos);
-                    if (identStart < dotPos)
-                    {
-                        var objectName = CodeEditor.Document.GetText(identStart, dotPos - identStart);
-                        var textBefore = CodeEditor.Document.GetText(0, identStart);
-                        objectType = CompletionProvider.FindVariableType(textBefore, objectName, allCode);
-                    }
-                }
-
-                if (!string.IsNullOrEmpty(objectType))
-                {
-                    return InferMethodReturnType(objectType, methodName);
-                }
-            }
-        }
-        catch
-        {
-            // Ignore parsing errors
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Given an object type and method name, infers the return type.
-    /// Handles common LINQ methods and collection methods.
-    /// </summary>
-    private static string? InferMethodReturnType(string objectType, string methodName)
-    {
-        // Extract element type from generic collection (e.g., List<VPoint> -> VPoint)
-        string? elementType = null;
-        var genericMatch = System.Text.RegularExpressions.Regex.Match(objectType, @"<(.+)>$");
-        if (genericMatch.Success)
-        {
-            elementType = genericMatch.Groups[1].Value;
-            // Handle nested generics - for Dictionary<K,V>, just take the first type for simplicity
-            // For List<List<T>>, elementType would be List<T>
-        }
-
-        // Normalize method name for comparison
-        var method = methodName.ToLowerInvariant();
-
-        // LINQ methods that return element type (T)
-        var elementReturningMethods = new HashSet<string>
-        {
-            "first", "firstordefault", "last", "lastordefault",
-            "single", "singleordefault", "elementat", "elementatordefault",
-            "min", "max", "aggregate"
-        };
-
-        if (elementReturningMethods.Contains(method) && !string.IsNullOrEmpty(elementType))
-        {
-            return elementType;
-        }
-
-        // LINQ methods that return the same collection type (or IEnumerable<T>)
-        var collectionReturningMethods = new HashSet<string>
-        {
-            "where", "orderby", "orderbydescending", "thenby", "thenbydescending",
-            "take", "takewhile", "skip", "skipwhile", "distinct", "reverse",
-            "union", "intersect", "except", "concat", "append", "prepend",
-            "defaultifempty", "asenumerable"
-        };
-
-        if (collectionReturningMethods.Contains(method) && !string.IsNullOrEmpty(elementType))
-        {
-            // Return as IEnumerable<T> for LINQ methods
-            return $"IEnumerable<{elementType}>";
-        }
-
-        // LINQ methods that return bool
-        var boolReturningMethods = new HashSet<string> { "any", "all", "contains", "sequenceequal" };
-        if (boolReturningMethods.Contains(method))
-        {
-            return "bool";
-        }
-
-        // LINQ methods that return int
-        if (method == "count")
-        {
-            return "int";
-        }
-
-        // LINQ methods that return long
-        if (method == "longcount")
-        {
-            return "long";
-        }
-
-        // Conversion methods
-        if (method == "tolist" && !string.IsNullOrEmpty(elementType))
-        {
-            return $"List<{elementType}>";
-        }
-
-        if (method == "toarray" && !string.IsNullOrEmpty(elementType))
-        {
-            return $"{elementType}[]";
-        }
-
-        if (method == "tohashset" && !string.IsNullOrEmpty(elementType))
-        {
-            return $"HashSet<{elementType}>";
-        }
-
-        if (method == "todictionary" && !string.IsNullOrEmpty(elementType))
-        {
-            // Simplified - actual key type depends on selector
-            return $"Dictionary<object,{elementType}>";
-        }
-
-        // Select returns different type - for now, return generic IEnumerable
-        if (method == "select" && !string.IsNullOrEmpty(elementType))
-        {
-            return "IEnumerable<object>";
-        }
-
-        if (method == "selectmany" && !string.IsNullOrEmpty(elementType))
-        {
-            return "IEnumerable<object>";
-        }
-
-        // GroupBy returns IEnumerable<IGrouping>
-        if (method == "groupby")
-        {
-            return "IEnumerable<IGrouping>";
-        }
-
-        // Sum/Average return numeric types
-        if (method == "sum" || method == "average")
-        {
-            return "double";
-        }
-
-        // String methods
-        if (objectType == "string" || objectType == "String")
-        {
-            if (method == "substring" || method == "trim" || method == "tolower" || method == "toupper" ||
-                method == "replace" || method == "remove" || method == "insert" || method == "padleft" || method == "padright")
-                return "string";
-            if (method == "split")
-                return "string[]";
-            if (method == "indexof" || method == "lastindexof" || method == "compareto")
-                return "int";
-            if (method == "startswith" || method == "endswith" || method == "contains" || method == "equals")
-                return "bool";
-            if (method == "tochararray")
-                return "char[]";
-        }
-
-        // List-specific methods
-        if (objectType.StartsWith("List<") || objectType.StartsWith("IList<"))
-        {
-            if (method == "find" || method == "findlast" && !string.IsNullOrEmpty(elementType))
-                return elementType;
-            if (method == "findall" && !string.IsNullOrEmpty(elementType))
-                return $"List<{elementType}>";
-            if (method == "findindex" || method == "findlastindex" || method == "indexof" || method == "lastindexof" ||
-                method == "binarysearch" || method == "removeall")
-                return "int";
-            if (method == "getrange" && !string.IsNullOrEmpty(elementType))
-                return $"List<{elementType}>";
-            if (method == "exists" || method == "trueforall" || method == "remove")
-                return "bool";
-            if (method == "toarray" && !string.IsNullOrEmpty(elementType))
-                return $"{elementType}[]";
-        }
-
-        return null;
-    }
-
-    private static bool IsOperatorChar(char c) => c == '+' || c == '-' || c == '*' || c == '/' || c == '=' || c == '<' || c == '>';
-
-    private static string? ExtractLastIdentifier(string expr)
-    {
-        expr = expr.Trim();
-        // Find the last word-like identifier
-        var end = expr.Length;
-        while (end > 0 && !char.IsLetterOrDigit(expr[end - 1]) && expr[end - 1] != '_')
-            end--;
-
-        var start = end;
-        while (start > 0 && (char.IsLetterOrDigit(expr[start - 1]) || expr[start - 1] == '_'))
-            start--;
-
-        if (start < end)
-            return expr.Substring(start, end - start);
-
-        return null;
-    }
-
-    private static int FindWordStart(TextDocument document, int offset)
-    {
-        var start = offset;
-        while (start > 0)
-        {
-            var c = document.GetCharAt(start - 1);
-            if (!char.IsLetterOrDigit(c) && c != '_')
-                break;
-            start--;
-        }
-        return start;
-    }
 
     private static int FindDottedIdentifierStart(TextDocument document, int offset)
     {
@@ -2358,75 +1707,38 @@ public partial class MainWindow : Window
         return start;
     }
 
-    private void ShowSignatureHelp()
+    private async void ShowSignatureHelp()
     {
         if (_insightWindow != null)
             return;
 
         var offset = CodeEditor.CaretOffset;
+        var code = CodeEditor.Text;
 
-        // Find the opening parenthesis by searching backwards
-        // This handles both cases: right after '(' and inside arguments (after comma)
-        var parenOffset = FindOpeningParenthesis(offset);
-        if (parenOffset < 0)
-            return;
-
-        // Find the method/constructor name before the parenthesis
-        var nameEnd = parenOffset;
-        var nameStart = FindDottedIdentifierStart(CodeEditor.Document, nameEnd);
-        var fullName = CodeEditor.Document.GetText(nameStart, nameEnd - nameStart);
-
-        if (string.IsNullOrEmpty(fullName))
-            return;
-
-        // Check if this is "new TypeName(" - constructor call
-        var textBefore = nameStart >= 4 ? CodeEditor.Document.GetText(nameStart - 4, 4) : "";
-        var isConstructor = textBefore.TrimEnd() == "new" || textBefore.EndsWith("new ");
-
-        // Count commas to determine current parameter index
-        var currentParamIndex = CountCommasBeforeCursor(parenOffset + 1, offset);
-
-        // Get signatures
-        List<string> signatures;
-        if (isConstructor)
+        try
         {
-            // First try built-in types via reflection
-            signatures = TypeInspector.GetConstructorSignatures(fullName);
+             var service = new Editor.RoslynCompletionService(_compiler.GetReferences());
+             var (signatures, currentParamIndex) = await service.GetSignatureHelpAsync(code, offset);
 
-            // If not found, try custom classes from user code
-            if (signatures.Count == 0)
-            {
-                var allCode = GetAllProjectCode();
-                signatures = CompletionProvider.GetCustomConstructorSignatures(fullName, allCode);
-            }
-        }
-        else
-        {
-            signatures = GetMethodSignatures(fullName);
-        }
+             if (signatures.Count == 0)
+                 return;
 
-        if (signatures.Count == 0)
-            return;
-
-        _insightWindow = new OverloadInsightWindow(CodeEditor.TextArea);
-        _insightWindow.Provider = new SignatureHelpProvider(signatures, currentParamIndex);
-        
-        // precise range to keep window open
-        _insightWindow.StartOffset = parenOffset;
-        var closingParen = FindClosingParenthesis(offset);
-        if (closingParen > parenOffset)
-        {
-             _insightWindow.EndOffset = closingParen + 1;
-        }
-        else
-        {
-             // Fallback if no closing paren found (e.g. typing at end of file)
+             _insightWindow = new OverloadInsightWindow(CodeEditor.TextArea);
+             _insightWindow.Provider = new SignatureHelpProvider(signatures, currentParamIndex);
+             
+             // Try to find reasonable start/end offsets for the window logic (optional)
+             // Simple approach: Current cursor
+             _insightWindow.StartOffset = offset;
              _insightWindow.EndOffset = CodeEditor.Document.TextLength;
-        }
 
-        StyleInsightWindow(_insightWindow);
-        _insightWindow.Show();
-        _insightWindow.Closed += (s, e) => _insightWindow = null;
+             StyleInsightWindow(_insightWindow);
+             _insightWindow.Show();
+             _insightWindow.Closed += (s, e) => _insightWindow = null;
+        }
+        catch (Exception ex)
+        {
+             System.Diagnostics.Debug.WriteLine($"ShowSignatureHelp error: {ex}");
+        }
     }
 
     private int FindClosingParenthesis(int fromOffset)
@@ -2549,7 +1861,7 @@ public partial class MainWindow : Window
         var textBefore = CodeEditor.Document.GetText(0, CodeEditor.CaretOffset);
 
         // Check if typePart is a variable
-        var actualType = CompletionProvider.FindVariableType(textBefore, typePart, allCode);
+        var actualType = null as string; // Legacy logic disabled
         if (actualType != null)
         {
             return TypeInspector.GetMethodSignatures(actualType, methodName);
@@ -2561,21 +1873,43 @@ public partial class MainWindow : Window
 
     private void StyleCompletionWindow(CompletionWindow window)
     {
-        // Dark theme colors
-        var darkBackground = new SolidColorBrush(Color.FromRgb(30, 30, 30));
-        var darkBorder = new SolidColorBrush(Color.FromRgb(60, 60, 60));
+        try
+        {
+            // Use application theme resources
+            if (FindResource("SecondaryBackgroundBrush") is Brush bg)
+            {
+                window.Background = bg;
+                window.CompletionList.Background = bg;
+            }
+            
+            if (FindResource("BorderBrush") is Brush border)
+            {
+                window.BorderBrush = border;
+            }
+            
+            if (FindResource("ForegroundBrush") is Brush fg)
+            {
+                window.Foreground = fg;
+                window.CompletionList.Foreground = fg;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"StyleCompletionWindow error: {ex.Message}");
+            // Fallback
+            var darkBg = new SolidColorBrush(Color.FromRgb(37, 37, 38));
+            window.Background = darkBg;
+            window.CompletionList.Background = darkBg;
+            window.CompletionList.Foreground = Brushes.White;
+        }
 
-        window.Background = darkBackground;
-        window.BorderBrush = darkBorder;
         window.BorderThickness = new Thickness(1);
 
-        // Style the completion list
-        window.CompletionList.Background = darkBackground;
-        window.CompletionList.Foreground = Brushes.White;
-
-        // Set minimum width for better readability
-        window.MinWidth = 400;
-        window.MaxWidth = 800;
+        // Auto width with constraints
+        window.Width = double.NaN;
+        window.MinWidth = 300;
+        window.MaxWidth = 1000;
+        window.SizeToContent = SizeToContent.Width;
     }
 
     /// <summary>
@@ -2585,6 +1919,8 @@ public partial class MainWindow : Window
     {
         if (_completionWindow == null || _completionWindow.CompletionList.CompletionData.Count == 0)
             return;
+
+        StyleCompletionWindow(_completionWindow);
 
         // Select the first item
         _completionWindow.CompletionList.SelectedItem = _completionWindow.CompletionList.CompletionData[0];
@@ -2606,18 +1942,31 @@ public partial class MainWindow : Window
 
     private void StyleInsightWindow(OverloadInsightWindow window)
     {
-        // Dark theme colors
-        var darkBackground = new SolidColorBrush(Color.FromRgb(30, 30, 30));
-        var darkBorder = new SolidColorBrush(Color.FromRgb(60, 60, 60));
+        try
+        {
+            if (FindResource("SecondaryBackgroundBrush") is Brush bg)
+                window.Background = bg;
+            
+            if (FindResource("BorderBrush") is Brush border)
+                window.BorderBrush = border;
+            
+            if (FindResource("ForegroundBrush") is Brush fg)
+                window.Foreground = fg;
+        }
+        catch
+        {
+             // Fallback
+             window.Background = new SolidColorBrush(Color.FromRgb(37, 37, 38));
+             window.BorderBrush = new SolidColorBrush(Color.FromRgb(63, 63, 70));
+             window.Foreground = Brushes.White;
+        }
 
-        window.Background = darkBackground;
-        window.BorderBrush = darkBorder;
         window.BorderThickness = new Thickness(1);
-        window.Foreground = Brushes.White;
-
-        // Make window wider for better readability
+        
+        // Ensure good sizing for signature help
+        window.Width = double.NaN;
         window.MinWidth = 500;
-        window.MaxWidth = 900;
+        window.MaxWidth = 800; // Allow sufficient width for long signatures
     }
 
     #endregion
@@ -4527,6 +3876,15 @@ public partial class MainWindow : Window
     }
 
     #region Keyboard Shortcuts
+
+    private void CodeEditor_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Space && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            TriggerManualCompletion();
+            e.Handled = true;
+        }
+    }
 
     private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
     {
@@ -6810,28 +6168,29 @@ public partial class MainWindow : Window
             return ("type", commonType.Description, identifier);
         }
 
+        // Hover logic temporarily disabled during Roslyn refactor
         // Check if it's a method parameter
-        var parameters = Editor.CompletionProvider.FindCurrentMethodParametersPublic(textBeforeCursor);
-        var param = parameters.FirstOrDefault(p => p.Name == identifier);
-        if (param.Name != null)
-        {
-            return ("parameter", param.Type, identifier);
-        }
+        // var parameters = Editor.CompletionProvider.FindCurrentMethodParametersPublic(textBeforeCursor);
+        // var param = parameters.FirstOrDefault(p => p.Name == identifier);
+        // if (param.Name != null)
+        // {
+        //     return ("parameter", param.Type, identifier);
+        // }
 
         // Check if it's a local variable
-        var locals = Editor.CompletionProvider.FindLocalVariablesPublic(textBeforeCursor);
-        var local = locals.FirstOrDefault(v => v.Name == identifier);
-        if (local.Name != null)
-        {
-            return ("local", local.Type, identifier);
-        }
+        // var locals = Editor.CompletionProvider.FindLocalVariablesPublic(textBeforeCursor);
+        // var local = locals.FirstOrDefault(v => v.Name == identifier);
+        // if (local.Name != null)
+        // {
+        //     return ("local", local.Type, identifier);
+        // }
 
         // Try to find variable type using existing infrastructure
-        var varType = Editor.CompletionProvider.FindVariableType(textBeforeCursor, identifier, allCode);
-        if (varType != null)
-        {
-            return ("variable", varType, identifier);
-        }
+        // var varType = Editor.CompletionProvider.FindVariableType(textBeforeCursor, identifier, allCode);
+        // if (varType != null)
+        // {
+        //     return ("variable", varType, identifier);
+        // }
 
         return null;
     }
@@ -6841,157 +6200,7 @@ public partial class MainWindow : Window
     /// </summary>
     private (string typeName, string methodName, List<string> signatures)? GetMethodSignatureAtOffset(int offset)
     {
-        var document = CodeEditor.Document;
-        if (document == null) return null;
-
-        // Find the identifier at this position
-        var wordStart = offset;
-        var wordEnd = offset;
-
-        // Expand backwards to find word start
-        while (wordStart > 0)
-        {
-            var c = document.GetCharAt(wordStart - 1);
-            if (!char.IsLetterOrDigit(c) && c != '_')
-                break;
-            wordStart--;
-        }
-
-        // Expand forwards to find word end
-        while (wordEnd < document.TextLength)
-        {
-            var c = document.GetCharAt(wordEnd);
-            if (!char.IsLetterOrDigit(c) && c != '_')
-                break;
-            wordEnd++;
-        }
-
-        if (wordStart >= wordEnd)
-            return null;
-
-        var methodName = document.GetText(wordStart, wordEnd - wordStart);
-        if (string.IsNullOrEmpty(methodName))
-            return null;
-
-        // Check if this is followed by '(' (it's a method call)
-        var afterWord = wordEnd;
-        while (afterWord < document.TextLength && char.IsWhiteSpace(document.GetCharAt(afterWord)))
-            afterWord++;
-
-        if (afterWord >= document.TextLength || document.GetCharAt(afterWord) != '(')
-            return null; // Not a method call
-
-        // Check if there's a '.' before the method name (instance method call)
-        var beforeWord = wordStart - 1;
-        while (beforeWord >= 0 && char.IsWhiteSpace(document.GetCharAt(beforeWord)))
-            beforeWord--;
-
-        if (beforeWord < 0 || document.GetCharAt(beforeWord) != '.')
-        {
-            // Could be a static method call or constructor - check if it's a type name
-            var type = Editor.TypeInspector.ResolveType(methodName);
-            if (type != null)
-            {
-                // It's a constructor call
-                var ctorSignatures = Editor.TypeInspector.GetConstructorSignatures(methodName);
-                if (ctorSignatures.Count > 0)
-                {
-                    return (methodName, methodName, ctorSignatures);
-                }
-            }
-            return null;
-        }
-
-        // Find the expression before the dot
-        var exprEnd = beforeWord; // Position of the '.'
-        var exprStart = exprEnd - 1;
-
-        // Handle chained calls like obj.Method1().Method2() - find the complete expression
-        int parenDepth = 0;
-        int bracketDepth = 0;
-        while (exprStart >= 0)
-        {
-            var c = document.GetCharAt(exprStart);
-
-            if (c == ')')
-                parenDepth++;
-            else if (c == '(')
-            {
-                if (parenDepth > 0)
-                    parenDepth--;
-                else
-                    break; // Unmatched open paren
-            }
-            else if (c == ']')
-                bracketDepth++;
-            else if (c == '[')
-            {
-                if (bracketDepth > 0)
-                    bracketDepth--;
-                else
-                    break;
-            }
-            else if (parenDepth == 0 && bracketDepth == 0)
-            {
-                if (!char.IsLetterOrDigit(c) && c != '_' && c != '.')
-                    break;
-            }
-
-            exprStart--;
-        }
-        exprStart++; // Move back to first char of expression
-
-        if (exprStart > exprEnd)
-            return null;
-
-        var expression = document.GetText(exprStart, exprEnd - exprStart).Trim();
-        if (string.IsNullOrEmpty(expression))
-            return null;
-
-        // Get the type of the expression
-        var textBeforeCursor = document.GetText(0, exprStart);
-        var allCode = GetAllProjectCode();
-        string? typeName = null;
-
-        // If expression contains dots, resolve the chain
-        if (expression.Contains('.'))
-        {
-            typeName = Editor.CompletionProvider.ResolveChainedExpression(textBeforeCursor, expression, allCode);
-        }
-        else
-        {
-            // Simple variable name
-            typeName = Editor.CompletionProvider.FindVariableType(textBeforeCursor, expression, allCode);
-        }
-
-        if (string.IsNullOrEmpty(typeName))
-        {
-            // Try to resolve as a type name (for static method calls)
-            var type = Editor.TypeInspector.ResolveType(expression);
-            if (type != null)
-            {
-                typeName = type.Name;
-            }
-        }
-
-        if (string.IsNullOrEmpty(typeName))
-            return null;
-
-        // Get method signatures
-        var signatures = Editor.TypeInspector.GetMethodSignatures(typeName, methodName);
-
-        // If no signatures found, try extension methods
-        if (signatures.Count == 0)
-        {
-            signatures = GetExtensionMethodSignatures(typeName, methodName);
-        }
-
-        if (signatures.Count > 0)
-        {
-            return (typeName, methodName, signatures);
-        }
-
-        return null;
+        return null; // Legacy logic disabled during Roslyn refactor
     }
 
     private List<string> GetExtensionMethodSignatures(string typeName, string methodName)

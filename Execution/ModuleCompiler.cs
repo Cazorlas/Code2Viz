@@ -82,6 +82,15 @@ public class ModuleCompiler
             "System.ComponentModel",
             "System.ComponentModel.Primitives",
             "Microsoft.CSharp",
+            
+            // UI
+            "System.Windows.Forms",
+            
+            // WPF
+            "WindowsBase",
+            "PresentationCore",
+            "PresentationFramework",
+            "System.Xaml",
         };
 
         foreach (var assembly in trustedAssemblies)
@@ -247,6 +256,10 @@ public class ModuleCompiler
                 else
                     await Task.Run(() => mainMethod.Invoke(null, null));
 
+                // After successful execution, hide shapes without variable names
+                // (shapes with names have Name set by AnimationNameRewriter)
+                HideUnnamedShapes();
+
                 return new CompilationResult { Success = true };
             }
             finally
@@ -269,6 +282,22 @@ public class ModuleCompiler
                 Success = false,
                 Error = $"Runtime Error: {ex.Message}"
             };
+        }
+    }
+
+    /// <summary>
+    /// Hides shapes that don't have a Name set (anonymous/inline shapes).
+    /// Only shapes with explicit variable names are shown.
+    /// </summary>
+    private static void HideUnnamedShapes()
+    {
+        var shapes = CanvasRenderer.Instance.GetShapes();
+        foreach (var drawable in shapes)
+        {
+            if (drawable is Geometry.Shape shape && string.IsNullOrEmpty(shape.Name))
+            {
+                shape.IsVisible = false;
+            }
         }
     }
 

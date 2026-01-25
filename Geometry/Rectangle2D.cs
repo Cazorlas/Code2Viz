@@ -78,16 +78,17 @@ public class VRectangle : VPolygon
 
     private static VPoint[] ComputeCorners(VPoint corner, double width, double height, double rotationAngle)
     {
-        var p0 = new VPoint(corner.X, corner.Y);
-        var p1 = new VPoint(corner.X + width, corner.Y);
-        var p2 = new VPoint(corner.X + width, corner.Y + height);
-        var p3 = new VPoint(corner.X, corner.Y + height);
+        // Use Internal() to avoid auto-registering intermediate points
+        var p0 = VPoint.Internal(corner.X, corner.Y);
+        var p1 = VPoint.Internal(corner.X + width, corner.Y);
+        var p2 = VPoint.Internal(corner.X + width, corner.Y + height);
+        var p3 = VPoint.Internal(corner.X, corner.Y + height);
 
         if (Math.Abs(rotationAngle) >= 1e-9)
         {
             double centerX = corner.X + width / 2;
             double centerY = corner.Y + height / 2;
-            var center = new VPoint(centerX, centerY);
+            var center = VPoint.Internal(centerX, centerY);
 
             p0.Rotate(center, rotationAngle);
             p1.Rotate(center, rotationAngle);
@@ -200,8 +201,9 @@ public class VRectangle : VPolygon
         {
             double newWidth = _width + 2 * distance;
             double newHeight = _height + 2 * distance;
+            // Use Internal() for the corner point to avoid registering intermediate
             return new VRectangle(
-                new VPoint(_corner.X - distance, _corner.Y - distance),
+                VPoint.Internal(_corner.X - distance, _corner.Y - distance),
                 newWidth, newHeight
             );
         }

@@ -19,8 +19,10 @@
   <ItemGroup>
     <!-- Exclude sample project folders from compilation -->
     <Compile Remove="FSharp-SampleProject\**" />
-    <Compile Remove="CSharp-SampleProject\**" />
-    <Compile Remove="Tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="CSharp-SampleProject\GeneticPolygonSlicer.vizcode" />
   </ItemGroup>
 
   <ItemGroup>

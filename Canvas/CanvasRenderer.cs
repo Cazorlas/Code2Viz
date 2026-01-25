@@ -44,6 +44,34 @@ public class CanvasRenderer : ICanvasRenderer
         _shapes.Add(shape);
     }
 
+    /// <summary>
+    /// Removes a shape from the canvas.
+    /// </summary>
+    public void RemoveShape(IDrawable shape)
+    {
+        if (shape is Shape s)
+        {
+            s.IsPlaced = false;
+        }
+        _shapes.Remove(shape);
+    }
+
+    /// <summary>
+    /// Removes multiple shapes from the canvas efficiently.
+    /// </summary>
+    public void RemoveShapes(IEnumerable<IDrawable> shapes)
+    {
+        var shapeSet = new HashSet<IDrawable>(shapes);
+        foreach (var shape in shapeSet)
+        {
+            if (shape is Shape s)
+            {
+                s.IsPlaced = false;
+            }
+        }
+        _shapes.RemoveAll(s => shapeSet.Contains(s));
+    }
+
     public IReadOnlyList<IDrawable> GetShapes() => _shapes.AsReadOnly();
 
     public void Clear()

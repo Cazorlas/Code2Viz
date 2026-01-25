@@ -16,6 +16,24 @@ public class VPoint : Shape
     }
 
     /// <summary>
+    /// Internal constructor for creating points without auto-registration.
+    /// Used by geometry classes for intermediate calculations.
+    /// </summary>
+    internal VPoint(double x, double y, bool register) : base(register)
+    {
+        X = x;
+        Y = y;
+        StrokeColor = ShapeDefaults.GlobalStrokeColor ?? "White";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "LimeGreen";
+    }
+
+    /// <summary>
+    /// Creates an internal VPoint that is not auto-registered with the canvas.
+    /// Use this for intermediate calculations to avoid polluting the shape list.
+    /// </summary>
+    internal static VPoint Internal(double x, double y) => new VPoint(x, y, false);
+
+    /// <summary>
     /// Converts this VPoint to a VXYZ.
     /// </summary>
     public VXYZ AsVXYZ() => new VXYZ(X, Y, 0);
@@ -23,29 +41,29 @@ public class VPoint : Shape
     /// <summary>
     /// Adds another VPoint's components to this VPoint, returning a new VPoint.
     /// </summary>
-    public VPoint Add(VPoint other) => new VPoint(X + other.X, Y + other.Y);
+    public VPoint Add(VPoint other) => Internal(X + other.X, Y + other.Y);
 
     /// <summary>
     /// Adds a VXYZ to this VPoint, returning a new VPoint.
-    ///Ignore Z component for 2D Point.
+    /// Ignore Z component for 2D Point.
     /// </summary>
-    public VPoint Add(VXYZ vector) => new VPoint(X + vector.X, Y + vector.Y);
+    public VPoint Add(VXYZ vector) => Internal(X + vector.X, Y + vector.Y);
 
-    // Operator overloads - Addition
-    public static VPoint operator +(VPoint a, VPoint b) => new VPoint(a.X + b.X, a.Y + b.Y);
-    public static VPoint operator +(VPoint a, VXYZ b) => new VPoint(a.X + b.X, a.Y + b.Y);
+    // Operator overloads - Addition (use Internal() to avoid auto-registering)
+    public static VPoint operator +(VPoint a, VPoint b) => Internal(a.X + b.X, a.Y + b.Y);
+    public static VPoint operator +(VPoint a, VXYZ b) => Internal(a.X + b.X, a.Y + b.Y);
 
     // Subtraction
-    public static VPoint operator -(VPoint a, VPoint b) => new VPoint(a.X - b.X, a.Y - b.Y);
-    public static VPoint operator -(VPoint a, VXYZ b) => new VPoint(a.X - b.X, a.Y - b.Y);
-    public static VPoint operator -(VPoint a) => new VPoint(-a.X, -a.Y); // Unary negation
+    public static VPoint operator -(VPoint a, VPoint b) => Internal(a.X - b.X, a.Y - b.Y);
+    public static VPoint operator -(VPoint a, VXYZ b) => Internal(a.X - b.X, a.Y - b.Y);
+    public static VPoint operator -(VPoint a) => Internal(-a.X, -a.Y); // Unary negation
 
     // Scalar multiplication
-    public static VPoint operator *(VPoint a, double scalar) => new VPoint(a.X * scalar, a.Y * scalar);
-    public static VPoint operator *(double scalar, VPoint a) => new VPoint(a.X * scalar, a.Y * scalar);
+    public static VPoint operator *(VPoint a, double scalar) => Internal(a.X * scalar, a.Y * scalar);
+    public static VPoint operator *(double scalar, VPoint a) => Internal(a.X * scalar, a.Y * scalar);
 
     // Scalar division
-    public static VPoint operator /(VPoint a, double scalar) => new VPoint(a.X / scalar, a.Y / scalar);
+    public static VPoint operator /(VPoint a, double scalar) => Internal(a.X / scalar, a.Y / scalar);
 
     public override void Draw()
     {
@@ -85,7 +103,8 @@ public class VPoint : Shape
         Y = center.Y + (Y - center.Y) * factor;
     }
 
-    public override (VPoint min, VPoint max) GetBounds() => (new VPoint(X, Y), new VPoint(X, Y));
+    // Use Internal() to avoid auto-registering intermediate points
+    public override (VPoint min, VPoint max) GetBounds() => (VPoint.Internal(X, Y), VPoint.Internal(X, Y));
 
     public override double DistanceTo(VPoint point)
     {

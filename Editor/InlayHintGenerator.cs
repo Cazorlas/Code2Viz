@@ -9,6 +9,9 @@ using System.Windows.Media;
 using System.Windows.Media.TextFormatting;
 using ICSharpCode.AvalonEdit.Document;
 using ICSharpCode.AvalonEdit.Rendering;
+using Brush = System.Windows.Media.Brush;
+using Color = System.Windows.Media.Color;
+using SolidColorBrush = System.Windows.Media.SolidColorBrush;
 
 namespace Code2Viz.Editor
 {

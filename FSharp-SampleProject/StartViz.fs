@@ -2,60 +2,53 @@ namespace FSharpSample
 
 open System
 open VizDsl
+open Code2Viz.Geometry
 
 module Viz =
-    // Entry point - demonstrates functional F# patterns
+    /// Entry point - demonstrates genetic algorithm polygon slicing
     let Main() =
-        Console.WriteLine("F# Multi-Module Sample Project")
-        Console.WriteLine("Demonstrating functional programming patterns")
+        printfn "=== Genetic Algorithm Polygon Slicing (F#) ==="
+        printfn "Slicing an irregular polygon into 5 pieces"
+        printfn "Target ratios: 25%%, 20%%, 23%%, 17%%, 15%%"
+        printfn ""
 
-        // Test Colors module
-        Console.WriteLine($"Red color: {Colors.Red}")
-        Console.WriteLine($"Color at index 3: {Colors.getColorByIndex 3}")
+        // Create an irregular L-shaped polygon
+        let polygonPoints = [
+            (0.0, 0.0)
+            (200.0, 0.0)
+            (200.0, 100.0)
+            (100.0, 100.0)
+            (100.0, 200.0)
+            (0.0, 200.0)
+        ]
+        let originalPolygon = polygon polygonPoints
 
-        // Draw title using pipeline
-        Shapes.createText 0.0 350.0 "F# Functional Style" Colors.White
-        |> withHeight 32.0
-        |> draw
-        |> ignore
-
-        // Draw a row of circles using Shapes module (functional internally)
-        Console.WriteLine("Drawing circle row...")
-        Shapes.drawCircleRow -250.0 200.0 6 40.0 100.0
-        |> ignore
-
-        // Draw a grid of rectangles (functional internally)
-        Console.WriteLine("Drawing rectangle grid...")
-        Shapes.drawRectGrid -200.0 50.0 5 3 60.0 80.0
-        |> ignore
-
-        // Draw individual shapes using pipelines
-        Shapes.createCircle 0.0 -200.0 80.0 Colors.Purple
-        |> draw
-        |> ignore
-
-        Shapes.createText 0.0 -200.0 "Center" Colors.White
-        |> draw
-        |> ignore
-
-        // Draw connecting line with pipeline
-        Shapes.createLine -250.0 200.0 150.0 200.0 Colors.Gray
+        // Draw original outline for reference
+        polygon polygonPoints
+        |> withStroke "DimGray"
+        |> withFill "Transparent"
         |> withThickness 1.0
         |> draw
         |> ignore
 
-        // Demonstrate pure functional pattern: map over list and draw
-        Console.WriteLine("Drawing colorful points...")
-        [0..11]
-        |> List.map (fun i ->
-            let angle = float i * 30.0 * System.Math.PI / 180.0
-            let x = 200.0 * cos angle
-            let y = -200.0 + 50.0 * sin angle
-            point x y
-            |> withFill (Color.byIndex i)
-            |> withStroke Colors.White)
-        |> drawAll
-        |> ignore
+        // Configure the genetic algorithm
+        let config = {
+            GeneticSlicer.defaultConfig with
+                PopulationSize = 80
+                MaxGenerations = 150
+                MutationRate = 0.20
+                EliteCount = 4
+                TargetRatios = [| 0.25; 0.20; 0.23; 0.17; 0.15 |]
+        }
 
-		AnimationSample.Run()
-        Console.WriteLine("Done!")
+        // Run evolution
+        printfn "Starting evolution..."
+        printfn ""
+        let (bestSolution, centroid, maxDist) =
+            GeneticSlicer.evolve originalPolygon config (Some 42) true
+
+        // Visualize results
+        GeneticSlicer.visualize config bestSolution centroid maxDist
+
+        printfn ""
+        printfn "=== Algorithm Complete ==="

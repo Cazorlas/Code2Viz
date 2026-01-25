@@ -12,6 +12,14 @@ using ICSharpCode.AvalonEdit.Rendering;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Brush = System.Windows.Media.Brush;
+using Color = System.Windows.Media.Color;
+using SolidColorBrush = System.Windows.Media.SolidColorBrush;
+using Brushes = System.Windows.Media.Brushes;
+using FontStyles = System.Windows.FontStyles;
+using FontWeights = System.Windows.FontWeights;
+using FontStyle = System.Windows.FontStyle;
+using FontWeight = System.Windows.FontWeight;
 
 namespace Code2Viz.Editor
 {

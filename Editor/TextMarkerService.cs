@@ -5,6 +5,13 @@ using System.Windows;
 using System.Windows.Media;
 using ICSharpCode.AvalonEdit.Document;
 using ICSharpCode.AvalonEdit.Rendering;
+using Color = System.Windows.Media.Color;
+using Brush = System.Windows.Media.Brush;
+using Brushes = System.Windows.Media.Brushes;
+using Pen = System.Windows.Media.Pen;
+using Point = System.Windows.Point;
+using Size = System.Windows.Size;
+using SolidColorBrush = System.Windows.Media.SolidColorBrush;
 
 
 namespace Code2Viz.Editor

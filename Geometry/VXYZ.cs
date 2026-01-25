@@ -52,8 +52,9 @@ namespace Code2Viz.Geometry
 
         /// <summary>
         /// Converts this VXYZ to a VPoint (drops Z component).
+        /// Uses Internal() to avoid auto-registering intermediate points.
         /// </summary>
-        public VPoint AsVPoint() => new VPoint(X, Y);
+        public VPoint AsVPoint() => VPoint.Internal(X, Y);
 
         public double GetLength() => Math.Sqrt(X * X + Y * Y + Z * Z);
         

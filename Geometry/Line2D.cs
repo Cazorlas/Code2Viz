@@ -31,8 +31,9 @@ public class VLine : Shape, ICurve
 
     public VLine(double x1, double y1, double x2, double y2)
     {
-        Start = new VPoint(x1, y1);
-        End = new VPoint(x2, y2);
+        // Use Internal() to avoid auto-registering intermediate points
+        Start = VPoint.Internal(x1, y1);
+        End = VPoint.Internal(x2, y2);
         StrokeColor = ShapeDefaults.GlobalStrokeColor ?? "Cyan";
     }
 
@@ -43,7 +44,8 @@ public class VLine : Shape, ICurve
     {
         double x = Start.X + (End.X - Start.X) * parameter;
         double y = Start.Y + (End.Y - Start.Y) * parameter;
-        return new VPoint(x, y);
+        // Use Internal() to avoid auto-registering intermediate points
+        return VPoint.Internal(x, y);
     }
 
     public VXYZ NormalAtPoint(VPoint p)
@@ -124,9 +126,10 @@ public class VLine : Shape, ICurve
 
     public override (VPoint min, VPoint max) GetBounds()
     {
+        // Use Internal() to avoid auto-registering intermediate points
         return (
-            new VPoint(Math.Min(Start.X, End.X), Math.Min(Start.Y, End.Y)),
-            new VPoint(Math.Max(Start.X, End.X), Math.Max(Start.Y, End.Y))
+            VPoint.Internal(Math.Min(Start.X, End.X), Math.Min(Start.Y, End.Y)),
+            VPoint.Internal(Math.Max(Start.X, End.X), Math.Max(Start.Y, End.Y))
         );
     }
 

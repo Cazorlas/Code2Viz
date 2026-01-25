@@ -9,7 +9,7 @@ public class VPolygon : Shape, ICurve
     private readonly bool _selfIntersecting;
 
     /// <summary>Gets the start point of the polygon.</summary>
-    public VPoint StartPoint => Points.Count > 0 ? Points[0] : new VPoint(0, 0);
+    public VPoint StartPoint => Points.Count > 0 ? Points[0] : VPoint.Internal(0, 0);
 
     /// <summary>Gets the end point of the polygon (same as StartPoint, since it's closed).</summary>
     public VPoint EndPoint => StartPoint;
@@ -485,7 +485,8 @@ public class VPolygon : Shape, ICurve
             // Check for collinear overlap (excluding shared endpoints)
             if (AreCollinearAndOverlapping(p1, p2, p3, p4, segmentsShareEndpoint, allowedIntersection))
             {
-                intersection = new VPoint((p1.X + p3.X) / 2, (p1.Y + p3.Y) / 2);
+                // Use Internal() to avoid auto-registering intermediate points
+                intersection = VPoint.Internal((p1.X + p3.X) / 2, (p1.Y + p3.Y) / 2);
                 return true;
             }
             return false;
@@ -502,7 +503,8 @@ public class VPolygon : Shape, ICurve
         {
             double ix = p1.X + t * d1x;
             double iy = p1.Y + t * d1y;
-            intersection = new VPoint(ix, iy);
+            // Use Internal() to avoid auto-registering intermediate points
+            intersection = VPoint.Internal(ix, iy);
 
             // Check if intersection is at an allowed point
             if (allowedIntersection != null && PointsAreClose(intersection, allowedIntersection))
@@ -626,7 +628,8 @@ public class VPolygon : Shape, ICurve
 
     public void AddPoint(double x, double y)
     {
-        Points.Add(new VPoint(x, y));
+        // Use Internal() to avoid auto-registering intermediate points
+        Points.Add(VPoint.Internal(x, y));
         BuildCurvesFromPoints();
     }
 
@@ -668,10 +671,11 @@ public class VPolygon : Shape, ICurve
 
     public override (VPoint min, VPoint max) GetBounds()
     {
-        if (Points.Count == 0) return (new VPoint(0, 0), new VPoint(0, 0));
+        // Use Internal() to avoid auto-registering intermediate points
+        if (Points.Count == 0) return (VPoint.Internal(0, 0), VPoint.Internal(0, 0));
         double minX = Points.Min(p => p.X), minY = Points.Min(p => p.Y);
         double maxX = Points.Max(p => p.X), maxY = Points.Max(p => p.Y);
-        return (new VPoint(minX, minY), new VPoint(maxX, maxY));
+        return (VPoint.Internal(minX, minY), VPoint.Internal(maxX, maxY));
     }
 
     public override string ToString() => $"VPolygon({Points.Count} points)";
@@ -704,28 +708,29 @@ public class VPolygon : Shape, ICurve
         result.Add(Points[0]);
 
         double remainingStep = segmentLength;
-        
+
         for (int i = 0; i < Points.Count; i++)
         {
             VPoint p1 = Points[i];
             VPoint p2 = Points[(i + 1) % Points.Count];
             double segLen = p1.DistanceTo(p2);
-            
+
             double distOnSeg = 0;
-            
+
             while (distOnSeg + remainingStep <= segLen + 1e-9)
             {
                 distOnSeg += remainingStep;
-                
+
                 // Interpolate
                 double t = distOnSeg / segLen;
                 double x = p1.X + (p2.X - p1.X) * t;
                 double y = p1.Y + (p2.Y - p1.Y) * t;
-                result.Add(new VPoint(x, y));
-                
+                // Use Internal() to avoid auto-registering intermediate points
+                result.Add(VPoint.Internal(x, y));
+
                 remainingStep = segmentLength;
             }
-            
+
             remainingStep -= (segLen - distOnSeg);
         }
 
@@ -734,14 +739,15 @@ public class VPolygon : Shape, ICurve
 
     public VPoint Project(VPoint point)
     {
-        if (Points.Count == 0) return new VPoint(0,0);
+        // Use Internal() to avoid auto-registering intermediate points
+        if (Points.Count == 0) return VPoint.Internal(0, 0);
         VPoint closest = Points[0];
         double minK = double.MaxValue;
-        
+
         for (int i = 0; i < Points.Count; i++)
         {
             VPoint p1 = Points[i];
-            VPoint p2 = Points[(i+1)%Points.Count];
+            VPoint p2 = Points[(i + 1) % Points.Count];
             VPoint proj = ProjectOnSegment(p1, p2, point);
             double d = proj.DistanceTo(point);
             if (d < minK)
@@ -768,22 +774,23 @@ public class VPolygon : Shape, ICurve
 
     public VPoint PointAtSegmentLength(double segmentLength)
     {
-        if (segmentLength <= 0 || Points.Count == 0) return Points.FirstOrDefault() ?? new VPoint(0,0);
+        // Use Internal() to avoid auto-registering intermediate points
+        if (segmentLength <= 0 || Points.Count == 0) return Points.FirstOrDefault() ?? VPoint.Internal(0, 0);
         double inputLen = segmentLength;
 
         double currentLen = 0;
-        
+
         for (int i = 0; i < Points.Count; i++)
         {
             VPoint p1 = Points[i];
-            VPoint p2 = Points[(i+1)%Points.Count];
+            VPoint p2 = Points[(i + 1) % Points.Count];
             double d = p1.DistanceTo(p2);
-            
+
             if (currentLen + d >= inputLen)
             {
                 double rem = inputLen - currentLen;
                 double r = rem / d;
-                return new VPoint(
+                return VPoint.Internal(
                     p1.X + (p2.X - p1.X) * r,
                     p1.Y + (p2.Y - p1.Y) * r
                 );
@@ -933,7 +940,8 @@ public class VPolygon : Shape, ICurve
     /// </summary>
     public VPoint PointAtParameter(double parameter)
     {
-        if (Points.Count == 0) return new VPoint(0, 0);
+        // Use Internal() to avoid auto-registering intermediate points
+        if (Points.Count == 0) return VPoint.Internal(0, 0);
         if (Points.Count == 1) return Points[0];
         if (parameter <= 0 || parameter >= 1) return Points[0];
 
@@ -945,7 +953,7 @@ public class VPolygon : Shape, ICurve
         VPoint p1 = Points[segmentIndex];
         VPoint p2 = Points[(segmentIndex + 1) % Points.Count];
 
-        return new VPoint(
+        return VPoint.Internal(
             p1.X + (p2.X - p1.X) * localT,
             p1.Y + (p2.Y - p1.Y) * localT
         );
@@ -1068,7 +1076,8 @@ public class VPolygon : Shape, ICurve
             {
                 double ix = edgeStart.X + t * edgeDx;
                 double iy = edgeStart.Y + t * edgeDy;
-                intersections.Add((i, t, new VPoint(ix, iy)));
+                // Use Internal() to avoid auto-registering intermediate points
+                intersections.Add((i, t, VPoint.Internal(ix, iy)));
             }
             else if (Math.Abs(t) < 1e-9)
             {
@@ -1076,7 +1085,8 @@ public class VPolygon : Shape, ICurve
                 // We'll handle this by checking if previous edge was also intersected at its end
                 double ix = edgeStart.X;
                 double iy = edgeStart.Y;
-                intersections.Add((i, 0, new VPoint(ix, iy)));
+                // Use Internal() to avoid auto-registering intermediate points
+                intersections.Add((i, 0, VPoint.Internal(ix, iy)));
             }
         }
 
