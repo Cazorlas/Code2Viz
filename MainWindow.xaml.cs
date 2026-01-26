@@ -1092,6 +1092,76 @@ public partial class MainWindow : Window
                 e.Handled = true;
                 return;
             }
+            else if (e.Key == Key.Left)
+            {
+                _isMultiCursorEditing = true;
+                _isAddingNextOccurrence = true;
+                try
+                {
+                    if (Keyboard.Modifiers == ModifierKeys.Shift)
+                        _multiSelectionRenderer.ExtendAllSelectionsLeft();
+                    else
+                        _multiSelectionRenderer.MoveAllCursorsLeft();
+                    e.Handled = true;
+                }
+                finally
+                {
+                    _isAddingNextOccurrence = false;
+                    _isMultiCursorEditing = false;
+                }
+                return;
+            }
+            else if (e.Key == Key.Right)
+            {
+                _isMultiCursorEditing = true;
+                _isAddingNextOccurrence = true;
+                try
+                {
+                    if (Keyboard.Modifiers == ModifierKeys.Shift)
+                        _multiSelectionRenderer.ExtendAllSelectionsRight();
+                    else
+                        _multiSelectionRenderer.MoveAllCursorsRight();
+                    e.Handled = true;
+                }
+                finally
+                {
+                    _isAddingNextOccurrence = false;
+                    _isMultiCursorEditing = false;
+                }
+                return;
+            }
+            else if (e.Key == Key.Up)
+            {
+                _isMultiCursorEditing = true;
+                _isAddingNextOccurrence = true;
+                try
+                {
+                    _multiSelectionRenderer.MoveAllCursorsUp();
+                    e.Handled = true;
+                }
+                finally
+                {
+                    _isAddingNextOccurrence = false;
+                    _isMultiCursorEditing = false;
+                }
+                return;
+            }
+            else if (e.Key == Key.Down)
+            {
+                _isMultiCursorEditing = true;
+                _isAddingNextOccurrence = true;
+                try
+                {
+                    _multiSelectionRenderer.MoveAllCursorsDown();
+                    e.Handled = true;
+                }
+                finally
+                {
+                    _isAddingNextOccurrence = false;
+                    _isMultiCursorEditing = false;
+                }
+                return;
+            }
         }
 
         // Handle Tab for snippet placeholder navigation
@@ -2774,17 +2844,20 @@ public partial class MainWindow : Window
         if (settings == null)
         {
             // Should not happen as it's initialized in VizProjectFile, but just in case
-            SettingsStrokeColorBox.Text = "";
+            SettingsColorBox.Text = "";
             SettingsFillColorBox.Text = "";
             SettingsThicknessBox.Text = "";
             return;
         }
 
-        SettingsStrokeColorBox.Text = settings.DefaultStrokeColor ?? "";
+        SettingsColorBox.Text = settings.DefaultColor ?? "";
         SettingsFillColorBox.Text = settings.DefaultFillColor ?? "";
         SettingsCanvasColorBox.Text = settings.DefaultCanvasBackgroundColor ?? "";
-        SettingsThicknessBox.Text = settings.DefaultLineWeight.HasValue 
-            ? settings.DefaultLineWeight.Value.ToString() 
+        SettingsThicknessBox.Text = settings.DefaultLineWeight.HasValue
+            ? settings.DefaultLineWeight.Value.ToString()
+            : "";
+        SettingsLineTypeScaleBox.Text = settings.DefaultLineTypeScale.HasValue
+            ? settings.DefaultLineTypeScale.Value.ToString()
             : "";
             
         // Apply Canvas Background immediately on load (Fix for Issue 1)
@@ -2819,6 +2892,17 @@ public partial class MainWindow : Window
         // Include Grid
         SettingsIncludeGridCheck.IsChecked = appSettings.IncludeGridInExport;
 
+        // Application-level Default Shape Settings
+        AppSettingsColorBox.Text = appSettings.AppDefaultStrokeColor ?? "";
+        AppSettingsFillColorBox.Text = appSettings.AppDefaultFillColor ?? "";
+        AppSettingsCanvasColorBox.Text = appSettings.AppDefaultCanvasBackground ?? "";
+        AppSettingsThicknessBox.Text = appSettings.AppDefaultLineWeight.HasValue
+            ? appSettings.AppDefaultLineWeight.Value.ToString()
+            : "";
+        AppSettingsLineTypeScaleBox.Text = appSettings.AppDefaultLineTypeScale.HasValue
+            ? appSettings.AppDefaultLineTypeScale.Value.ToString()
+            : "";
+
         // Snap Settings
         SnapEndpointCheck.IsChecked = appSettings.SnapEndpointEnabled;
         SnapMidpointCheck.IsChecked = appSettings.SnapMidpointEnabled;
@@ -2839,20 +2923,33 @@ public partial class MainWindow : Window
         SettingsZoomToFitCheck.IsChecked = appSettings.ZoomToFitOnRun;
         SettingsAutoUpdateCanvasCheck.IsChecked = appSettings.AutoUpdateCanvas;
 
-        // Update Button colors
-        UpdateColorButton(SettingsStrokeColorBtn, SettingsStrokeColorBox.Text);
+        // Update Button colors for Project Settings
+        UpdateColorButton(SettingsColorBtn, SettingsColorBox.Text);
         UpdateColorButton(SettingsFillColorBtn, SettingsFillColorBox.Text);
         UpdateColorButton(SettingsCanvasColorBtn, SettingsCanvasColorBox.Text);
+
+        // Update Button colors for Application Settings
+        UpdateColorButton(AppSettingsColorBtn, AppSettingsColorBox.Text);
+        UpdateColorButton(AppSettingsFillColorBtn, AppSettingsFillColorBox.Text);
+        UpdateColorButton(AppSettingsCanvasColorBtn, AppSettingsCanvasColorBox.Text);
     }
-    
+
     private void ColorBox_TextChanged(object sender, TextChangedEventArgs e)
     {
-        if (sender == SettingsStrokeColorBox) 
-            UpdateColorButton(SettingsStrokeColorBtn, SettingsStrokeColorBox.Text);
-        else if (sender == SettingsFillColorBox) 
+        // Project Settings color boxes
+        if (sender == SettingsColorBox)
+            UpdateColorButton(SettingsColorBtn, SettingsColorBox.Text);
+        else if (sender == SettingsFillColorBox)
             UpdateColorButton(SettingsFillColorBtn, SettingsFillColorBox.Text);
-        else if (sender == SettingsCanvasColorBox) 
+        else if (sender == SettingsCanvasColorBox)
             UpdateColorButton(SettingsCanvasColorBtn, SettingsCanvasColorBox.Text);
+        // Application Settings color boxes
+        else if (sender == AppSettingsColorBox)
+            UpdateColorButton(AppSettingsColorBtn, AppSettingsColorBox.Text);
+        else if (sender == AppSettingsFillColorBox)
+            UpdateColorButton(AppSettingsFillColorBtn, AppSettingsFillColorBox.Text);
+        else if (sender == AppSettingsCanvasColorBox)
+            UpdateColorButton(AppSettingsCanvasColorBtn, AppSettingsCanvasColorBox.Text);
     }
     
     private void UpdateColorButton(Button btn, string colorText)
@@ -2880,10 +2977,18 @@ public partial class MainWindow : Window
     {
         if (sender is Button btn && btn.Tag is string tag)
         {
-            TextBox targetBox;
-            if (tag == "Stroke") targetBox = SettingsStrokeColorBox;
-            else if (tag == "Fill") targetBox = SettingsFillColorBox;
-            else targetBox = SettingsCanvasColorBox;
+            TextBox? targetBox = tag switch
+            {
+                "Stroke" => SettingsColorBox,
+                "Fill" => SettingsFillColorBox,
+                "Canvas" => SettingsCanvasColorBox,
+                "AppStroke" => AppSettingsColorBox,
+                "AppFill" => AppSettingsFillColorBox,
+                "AppCanvas" => AppSettingsCanvasColorBox,
+                _ => null
+            };
+
+            if (targetBox == null) return;
 
             var dialog = new ColorPickerDialog(targetBox.Text);
             dialog.Owner = this;
@@ -2935,8 +3040,8 @@ public partial class MainWindow : Window
         // 1. Save Project Settings
         if (_currentProject != null)
         {
-            string? strokeColor = SettingsStrokeColorBox.Text.Trim();
-            if (string.IsNullOrEmpty(strokeColor)) strokeColor = null;
+            string? Color = SettingsColorBox.Text.Trim();
+            if (string.IsNullOrEmpty(Color)) Color = null;
 
             string? fillColor = SettingsFillColorBox.Text.Trim();
             if (string.IsNullOrEmpty(fillColor)) fillColor = null;
@@ -2950,13 +3055,18 @@ public partial class MainWindow : Window
                 thickness = t;
             }
 
+            double? lineTypeScale = null;
+            if (double.TryParse(SettingsLineTypeScaleBox.Text.Trim(), out double lts))
+            {
+                lineTypeScale = lts;
+            }
+
             var settings = _currentProject.ProjectFile.Settings;
-            settings.DefaultStrokeColor = strokeColor;
+            settings.DefaultColor = Color;
             settings.DefaultFillColor = fillColor;
             settings.DefaultCanvasBackgroundColor = canvasColor;
             settings.DefaultLineWeight = thickness;
-            // Remove DefaultExportBackground from Project Settings if desired, but nice to keep as fallback?
-            // For now, we strictly use AppSettings for Export as requested.
+            settings.DefaultLineTypeScale = lineTypeScale;
 
             _currentProject.ApplySettings();
             
@@ -2977,9 +3087,29 @@ public partial class MainWindow : Window
         {
             exportBg = item.Content?.ToString() ?? "Transparent";
         }
-        
+
         ApplicationSettings.Instance.DefaultExportBackground = exportBg;
         ApplicationSettings.Instance.IncludeGridInExport = SettingsIncludeGridCheck.IsChecked == true;
+
+        // Save Application-level default shape settings
+        string? appStrokeColor = AppSettingsColorBox.Text.Trim();
+        ApplicationSettings.Instance.AppDefaultStrokeColor = string.IsNullOrEmpty(appStrokeColor) ? null : appStrokeColor;
+
+        string? appFillColor = AppSettingsFillColorBox.Text.Trim();
+        ApplicationSettings.Instance.AppDefaultFillColor = string.IsNullOrEmpty(appFillColor) ? null : appFillColor;
+
+        string? appCanvasColor = AppSettingsCanvasColorBox.Text.Trim();
+        ApplicationSettings.Instance.AppDefaultCanvasBackground = string.IsNullOrEmpty(appCanvasColor) ? null : appCanvasColor;
+
+        if (double.TryParse(AppSettingsThicknessBox.Text.Trim(), out double appThickness))
+            ApplicationSettings.Instance.AppDefaultLineWeight = appThickness;
+        else
+            ApplicationSettings.Instance.AppDefaultLineWeight = null;
+
+        if (double.TryParse(AppSettingsLineTypeScaleBox.Text.Trim(), out double appLineTypeScale))
+            ApplicationSettings.Instance.AppDefaultLineTypeScale = appLineTypeScale;
+        else
+            ApplicationSettings.Instance.AppDefaultLineTypeScale = null;
 
         // Save Snap Settings
         ApplicationSettings.Instance.SnapEndpointEnabled = SnapEndpointCheck.IsChecked == true;
@@ -5859,6 +5989,7 @@ public partial class MainWindow : Window
     private void SelectAllOccurrences()
     {
         if (!CodeEditor.IsKeyboardFocusWithin) return;
+        if (_multiSelectionRenderer == null) return;
 
         var document = CodeEditor.Document;
         var textArea = CodeEditor.TextArea;
@@ -5892,17 +6023,31 @@ public partial class MainWindow : Window
 
         if (occurrences.Count <= 1) return;
 
-        // AvalonEdit doesn't support true multi-cursor, but we can select all text
-        // For now, just show a message and select the last occurrence
-        // In the future, this could be enhanced with rectangular selection or multi-caret support
+        _isAddingNextOccurrence = true;
+        try
+        {
+            // Clear existing multi-selections
+            _multiSelectionRenderer.ClearSelections();
 
-        // Select last occurrence and show count in status
-        var last = occurrences[^1];
-        textArea.Selection = ICSharpCode.AvalonEdit.Editing.Selection.Create(textArea, last.Start, last.End);
-        textArea.Caret.Offset = last.End;
-        textArea.Caret.BringCaretToView();
+            // Add all occurrences except the last one to multi-selection renderer
+            for (int i = 0; i < occurrences.Count - 1; i++)
+            {
+                var occ = occurrences[i];
+                _multiSelectionRenderer.AddSelection(occ.Start, occ.End - occ.Start);
+            }
 
-        SetStatus($"Found {occurrences.Count} occurrences of \"{searchText}\"", false);
+            // Set main selection to the last occurrence
+            var last = occurrences[^1];
+            textArea.Selection = ICSharpCode.AvalonEdit.Editing.Selection.Create(textArea, last.Start, last.End);
+            textArea.Caret.Offset = last.End;
+            textArea.Caret.BringCaretToView();
+        }
+        finally
+        {
+            _isAddingNextOccurrence = false;
+        }
+
+        SetStatus($"Selected {occurrences.Count} occurrences of \"{searchText}\"", false);
     }
 
     #endregion

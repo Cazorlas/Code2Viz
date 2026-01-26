@@ -59,9 +59,10 @@ public class VizCodeProject
 
     public void ApplySettings()
     {
-        Geometry.ShapeDefaults.GlobalStrokeColor = ProjectFile.Settings.DefaultStrokeColor;
+        Geometry.ShapeDefaults.GlobalColor = ProjectFile.Settings.DefaultColor;
         Geometry.ShapeDefaults.GlobalFillColor = ProjectFile.Settings.DefaultFillColor;
         Geometry.ShapeDefaults.GlobalLineWeight = ProjectFile.Settings.DefaultLineWeight;
+        Geometry.ShapeDefaults.GlobalLineTypeScale = ProjectFile.Settings.DefaultLineTypeScale;
     }
 
     public static VizCodeProject CreateNew(string directory, string projectName, ProjectLanguage language)

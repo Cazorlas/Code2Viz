@@ -33,6 +33,13 @@ public class AppSettingsData
     // Highlight Settings (for Outliner hover)
     public string HighlightColor { get; set; } = "Yellow";
     public int HighlightOpacity { get; set; } = 40; // 0-100 percentage
+
+    // Default Shape Settings (Application-level defaults, used when project settings are empty)
+    public string? AppDefaultStrokeColor { get; set; }
+    public string? AppDefaultFillColor { get; set; }
+    public string? AppDefaultCanvasBackground { get; set; }
+    public double? AppDefaultLineWeight { get; set; }
+    public double? AppDefaultLineTypeScale { get; set; }
 }
 
 public static class ApplicationSettings

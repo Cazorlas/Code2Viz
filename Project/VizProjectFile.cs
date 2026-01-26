@@ -60,9 +60,10 @@ public class VizProjectFile
 
 public class ProjectSettings
 {
-    public string? DefaultStrokeColor { get; set; }
+    public string? DefaultColor { get; set; }
     public string? DefaultFillColor { get; set; }
     public string? DefaultCanvasBackgroundColor { get; set; }
     public string? DefaultExportBackground { get; set; } // "Transparent", "Canvas", "White", "Black", "Light"
     public double? DefaultLineWeight { get; set; }
+    public double? DefaultLineTypeScale { get; set; }
 }

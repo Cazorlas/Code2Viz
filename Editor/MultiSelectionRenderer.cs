@@ -24,6 +24,11 @@ public class MultiSelectionRenderer : IBackgroundRenderer
     private readonly TextArea _textArea;
     private readonly List<TextSegment> _selections = new();
 
+    // Track anchor and caret points for each selection (anchor stays fixed, caret moves)
+    // Parallel to _selections - anchor[i] and caret[i] correspond to _selections[i]
+    private readonly List<int> _anchors = new();
+    private readonly List<int> _carets = new();
+
     // Selection highlight styling - matches the editor's selection color
     private static readonly Brush SelectionBrush;
     private static readonly Brush CaretBrush;
@@ -52,11 +57,13 @@ public class MultiSelectionRenderer : IBackgroundRenderer
     public List<TextSegment> Selections => _selections;
 
     /// <summary>
-    /// Adds a new selection segment.
+    /// Adds a new selection segment. Anchor is at start, caret at end.
     /// </summary>
     public void AddSelection(int offset, int length)
     {
         _selections.Add(new TextSegment { StartOffset = offset, Length = length });
+        _anchors.Add(offset); // Anchor at start
+        _carets.Add(offset + length); // Caret at end
         _textView.InvalidateLayer(Layer);
     }
 
@@ -68,6 +75,8 @@ public class MultiSelectionRenderer : IBackgroundRenderer
         if (_selections.Count > 0)
         {
             _selections.Clear();
+            _anchors.Clear();
+            _carets.Clear();
             _textView.InvalidateLayer(Layer);
         }
     }
@@ -174,34 +183,34 @@ public class MultiSelectionRenderer : IBackgroundRenderer
         var mainSelection = _textArea.Selection;
         var mainSegment = mainSelection.SurroundingSegment;
 
-        // Collect all selections including main, sorted by offset descending
+        // Collect all selections including main with their indices, sorted by offset descending
         // (process from end to start to avoid offset shifts affecting earlier positions)
-        var allSelections = new List<(int Offset, int Length)>();
+        var allSelections = new List<(int Offset, int Length, int Index, bool IsMain)>();
 
-        foreach (var sel in _selections)
+        for (int i = 0; i < _selections.Count; i++)
         {
-            allSelections.Add((sel.StartOffset, sel.Length));
+            allSelections.Add((_selections[i].StartOffset, _selections[i].Length, i, false));
         }
 
         // Add main selection/caret position (SurroundingSegment can be null if no selection)
         if (mainSegment != null)
         {
-            allSelections.Add((mainSegment.Offset, mainSegment.Length));
+            allSelections.Add((mainSegment.Offset, mainSegment.Length, -1, true));
         }
         else
         {
             // No selection, use caret position
-            allSelections.Add((_textArea.Caret.Offset, 0));
+            allSelections.Add((_textArea.Caret.Offset, 0, -1, true));
         }
 
-        // Sort by offset descending
-        allSelections = allSelections.OrderByDescending(s => s.Offset).ToList();
+        // Sort by offset descending for deletion
+        var sortedDesc = allSelections.OrderByDescending(s => s.Offset).ToList();
 
         // Begin update for undo grouping
         document.BeginUpdate();
         try
         {
-            foreach (var (offset, length) in allSelections)
+            foreach (var (offset, length, _, _) in sortedDesc)
             {
                 // Replace selection with new text
                 document.Replace(offset, length, text);
@@ -212,30 +221,37 @@ public class MultiSelectionRenderer : IBackgroundRenderer
             document.EndUpdate();
         }
 
-        // Update selections to be zero-length at new cursor positions
-        // Calculate new positions (all selections now have the inserted text)
-        var newSelections = new List<TextSegment>();
+        // Calculate new positions (process in ascending order)
+        var sortedAsc = allSelections.OrderBy(s => s.Offset).ToList();
         int adjustment = 0;
 
-        // Process in ascending order for position calculation
-        foreach (var (offset, length) in allSelections.OrderBy(s => s.Offset))
+        // Clear and rebuild selections with updated positions
+        _selections.Clear();
+        _anchors.Clear();
+        _carets.Clear();
+
+        int mainNewOffset = 0;
+
+        foreach (var (offset, length, index, isMain) in sortedAsc)
         {
             var newOffset = offset + adjustment + text.Length;
             adjustment += text.Length - length;
-            newSelections.Add(new TextSegment { StartOffset = newOffset, Length = 0 });
-        }
 
-        // Remove the last one (that's the main caret) and update others
-        _selections.Clear();
-        for (int i = 0; i < newSelections.Count - 1; i++)
-        {
-            _selections.Add(newSelections[i]);
+            if (isMain)
+            {
+                mainNewOffset = newOffset;
+            }
+            else
+            {
+                _selections.Add(new TextSegment { StartOffset = newOffset, Length = 0 });
+                _anchors.Add(newOffset);
+                _carets.Add(newOffset);
+            }
         }
 
         // Update main caret position
-        var lastPos = newSelections[newSelections.Count - 1].StartOffset;
-        _textArea.Caret.Offset = lastPos;
-        _textArea.Selection = Selection.Create(_textArea, lastPos, lastPos);
+        _textArea.Caret.Offset = mainNewOffset;
+        _textArea.Selection = Selection.Create(_textArea, mainNewOffset, mainNewOffset);
 
         _textView.InvalidateLayer(Layer);
     }
@@ -251,31 +267,31 @@ public class MultiSelectionRenderer : IBackgroundRenderer
         var mainSelection = _textArea.Selection;
         var mainSegment = mainSelection.SurroundingSegment;
 
-        // Collect all selections including main
-        var allSelections = new List<(int Offset, int Length)>();
+        // Collect all selections including main with their indices
+        var allSelections = new List<(int Offset, int Length, bool IsMain)>();
 
-        foreach (var sel in _selections)
+        for (int i = 0; i < _selections.Count; i++)
         {
-            allSelections.Add((sel.StartOffset, sel.Length));
+            allSelections.Add((_selections[i].StartOffset, _selections[i].Length, false));
         }
 
         // Add main selection/caret position
         if (mainSegment != null)
         {
-            allSelections.Add((mainSegment.Offset, mainSegment.Length));
+            allSelections.Add((mainSegment.Offset, mainSegment.Length, true));
         }
         else
         {
-            allSelections.Add((_textArea.Caret.Offset, 0));
+            allSelections.Add((_textArea.Caret.Offset, 0, true));
         }
 
-        // Sort by offset descending
-        allSelections = allSelections.OrderByDescending(s => s.Offset).ToList();
+        // Sort by offset descending for deletion
+        var sortedDesc = allSelections.OrderByDescending(s => s.Offset).ToList();
 
         document.BeginUpdate();
         try
         {
-            foreach (var (offset, length) in allSelections)
+            foreach (var (offset, length, _) in sortedDesc)
             {
                 if (length > 0)
                 {
@@ -294,32 +310,38 @@ public class MultiSelectionRenderer : IBackgroundRenderer
             document.EndUpdate();
         }
 
-        // Update cursor positions
-        UpdateCursorPositionsAfterBackspace(allSelections);
-    }
-
-    private void UpdateCursorPositionsAfterBackspace(List<(int Offset, int Length)> originalSelections)
-    {
-        var newSelections = new List<TextSegment>();
+        // Calculate new positions (process in ascending order)
+        var sortedAsc = allSelections.OrderBy(s => s.Offset).ToList();
         int adjustment = 0;
 
-        foreach (var (offset, length) in originalSelections.OrderBy(s => s.Offset))
+        // Clear and rebuild selections with updated positions
+        _selections.Clear();
+        _anchors.Clear();
+        _carets.Clear();
+
+        int mainNewOffset = 0;
+
+        foreach (var (offset, length, isMain) in sortedAsc)
         {
             int deleteAmount = length > 0 ? length : (offset > 0 ? 1 : 0);
             var newOffset = Math.Max(0, offset + adjustment - (length > 0 ? 0 : 1));
             adjustment -= deleteAmount;
-            newSelections.Add(new TextSegment { StartOffset = newOffset, Length = 0 });
+
+            if (isMain)
+            {
+                mainNewOffset = newOffset;
+            }
+            else
+            {
+                _selections.Add(new TextSegment { StartOffset = newOffset, Length = 0 });
+                _anchors.Add(newOffset);
+                _carets.Add(newOffset);
+            }
         }
 
-        _selections.Clear();
-        for (int i = 0; i < newSelections.Count - 1; i++)
-        {
-            _selections.Add(newSelections[i]);
-        }
-
-        var lastPos = newSelections[newSelections.Count - 1].StartOffset;
-        _textArea.Caret.Offset = lastPos;
-        _textArea.Selection = Selection.Create(_textArea, lastPos, lastPos);
+        // Update main caret position
+        _textArea.Caret.Offset = mainNewOffset;
+        _textArea.Selection = Selection.Create(_textArea, mainNewOffset, mainNewOffset);
 
         _textView.InvalidateLayer(Layer);
     }
@@ -335,29 +357,32 @@ public class MultiSelectionRenderer : IBackgroundRenderer
         var mainSelection = _textArea.Selection;
         var mainSegment = mainSelection.SurroundingSegment;
 
-        var allSelections = new List<(int Offset, int Length)>();
+        // Collect all selections including main with their indices
+        var allSelections = new List<(int Offset, int Length, bool IsMain)>();
 
-        foreach (var sel in _selections)
+        for (int i = 0; i < _selections.Count; i++)
         {
-            allSelections.Add((sel.StartOffset, sel.Length));
+            allSelections.Add((_selections[i].StartOffset, _selections[i].Length, false));
         }
 
         // Add main selection/caret position
         if (mainSegment != null)
         {
-            allSelections.Add((mainSegment.Offset, mainSegment.Length));
+            allSelections.Add((mainSegment.Offset, mainSegment.Length, true));
         }
         else
         {
-            allSelections.Add((_textArea.Caret.Offset, 0));
+            allSelections.Add((_textArea.Caret.Offset, 0, true));
         }
 
-        allSelections = allSelections.OrderByDescending(s => s.Offset).ToList();
+        // Sort by offset descending for deletion
+        var sortedDesc = allSelections.OrderByDescending(s => s.Offset).ToList();
+        int originalTextLength = document.TextLength;
 
         document.BeginUpdate();
         try
         {
-            foreach (var (offset, length) in allSelections)
+            foreach (var (offset, length, _) in sortedDesc)
             {
                 if (length > 0)
                 {
@@ -374,33 +399,328 @@ public class MultiSelectionRenderer : IBackgroundRenderer
             document.EndUpdate();
         }
 
-        // Update cursor positions (cursors stay in place, just selections become zero-length)
-        UpdateCursorPositionsAfterDelete(allSelections);
+        // Calculate new positions (process in ascending order)
+        var sortedAsc = allSelections.OrderBy(s => s.Offset).ToList();
+        int adjustment = 0;
+        int runningTextLength = originalTextLength;
+
+        // Clear and rebuild selections with updated positions
+        _selections.Clear();
+        _anchors.Clear();
+        _carets.Clear();
+
+        int mainNewOffset = 0;
+
+        foreach (var (offset, length, isMain) in sortedAsc)
+        {
+            int deleteAmount = length > 0 ? length : (offset < runningTextLength ? 1 : 0);
+            var newOffset = Math.Max(0, offset + adjustment);
+            adjustment -= deleteAmount;
+            runningTextLength -= deleteAmount;
+
+            if (isMain)
+            {
+                mainNewOffset = newOffset;
+            }
+            else
+            {
+                _selections.Add(new TextSegment { StartOffset = newOffset, Length = 0 });
+                _anchors.Add(newOffset);
+                _carets.Add(newOffset);
+            }
+        }
+
+        // Update main caret position
+        _textArea.Caret.Offset = mainNewOffset;
+        _textArea.Selection = Selection.Create(_textArea, mainNewOffset, mainNewOffset);
+
+        _textView.InvalidateLayer(Layer);
     }
 
-    private void UpdateCursorPositionsAfterDelete(List<(int Offset, int Length)> originalSelections)
+    /// <summary>
+    /// Moves all cursors left by one character, collapsing any selections.
+    /// </summary>
+    public void MoveAllCursorsLeft()
     {
-        var newSelections = new List<TextSegment>();
-        int adjustment = 0;
         var document = _textView.Document;
 
-        foreach (var (offset, length) in originalSelections.OrderBy(s => s.Offset))
+        // Move additional selections
+        for (int i = 0; i < _selections.Count; i++)
         {
-            int deleteAmount = length > 0 ? length : (offset < document.TextLength + adjustment ? 1 : 0);
-            var newOffset = offset + adjustment;
-            adjustment -= deleteAmount;
-            newSelections.Add(new TextSegment { StartOffset = Math.Max(0, newOffset), Length = 0 });
+            var sel = _selections[i];
+            // If there's a selection, collapse to start; otherwise move left
+            int newOffset = sel.Length > 0 ? sel.StartOffset : Math.Max(0, sel.StartOffset - 1);
+            _selections[i] = new TextSegment { StartOffset = newOffset, Length = 0 };
+            _anchors[i] = newOffset; // Reset anchor to new position
+            _carets[i] = newOffset;  // Reset caret to new position
         }
 
-        _selections.Clear();
-        for (int i = 0; i < newSelections.Count - 1; i++)
+        // Move main caret
+        var mainSel = _textArea.Selection;
+        var mainSegment = mainSel.SurroundingSegment;
+        int mainNewOffset;
+        if (mainSegment != null && mainSegment.Length > 0)
         {
-            _selections.Add(newSelections[i]);
+            mainNewOffset = mainSegment.Offset;
+        }
+        else
+        {
+            mainNewOffset = Math.Max(0, _textArea.Caret.Offset - 1);
+        }
+        _textArea.Caret.Offset = mainNewOffset;
+        _textArea.Selection = Selection.Create(_textArea, mainNewOffset, mainNewOffset);
+
+        _textView.InvalidateLayer(Layer);
+    }
+
+    /// <summary>
+    /// Moves all cursors right by one character, collapsing any selections.
+    /// </summary>
+    public void MoveAllCursorsRight()
+    {
+        var document = _textView.Document;
+
+        // Move additional selections
+        for (int i = 0; i < _selections.Count; i++)
+        {
+            var sel = _selections[i];
+            // If there's a selection, collapse to end; otherwise move right
+            int newOffset = sel.Length > 0 ? sel.EndOffset : Math.Min(document.TextLength, sel.StartOffset + 1);
+            _selections[i] = new TextSegment { StartOffset = newOffset, Length = 0 };
+            _anchors[i] = newOffset; // Reset anchor to new position
+            _carets[i] = newOffset;  // Reset caret to new position
         }
 
-        var lastPos = newSelections[newSelections.Count - 1].StartOffset;
-        _textArea.Caret.Offset = lastPos;
-        _textArea.Selection = Selection.Create(_textArea, lastPos, lastPos);
+        // Move main caret
+        var mainSel = _textArea.Selection;
+        var mainSegment = mainSel.SurroundingSegment;
+        int mainNewOffset;
+        if (mainSegment != null && mainSegment.Length > 0)
+        {
+            mainNewOffset = mainSegment.EndOffset;
+        }
+        else
+        {
+            mainNewOffset = Math.Min(document.TextLength, _textArea.Caret.Offset + 1);
+        }
+        _textArea.Caret.Offset = mainNewOffset;
+        _textArea.Selection = Selection.Create(_textArea, mainNewOffset, mainNewOffset);
+
+        _textView.InvalidateLayer(Layer);
+    }
+
+    /// <summary>
+    /// Extends all selections left by one character (Shift+Left behavior).
+    /// </summary>
+    public void ExtendAllSelectionsLeft()
+    {
+        var document = _textView.Document;
+
+        // Extend additional selections
+        for (int i = 0; i < _selections.Count; i++)
+        {
+            int anchor = _anchors[i];
+            int caret = _carets[i];
+
+            // Move caret left
+            int newCaret = Math.Max(0, caret - 1);
+            _carets[i] = newCaret;
+
+            // Create selection from anchor to new caret
+            int start = Math.Min(anchor, newCaret);
+            int end = Math.Max(anchor, newCaret);
+            _selections[i] = new TextSegment { StartOffset = start, Length = end - start };
+        }
+
+        // Extend main selection
+        var mainSel = _textArea.Selection;
+        int mainAnchor, mainCaret;
+        if (mainSel.IsEmpty)
+        {
+            mainAnchor = mainCaret = _textArea.Caret.Offset;
+        }
+        else
+        {
+            // Determine anchor vs caret based on caret position
+            var seg = mainSel.SurroundingSegment;
+            if (_textArea.Caret.Offset == seg.EndOffset)
+            {
+                mainAnchor = seg.Offset;
+                mainCaret = seg.EndOffset;
+            }
+            else
+            {
+                mainAnchor = seg.EndOffset;
+                mainCaret = seg.Offset;
+            }
+        }
+
+        int mainNewCaret = Math.Max(0, mainCaret - 1);
+        int mainStart = Math.Min(mainAnchor, mainNewCaret);
+        int mainEnd = Math.Max(mainAnchor, mainNewCaret);
+        _textArea.Selection = Selection.Create(_textArea, mainStart, mainEnd);
+        _textArea.Caret.Offset = mainNewCaret;
+
+        _textView.InvalidateLayer(Layer);
+    }
+
+    /// <summary>
+    /// Extends all selections right by one character (Shift+Right behavior).
+    /// </summary>
+    public void ExtendAllSelectionsRight()
+    {
+        var document = _textView.Document;
+
+        // Extend additional selections
+        for (int i = 0; i < _selections.Count; i++)
+        {
+            int anchor = _anchors[i];
+            int caret = _carets[i];
+
+            // Move caret right
+            int newCaret = Math.Min(document.TextLength, caret + 1);
+            _carets[i] = newCaret;
+
+            // Create selection from anchor to new caret
+            int start = Math.Min(anchor, newCaret);
+            int end = Math.Max(anchor, newCaret);
+            _selections[i] = new TextSegment { StartOffset = start, Length = end - start };
+        }
+
+        // Extend main selection
+        var mainSel = _textArea.Selection;
+        int mainAnchor, mainCaret;
+        if (mainSel.IsEmpty)
+        {
+            mainAnchor = mainCaret = _textArea.Caret.Offset;
+        }
+        else
+        {
+            // Determine anchor vs caret based on caret position
+            var seg = mainSel.SurroundingSegment;
+            if (_textArea.Caret.Offset == seg.EndOffset)
+            {
+                mainAnchor = seg.Offset;
+                mainCaret = seg.EndOffset;
+            }
+            else
+            {
+                mainAnchor = seg.EndOffset;
+                mainCaret = seg.Offset;
+            }
+        }
+
+        int mainNewCaret = Math.Min(document.TextLength, mainCaret + 1);
+        int mainStart = Math.Min(mainAnchor, mainNewCaret);
+        int mainEnd = Math.Max(mainAnchor, mainNewCaret);
+        _textArea.Selection = Selection.Create(_textArea, mainStart, mainEnd);
+        _textArea.Caret.Offset = mainNewCaret;
+
+        _textView.InvalidateLayer(Layer);
+    }
+
+    /// <summary>
+    /// Moves all cursors up by one line, collapsing any selections.
+    /// </summary>
+    public void MoveAllCursorsUp()
+    {
+        var document = _textView.Document;
+
+        // Move additional selections
+        for (int i = 0; i < _selections.Count; i++)
+        {
+            var sel = _selections[i];
+            int offset = sel.Length > 0 ? sel.StartOffset : sel.EndOffset;
+            var loc = document.GetLocation(offset);
+
+            int newOffset;
+            if (loc.Line > 1)
+            {
+                var targetLine = document.GetLineByNumber(loc.Line - 1);
+                int targetColumn = Math.Min(loc.Column, targetLine.Length + 1);
+                newOffset = targetLine.Offset + targetColumn - 1;
+            }
+            else
+            {
+                newOffset = sel.StartOffset;
+            }
+            _selections[i] = new TextSegment { StartOffset = newOffset, Length = 0 };
+            _anchors[i] = newOffset; // Reset anchor
+            _carets[i] = newOffset;  // Reset caret
+        }
+
+        // Move main caret
+        var mainSel = _textArea.Selection;
+        var mainSegment = mainSel.SurroundingSegment;
+        int mainOffset = mainSegment != null && mainSegment.Length > 0 ? mainSegment.Offset : _textArea.Caret.Offset;
+        var mainLoc = document.GetLocation(mainOffset);
+
+        if (mainLoc.Line > 1)
+        {
+            var targetLine = document.GetLineByNumber(mainLoc.Line - 1);
+            int targetColumn = Math.Min(mainLoc.Column, targetLine.Length + 1);
+            int mainNewOffset = targetLine.Offset + targetColumn - 1;
+            _textArea.Caret.Offset = mainNewOffset;
+            _textArea.Selection = Selection.Create(_textArea, mainNewOffset, mainNewOffset);
+        }
+        else
+        {
+            // Just collapse selection
+            _textArea.Selection = Selection.Create(_textArea, mainOffset, mainOffset);
+        }
+
+        _textView.InvalidateLayer(Layer);
+    }
+
+    /// <summary>
+    /// Moves all cursors down by one line, collapsing any selections.
+    /// </summary>
+    public void MoveAllCursorsDown()
+    {
+        var document = _textView.Document;
+
+        // Move additional selections
+        for (int i = 0; i < _selections.Count; i++)
+        {
+            var sel = _selections[i];
+            int offset = sel.Length > 0 ? sel.EndOffset : sel.EndOffset;
+            var loc = document.GetLocation(offset);
+
+            int newOffset;
+            if (loc.Line < document.LineCount)
+            {
+                var targetLine = document.GetLineByNumber(loc.Line + 1);
+                int targetColumn = Math.Min(loc.Column, targetLine.Length + 1);
+                newOffset = targetLine.Offset + targetColumn - 1;
+            }
+            else
+            {
+                newOffset = sel.EndOffset;
+            }
+            _selections[i] = new TextSegment { StartOffset = newOffset, Length = 0 };
+            _anchors[i] = newOffset; // Reset anchor
+            _carets[i] = newOffset;  // Reset caret
+        }
+
+        // Move main caret
+        var mainSel = _textArea.Selection;
+        var mainSegment = mainSel.SurroundingSegment;
+        int mainOffset = mainSegment != null && mainSegment.Length > 0 ? mainSegment.EndOffset : _textArea.Caret.Offset;
+        var mainLoc = document.GetLocation(mainOffset);
+
+        if (mainLoc.Line < document.LineCount)
+        {
+            var targetLine = document.GetLineByNumber(mainLoc.Line + 1);
+            int targetColumn = Math.Min(mainLoc.Column, targetLine.Length + 1);
+            int mainNewOffset = targetLine.Offset + targetColumn - 1;
+            _textArea.Caret.Offset = mainNewOffset;
+            _textArea.Selection = Selection.Create(_textArea, mainNewOffset, mainNewOffset);
+        }
+        else
+        {
+            // Just collapse selection
+            _textArea.Selection = Selection.Create(_textArea, mainOffset, mainOffset);
+        }
 
         _textView.InvalidateLayer(Layer);
     }
@@ -409,8 +729,10 @@ public class MultiSelectionRenderer : IBackgroundRenderer
     {
         if (_selections.Count == 0) return;
 
-        foreach (var segment in _selections)
+        for (int i = 0; i < _selections.Count; i++)
         {
+            var segment = _selections[i];
+
             // Skip invalid segments
             if (segment.StartOffset < 0 || segment.EndOffset > textView.Document.TextLength)
                 continue;
@@ -424,12 +746,25 @@ public class MultiSelectionRenderer : IBackgroundRenderer
                 }
             }
 
-            // Draw caret line at the end of selection
-            var caretSegment = new TextSegment { StartOffset = segment.EndOffset, Length = 0 };
-            foreach (var rect in BackgroundGeometryBuilder.GetRectsForSegment(textView, caretSegment))
+            // Draw caret line at the tracked caret position
+            // Use GetVisualPosition to properly locate the caret (GetRectsForSegment returns empty for zero-length)
+            int caretOffset = _carets[i];
+            if (caretOffset < 0 || caretOffset > textView.Document.TextLength)
+                continue;
+
+            var visualLine = textView.GetVisualLine(textView.Document.GetLineByOffset(caretOffset).LineNumber);
+            if (visualLine != null)
             {
+                int relativeOffset = caretOffset - visualLine.FirstDocumentLine.Offset;
+                var caretPos = visualLine.GetVisualPosition(relativeOffset, VisualYPosition.LineTop);
+                var caretBottom = visualLine.GetVisualPosition(relativeOffset, VisualYPosition.LineBottom);
+
+                // Adjust for scroll position
+                caretPos = caretPos - textView.ScrollOffset;
+                caretBottom = caretBottom - textView.ScrollOffset;
+
                 // Draw a thin vertical line as caret
-                var caretRect = new Rect(rect.X, rect.Y, 2, rect.Height);
+                var caretRect = new Rect(caretPos.X, caretPos.Y, 2, caretBottom.Y - caretPos.Y);
                 drawingContext.DrawRectangle(CaretBrush, null, caretRect);
             }
         }
