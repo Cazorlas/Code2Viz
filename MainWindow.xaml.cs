@@ -4017,31 +4017,35 @@ public partial class MainWindow : Window
 
                 if (needsScaling)
                 {
-                    // Render canvas at its native size first
-                    var canvasRtb = new RenderTargetBitmap(canvasWidth, canvasHeight, 96, 96, PixelFormats.Pbgra32);
-                    canvasRtb.Render(RenderCanvas);
-
                     // Calculate scale factor preserving aspect ratio
                     double scaleX = (double)width / canvasWidth;
                     double scaleY = (double)height / canvasHeight;
                     double scale = Math.Min(scaleX, scaleY);
 
-                    // Calculate scaled dimensions and centering offset
-                    double scaledWidth = canvasWidth * scale;
-                    double scaledHeight = canvasHeight * scale;
-                    double offsetX = (width - scaledWidth) / 2;
-                    double offsetY = (height - scaledHeight) / 2;
+                    // Calculate dimensions at scaled resolution
+                    int scaledPixelWidth = (int)(canvasWidth * scale);
+                    int scaledPixelHeight = (int)(canvasHeight * scale);
 
-                    // Scale to output resolution using DrawingVisual
+                    // Render canvas at HIGH DPI to get sharp vector graphics
+                    // Higher DPI = WPF renders more pixels for the same logical size
+                    double targetDpi = 96 * scale;
+                    var canvasRtb = new RenderTargetBitmap(scaledPixelWidth, scaledPixelHeight, targetDpi, targetDpi, PixelFormats.Pbgra32);
+                    canvasRtb.Render(RenderCanvas);
+
+                    // Calculate centering offset for letterbox/pillarbox
+                    double offsetX = (width - scaledPixelWidth) / 2.0;
+                    double offsetY = (height - scaledPixelHeight) / 2.0;
+
+                    // Compose final frame with background and centered sharp render
                     var drawingVisual = new DrawingVisual();
                     using (var dc = drawingVisual.RenderOpen())
                     {
-                        // Fill background first
+                        // Fill background first (for letterbox/pillarbox areas)
                         var bgBrush = overrideBackground ?? RenderCanvas.CanvasBackground ?? Brushes.Black;
                         dc.DrawRectangle(bgBrush, null, new Rect(0, 0, width, height));
 
-                        // Draw scaled image centered
-                        dc.DrawImage(canvasRtb, new Rect(offsetX, offsetY, scaledWidth, scaledHeight));
+                        // Draw the high-res render centered (no scaling, 1:1 pixels)
+                        dc.DrawImage(canvasRtb, new Rect(offsetX, offsetY, scaledPixelWidth, scaledPixelHeight));
                     }
 
                     rtb = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
