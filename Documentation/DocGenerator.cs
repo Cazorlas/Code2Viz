@@ -53,7 +53,7 @@ namespace Code2Viz.Documentation
                 { "VPoint", "Represents a point in 2D Cartesian space (X, Y). Can be drawn as a small dot on the canvas." },
                 { "VBezier", "Represents a 2D cubic Bezier curve defined by four control points: start, control1, control2, and end." },
                 { "VSpline", "Represents a smooth Catmull-Rom spline curve passing through a series of points." },
-                { "VText", "Represents text drawn at a specific position. Supports font size (Height property) and styling." },
+                { "VText", "Represents text drawn at a specific position. Supports font size via Height property or constructor parameter. Constructors: VText(point, text), VText(point, text, height), VText(x, y, text), VText(x, y, text, height). Supports Font and FontWeight properties for styling." },
                 { "VGroup", "Represents a collection of shapes treated as a single unit. Supports multiple constructors (empty, params, IEnumerable, List), group transformations (Move, Rotate, Scale, Flip), style application (ApplyStyle, ApplyColor, ApplyFillColor), and utility methods (Flatten, ForEach, Where, GetShapesOfType). When drawn, the group is rendered and selected as a single entity on the canvas." },
                 { "VGrid", "Represents a rectangular grid of VPoints. Constructor: VGrid(location, xcount, ycount, xSpacing, ySpacing, centered). If centered=true, grid is centered at location; if false, location is bottom-left corner. Access points via Points property, indexers [index] or [col, row], or GetRow()/GetColumn() methods. Supports all Shape transformations (Move, Rotate, Scale, Flip) and ApplyStyle() to set colors on all points." },
                 { "VArrow", "Represents an arrow (line with arrowhead). Supports single or double-ended arrows with configurable head size and angle." },
@@ -841,7 +841,12 @@ spline.Draw();" },
 var text = new VText(new VPoint(50, 50), ""Hello World"");
 text.Height = 24;
 text.Color = ""White"";
-text.Draw();" },
+text.Draw();
+
+// Create text with height in constructor
+var text2 = new VText(0, -50, ""Compact syntax"", 18);
+text2.Color = ""Cyan"";
+text2.Draw();" },
 
                 { "VArrow", @"// Create an arrow from two points
 var arrow = new VArrow(new VPoint(0, 0), new VPoint(100, 0));
@@ -2040,7 +2045,7 @@ triangle.Mirror(mirrorAxis).DrawAll();" }
             AddListItem(featuresList, "Drawing Tools", "Draw shapes directly on the canvas with automatic code generation");
             AddListItem(featuresList, "Animation System", "Create timeline-based animations with draw, move, rotate, and flip effects");
             AddListItem(featuresList, "Interactive Canvas", "Zoom with mouse wheel, pan with middle-click, toggle grid display");
-            AddListItem(featuresList, "Export Options", "Save your visualizations as PNG images or animated GIFs");
+            AddListItem(featuresList, "Export Options", "Save visualizations as PNG images, animated GIFs, or MP4 videos");
             AddListItem(featuresList, "Project Management", "Organize multiple code files into projects with tabbed editing");
             AddListItem(featuresList, "NuGet Package Manager", "Search, install, update, and remove NuGet packages via Tools menu");
             doc.Blocks.Add(featuresList);

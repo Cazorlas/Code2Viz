@@ -132,6 +132,10 @@
                             Header="Export _GIF Animation..."
                             Style="{StaticResource MenuItemStyle}" />
                         <MenuItem
+                            Click="ExportVideoButton_Click"
+                            Header="Export _Video (MP4)..."
+                            Style="{StaticResource MenuItemStyle}" />
+                        <MenuItem
                             Click="ExportDxfButton_Click"
                             Header="Export _DXF (AutoCAD)..."
                             Style="{StaticResource MenuItemStyle}" />

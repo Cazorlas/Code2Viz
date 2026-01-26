@@ -59,16 +59,34 @@ public class VText : Shape
 
     public VText(VPoint location, string content)
     {
-        Location = location;
+        Location = VPoint.Internal(location.X, location.Y);
         Content = content;
+        Color = ShapeDefaults.GlobalColor ?? "White";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
+    }
+
+    public VText(VPoint location, string content, double height)
+    {
+        Location = VPoint.Internal(location.X, location.Y);
+        Content = content;
+        Height = height;
         Color = ShapeDefaults.GlobalColor ?? "White";
         FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
     }
 
     public VText(double x, double y, string content)
     {
-        Location = new VPoint(x, y);
+        Location = VPoint.Internal(x, y);
         Content = content;
+        Color = ShapeDefaults.GlobalColor ?? "White";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
+    }
+
+    public VText(double x, double y, string content, double height)
+    {
+        Location = VPoint.Internal(x, y);
+        Content = content;
+        Height = height;
         Color = ShapeDefaults.GlobalColor ?? "White";
         FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
     }

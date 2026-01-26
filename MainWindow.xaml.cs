@@ -3912,6 +3912,121 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ExportVideoButton_Click(object sender, RoutedEventArgs e)
+    {
+        var timeline = CanvasRenderer.Instance.ActiveTimeline;
+        if (timeline == null)
+        {
+            MessageBox.Show(
+                "No active animation timeline found.\n\nPlease run code that creates and plays a Timeline before exporting a video.",
+                "No Animation",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var optionsDialog = new VideoExportOptionsWindow();
+        optionsDialog.Owner = this;
+        optionsDialog.SetDuration(timeline.Duration);
+
+        if (optionsDialog.ShowDialog() != true) return;
+
+        var dialog = new SaveFileDialog
+        {
+            Filter = "MP4 Video (*.mp4)|*.mp4",
+            DefaultExt = ".mp4",
+            FileName = "animation_export"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            var progressDialog = new ProgressDialog("Exporting MP4 video...");
+            progressDialog.Owner = this;
+            progressDialog.Show();
+
+            var originalCursor = Cursor;
+            Cursor = System.Windows.Input.Cursors.Wait;
+
+            try
+            {
+                ExportCanvasToVideo(dialog.FileName, timeline, optionsDialog.Duration, optionsDialog.Fps,
+                    optionsDialog.Bitrate, optionsDialog.SelectedBackground, optionsDialog.IncludeGrid, progressDialog);
+                SetStatus($"Exported: {Path.GetFileName(dialog.FileName)}", isError: false);
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"Export error: {ex.Message}", isError: true);
+                MessageBox.Show($"Failed to export video:\n\n{ex.Message}", "Export Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                progressDialog.Close();
+                Cursor = originalCursor;
+            }
+        }
+    }
+
+    private void ExportCanvasToVideo(string filePath, Timeline timeline, double duration, int fps,
+        uint bitrateMbps, Brush? overrideBackground, bool includeGrid, ProgressDialog? progressDialog = null)
+    {
+        bool wasGridShown = RenderCanvas.ShowGrid;
+        var originalBackground = RenderCanvas.CanvasBackground;
+        bool wasPlaying = timeline.IsPlaying;
+
+        try
+        {
+            RenderCanvas.ShowGrid = includeGrid;
+            if (overrideBackground != null)
+            {
+                RenderCanvas.CanvasBackground = overrideBackground;
+            }
+
+            var width = (int)RenderCanvas.ActualWidth;
+            var height = (int)RenderCanvas.ActualHeight;
+
+            // Ensure dimensions are even (required for H.264)
+            width = width - (width % 2);
+            height = height - (height % 2);
+
+            if (width <= 0 || height <= 0)
+                throw new InvalidOperationException($"Invalid Canvas Dimensions: {width}x{height}");
+
+            int totalFrames = (int)(duration * fps);
+            double timeStep = duration / totalFrames;
+
+            using var encoder = new Export.VideoExporter(filePath, width, height, fps, bitrateMbps);
+
+            for (int i = 0; i < totalFrames; i++)
+            {
+                progressDialog?.SetProgress(i + 1, totalFrames);
+
+                double time = i * timeStep;
+                timeline.Update(time);
+
+                RenderCanvas.Refresh();
+                Dispatcher.Invoke(() => { }, DispatcherPriority.Render);
+
+                var rtb = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+                rtb.Render(RenderCanvas);
+
+                encoder.AddFrame(rtb);
+            }
+        }
+        finally
+        {
+            RenderCanvas.CanvasBackground = originalBackground;
+            RenderCanvas.ShowGrid = wasGridShown;
+
+            if (wasPlaying)
+            {
+                timeline.Update(timeline.Duration);
+            }
+
+            RenderCanvas.Refresh();
+        }
+    }
+
     private void GridMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (RenderCanvas != null)

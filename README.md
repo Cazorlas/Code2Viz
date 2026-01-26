@@ -16,9 +16,9 @@ Code2Viz is a visual programming environment that lets you write C# or F# code t
 - **No Draw() Required**: Shapes appear automatically when created
 - **Multi-language Support**: Write code in C# or F# with full syntax highlighting
 - **Rich Shape Library**: Points, lines, circles, rectangles, ellipses, arcs, polygons, polylines, Bezier curves, splines, text, arrows, and dimension annotations
-- **Animation System**: Create timeline-based animations with draw, move, rotate, and flip effects
+- **Animation System**: Create timeline-based animations with draw, move, rotate, flip, and fade effects
 - **Interactive Canvas**: Zoom with mouse wheel, pan with middle-click, toggle grid display
-- **Export Options**: Save visualizations as PNG images or animated GIFs
+- **Export Options**: Save visualizations as PNG images, animated GIFs, or MP4 videos
 - **Project Management**: Organize multiple code files into projects with tabbed editing
 - **NuGet Integration**: Add external packages to extend functionality
 - **Built-in Help**: Comprehensive API documentation with examples
@@ -76,7 +76,7 @@ With **Auto-update Canvas** enabled (default), the canvas updates automatically 
 | **VPolyline** | Open connected segments | `new VPolyline(p1, p2, p3, ...)` |
 | **VBezier** | Cubic Bezier curve | `new VBezier(start, ctrl1, ctrl2, end)` |
 | **VSpline** | Smooth spline curve | `new VSpline(p1, p2, p3, ...)` |
-| **VText** | Text at a position | `new VText(position, "text")` |
+| **VText** | Text at a position | `new VText(position, "text")` or `new VText(x, y, "text", height)` |
 | **VArrow** | Arrow with head | `new VArrow(start, end)` |
 | **VDimension** | Dimension annotation | `new VDimension(p1, p2)` |
 | **VGroup** | Group of shapes | `new VGroup(shape1, shape2, ...)` or `new VGroup(shapeList)` |
@@ -659,11 +659,21 @@ Configure snap behavior in the Settings tab (Application Settings > Snap Setting
 File > Export > PNG (or Ctrl+E) exports the current canvas view as a PNG image.
 
 ### GIF Export
-File > Export > GIF exports animations as animated GIF files with options:
-- **Width/Height**: Output dimensions
-- **Frame Rate**: 10-60 FPS
-- **Duration**: Animation length in seconds
-- **Loop**: Enable/disable infinite looping
+File > Export GIF Animation exports animations as animated GIF files with options:
+- **Duration**: Animation length in seconds (1-30s)
+- **Frame Rate**: 5-30 FPS
+- **Background**: Current canvas, white, or black
+- **Include Grid**: Optionally include grid and axes
+
+### Video Export (MP4)
+File > Export Video (MP4) exports animations as H.264 MP4 video files with options:
+- **Duration**: Animation length in seconds (1-60s)
+- **Frame Rate**: 15, 30, 45, or 60 FPS
+- **Bitrate**: 1-20 Mbps (affects quality and file size)
+- **Background**: Current canvas, white, or black
+- **Include Grid**: Optionally include grid and axes
+
+Uses Windows Media Foundation for encoding - no external dependencies required.
 
 ### DXF Export
 File > Export > DXF exports shapes to AutoCAD DXF format (R12 ASCII):
