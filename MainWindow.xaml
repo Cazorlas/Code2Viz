@@ -8,6 +8,7 @@
     xmlns:local="clr-namespace:Code2Viz"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:project="clr-namespace:Code2Viz.Project"
+    xmlns:search="clr-namespace:Code2Viz.Search"
     Title="Code2Viz - 2D Geometry Visualizer"
     Width="1200"
     Height="700"
@@ -218,6 +219,22 @@
                             Click="InsertColorMenuItem_Click"
                             Header="_Insert Color..."
                             InputGestureText="Ctrl+Shift+K"
+                            Style="{StaticResource MenuItemStyle}" />
+                        <Separator />
+                        <MenuItem
+                            Click="FindMenuItem_Click"
+                            Header="_Find..."
+                            InputGestureText="Ctrl+F"
+                            Style="{StaticResource MenuItemStyle}" />
+                        <MenuItem
+                            Click="FindReplaceMenuItem_Click"
+                            Header="Find and _Replace..."
+                            InputGestureText="Ctrl+H"
+                            Style="{StaticResource MenuItemStyle}" />
+                        <MenuItem
+                            Click="FindInFilesMenuItem_Click"
+                            Header="Find in F_iles..."
+                            InputGestureText="Ctrl+Shift+F"
                             Style="{StaticResource MenuItemStyle}" />
                     </MenuItem>
 
@@ -431,7 +448,7 @@
                         <MenuItem
                             x:Name="ShowConsoleMenuItem"
                             Click="ShowConsoleMenuItem_Click"
-                            Header="_Console"
+                            Header="Co_nsole"
                             IsCheckable="True"
                             IsChecked="True"
                             Style="{StaticResource MenuItemStyle}" />
@@ -872,7 +889,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition
                         x:Name="CanvasRow"
-                        Height="*"
+                        Height="3*"
                         MinHeight="200" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition
@@ -882,8 +899,9 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition
                         x:Name="ConsoleRow"
-                        Height="200"
-                        MinHeight="80" />
+                        Height="*"
+                        MinHeight="80"
+                        MaxHeight="500" />
                 </Grid.RowDefinitions>
 
                 <!--  Canvas  -->
@@ -967,23 +985,11 @@
                     Grid.Row="2"
                     Visibility="Collapsed" />
 
-                <!--  Splitter between Timeline and Console  -->
-                <GridSplitter
-                    x:Name="ConsoleSplitter"
-                    Grid.Row="3"
-                    Height="4"
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Center"
-                    Background="{StaticResource BorderBrush}"
-                    Cursor="SizeNS"
-                    MouseDoubleClick="ConsoleSplitter_MouseDoubleClick"
-                    ResizeBehavior="PreviousAndNext"
-                    ToolTip="Drag to resize. Double-click to reset." />
-
-                <!--  Console Panel  -->
+                <!--  Bottom Panel (Console and Find Results) with integrated resize handle  -->
                 <Border
                     x:Name="ConsolePanel"
-                    Grid.Row="4"
+                    Grid.Row="3"
+                    Grid.RowSpan="2"
                     Background="{StaticResource SecondaryBackgroundBrush}"
                     BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="0,0,1,0">
@@ -993,138 +999,234 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <!--  Console Header  -->
+                        <!--  Resize Handle at top of console  -->
                         <Border
+                            x:Name="ConsoleSplitter"
                             Grid.Row="0"
-                            Padding="8,4"
-                            Background="{StaticResource TertiaryBackgroundBrush}"
+                            Height="6"
+                            Background="#3F3F46"
                             BorderBrush="{StaticResource BorderBrush}"
-                            BorderThickness="0,0,0,1">
-                            <Grid>
-                                <TextBlock
-                                    VerticalAlignment="Center"
-                                    FontWeight="SemiBold"
-                                    Foreground="{StaticResource ForegroundBrush}"
-                                    Text="Console" />
-                                <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                                    <Button
-                                        x:Name="ClearConsoleButton"
-                                        Padding="8,4"
-                                        Click="ClearConsoleButton_Click"
-                                        Content="Clear"
-                                        Style="{StaticResource RibbonButtonStyle}" />
-                                    <Button
-                                        x:Name="ExportConsoleButton"
-                                        Margin="4,0,0,0"
-                                        Padding="8,4"
-                                        Click="ExportConsoleButton_Click"
-                                        Content="Export"
-                                        Style="{StaticResource RibbonButtonStyle}" />
-                                </StackPanel>
-                            </Grid>
+                            BorderThickness="0,1,0,0"
+                            Cursor="SizeNS"
+                            MouseLeftButtonDown="ConsoleSplitter_MouseLeftButtonDown"
+                            MouseLeftButtonUp="ConsoleSplitter_MouseLeftButtonUp"
+                            MouseMove="ConsoleSplitter_MouseMove"
+                            ToolTip="Drag to resize. Double-click to reset.">
+                            <Rectangle
+                                Width="40"
+                                Height="3"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Fill="#606060"
+                                RadiusX="1.5"
+                                RadiusY="1.5" />
                         </Border>
 
-                        <!--  Console Output  -->
-                        <ListBox
-                            x:Name="ConsoleListBox"
+                        <TabControl
+                            x:Name="BottomTabControl"
                             Grid.Row="1"
-                            Background="{StaticResource BackgroundBrush}"
-                            BorderThickness="0"
-                            KeyDown="ConsoleListBox_KeyDown"
-                            MouseDoubleClick="ConsoleListBox_MouseDoubleClick"
-                            ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                            ScrollViewer.VerticalScrollBarVisibility="Auto"
-                            SelectionMode="Extended">
-                            <ListBox.ContextMenu>
-                                <ContextMenu>
-                                    <MenuItem
-                                        Click="ConsoleCopy_Click"
-                                        Header="Copy"
-                                        InputGestureText="Ctrl+C">
-                                        <MenuItem.Icon>
-                                            <TextBlock FontSize="12" Text="📋" />
-                                        </MenuItem.Icon>
-                                    </MenuItem>
-                                    <Separator />
-                                    <MenuItem
-                                        Click="ConsoleSelectAll_Click"
-                                        Header="Select All"
-                                        InputGestureText="Ctrl+A" />
-                                    <Separator />
-                                    <MenuItem Click="ClearConsoleButton_Click" Header="Clear" />
-                                </ContextMenu>
-                            </ListBox.ContextMenu>
-                            <ListBox.ItemContainerStyle>
-                                <Style TargetType="ListBoxItem">
-                                    <Setter Property="Padding" Value="4,2" />
-                                    <Setter Property="Background" Value="Transparent" />
-                                    <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}" />
-                                    <Style.Triggers>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="#3399FF" />
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </ListBox.ItemContainerStyle>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal">
-                                        <!--  File:Line prefix for clickable errors  -->
-                                        <TextBlock FontFamily="Cascadia Code, Consolas, Courier New" FontSize="12">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="#808080" />
-                                                    <Setter Property="Text" Value="{Binding ModuleName, StringFormat='[{0}:'}" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsClickable}" Value="True">
-                                                            <Setter Property="Foreground" Value="#4EC9B0" />
-                                                            <Setter Property="Cursor" Value="Hand" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                        <TextBlock
-                                            FontFamily="Cascadia Code, Consolas, Courier New"
-                                            FontSize="12"
-                                            Text="{Binding LineNumber}">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="#808080" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsClickable}" Value="True">
-                                                            <Setter Property="Foreground" Value="#4EC9B0" />
-                                                            <Setter Property="Cursor" Value="Hand" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                        <TextBlock
-                                            FontFamily="Cascadia Code, Consolas, Courier New"
-                                            FontSize="12"
-                                            Foreground="#808080"
-                                            Text="] " />
-                                        <!--  Message  -->
-                                        <TextBlock
-                                            FontFamily="Cascadia Code, Consolas, Courier New"
-                                            FontSize="12"
-                                            Text="{Binding Message}">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsError}" Value="True">
-                                                            <Setter Property="Foreground" Value="#FF5555" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
+                            Background="{StaticResource SecondaryBackgroundBrush}"
+                            BorderThickness="0">
+                        <TabControl.Resources>
+                            <Style TargetType="TabItem">
+                                <Setter Property="Background" Value="{StaticResource TertiaryBackgroundBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}" />
+                                <Setter Property="Padding" Value="8,4" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="TabItem">
+                                            <Border
+                                                x:Name="Border"
+                                                Margin="0,0,2,0"
+                                                Padding="{TemplateBinding Padding}"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{StaticResource BorderBrush}"
+                                                BorderThickness="1,1,1,0"
+                                                CornerRadius="4,4,0,0">
+                                                <ContentPresenter ContentSource="Header" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Border" Property="Background" Value="{StaticResource AccentBrush}" />
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Border" Property="Background" Value="#404040" />
+                                                </Trigger>
+                                                <MultiTrigger>
+                                                    <MultiTrigger.Conditions>
+                                                        <Condition Property="IsSelected" Value="True" />
+                                                        <Condition Property="IsMouseOver" Value="True" />
+                                                    </MultiTrigger.Conditions>
+                                                    <Setter TargetName="Border" Property="Background" Value="{StaticResource AccentHoverBrush}" />
+                                                </MultiTrigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </TabControl.Resources>
+
+                        <!--  Console Tab  -->
+                        <TabItem x:Name="ConsoleTab">
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock VerticalAlignment="Center" Text="Console" />
+                                    <Button
+                                        Click="CloseConsoleTab_Click"
+                                        Content="x"
+                                        Style="{StaticResource TabCloseButtonStyle}"
+                                        ToolTip="Close" />
+                                </StackPanel>
+                            </TabItem.Header>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <!--  Console Header  -->
+                                <Border
+                                    Grid.Row="0"
+                                    Padding="8,4"
+                                    Background="{StaticResource TertiaryBackgroundBrush}"
+                                    BorderBrush="{StaticResource BorderBrush}"
+                                    BorderThickness="0,0,0,1">
+                                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                                        <Button
+                                            x:Name="ClearConsoleButton"
+                                            Padding="8,4"
+                                            Click="ClearConsoleButton_Click"
+                                            Content="Clear"
+                                            Style="{StaticResource RibbonButtonStyle}" />
+                                        <Button
+                                            x:Name="ExportConsoleButton"
+                                            Margin="4,0,0,0"
+                                            Padding="8,4"
+                                            Click="ExportConsoleButton_Click"
+                                            Content="Export"
+                                            Style="{StaticResource RibbonButtonStyle}" />
                                     </StackPanel>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                                </Border>
+
+                                <!--  Console Output  -->
+                                <ListBox
+                                    x:Name="ConsoleListBox"
+                                    Grid.Row="1"
+                                    Background="{StaticResource BackgroundBrush}"
+                                    BorderThickness="0"
+                                    KeyDown="ConsoleListBox_KeyDown"
+                                    MouseDoubleClick="ConsoleListBox_MouseDoubleClick"
+                                    ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                    ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                    SelectionMode="Extended">
+                                    <ListBox.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem
+                                                Click="ConsoleCopy_Click"
+                                                Header="Copy"
+                                                InputGestureText="Ctrl+C">
+                                                <MenuItem.Icon>
+                                                    <TextBlock FontSize="12" Text="📋" />
+                                                </MenuItem.Icon>
+                                            </MenuItem>
+                                            <Separator />
+                                            <MenuItem
+                                                Click="ConsoleSelectAll_Click"
+                                                Header="Select All"
+                                                InputGestureText="Ctrl+A" />
+                                            <Separator />
+                                            <MenuItem Click="ClearConsoleButton_Click" Header="Clear" />
+                                        </ContextMenu>
+                                    </ListBox.ContextMenu>
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="Padding" Value="4,2" />
+                                            <Setter Property="Background" Value="Transparent" />
+                                            <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}" />
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="#3399FF" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <!--  File:Line prefix for clickable errors  -->
+                                                <TextBlock FontFamily="Cascadia Code, Consolas, Courier New" FontSize="12">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#808080" />
+                                                            <Setter Property="Text" Value="{Binding ModuleName, StringFormat='[{0}:'}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsClickable}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#4EC9B0" />
+                                                                    <Setter Property="Cursor" Value="Hand" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <TextBlock
+                                                    FontFamily="Cascadia Code, Consolas, Courier New"
+                                                    FontSize="12"
+                                                    Text="{Binding LineNumber}">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#808080" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsClickable}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#4EC9B0" />
+                                                                    <Setter Property="Cursor" Value="Hand" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <TextBlock
+                                                    FontFamily="Cascadia Code, Consolas, Courier New"
+                                                    FontSize="12"
+                                                    Foreground="#808080"
+                                                    Text="] " />
+                                                <!--  Message  -->
+                                                <TextBlock
+                                                    FontFamily="Cascadia Code, Consolas, Courier New"
+                                                    FontSize="12"
+                                                    Text="{Binding Message}">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsError}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#FF5555" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </TabItem>
+
+                        <!--  Find Results Tab  -->
+                        <TabItem x:Name="FindResultsTab" Visibility="Collapsed">
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock VerticalAlignment="Center" Text="Find Results" />
+                                    <Button
+                                        Click="CloseFindResultsTab_Click"
+                                        Content="x"
+                                        Style="{StaticResource TabCloseButtonStyle}"
+                                        ToolTip="Close" />
+                                </StackPanel>
+                            </TabItem.Header>
+                            <search:FindResultsPanel x:Name="FindResultsPanel" />
+                        </TabItem>
+                        </TabControl>
                     </Grid>
                 </Border>
             </Grid>

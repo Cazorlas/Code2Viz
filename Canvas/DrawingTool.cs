@@ -11,6 +11,9 @@ public enum DrawingMode
     Point,
     Line,
     Circle,
+    CircleDiameter,
+    CircleTwoPoints,
+    CircleThreePoints,
     Rectangle,
     Ellipse,
     Arc,
@@ -618,6 +621,9 @@ public class DrawingTool
             DrawingMode.Point => CreatePreviewPoint(),
             DrawingMode.Line => CreatePreviewLine(endPoint),
             DrawingMode.Circle => CreatePreviewCircle(endPoint),
+            DrawingMode.CircleDiameter => CreatePreviewCircleDiameter(endPoint),
+            DrawingMode.CircleTwoPoints => CreatePreviewCircleTwoPoints(endPoint),
+            DrawingMode.CircleThreePoints => CreatePreviewCircleThreePoints(endPoint),
             DrawingMode.Rectangle => CreatePreviewRectangle(endPoint),
             DrawingMode.Ellipse => CreatePreviewEllipse(endPoint),
             DrawingMode.Arc => CreatePreviewArc(endPoint),
@@ -641,6 +647,9 @@ public class DrawingTool
             DrawingMode.Point when Points.Count >= 1 => CreatePoint(),
             DrawingMode.Line when Points.Count >= 2 => CreateLine(),
             DrawingMode.Circle when Points.Count >= 2 => CreateCircle(),
+            DrawingMode.CircleDiameter when Points.Count >= 2 => CreateCircleDiameter(),
+            DrawingMode.CircleTwoPoints when Points.Count >= 2 => CreateCircleTwoPoints(),
+            DrawingMode.CircleThreePoints when Points.Count >= 3 => CreateCircleThreePoints(),
             DrawingMode.Rectangle when Points.Count >= 2 => CreateRectangle(),
             DrawingMode.Ellipse when Points.Count >= 2 => CreateEllipse(),
             DrawingMode.Arc when Points.Count >= 3 => CreateArc(),
@@ -680,6 +689,14 @@ public class DrawingTool
             DrawingMode.Point => "Point: Click to place",
             DrawingMode.Line => Points.Count == 0 ? "Line: Click start point" : $"Line: Click end point{orthoHint}",
             DrawingMode.Circle => Points.Count == 0 ? "Circle: Click center" : "Circle: Click radius point",
+            DrawingMode.CircleDiameter => Points.Count == 0 ? "Circle (Diameter): Click center" : "Circle (Diameter): Click diameter point",
+            DrawingMode.CircleTwoPoints => Points.Count == 0 ? "Circle (2 Points): Click first diameter endpoint" : "Circle (2 Points): Click second diameter endpoint",
+            DrawingMode.CircleThreePoints => Points.Count switch
+            {
+                0 => "Circle (3 Points): Click first point",
+                1 => "Circle (3 Points): Click second point",
+                _ => "Circle (3 Points): Click third point"
+            },
             DrawingMode.Rectangle => Points.Count == 0 ? "Rectangle: Click first corner" : "Rectangle: Click opposite corner",
             DrawingMode.Ellipse => Points.Count == 0 ? "Ellipse: Click center" : "Ellipse: Drag to set radii",
             DrawingMode.Arc => Points.Count switch
@@ -720,6 +737,25 @@ public class DrawingTool
     {
         var radius = Points[0].DistanceTo(Points[1]);
         return new VCircle(Points[0], radius);
+    }
+
+    private VCircle CreateCircleDiameter()
+    {
+        // Center + diameter point: use distance as diameter, not radius
+        var diameter = Points[0].DistanceTo(Points[1]);
+        return new VCircle(Points[0], diameter / 2.0);
+    }
+
+    private VCircle CreateCircleTwoPoints()
+    {
+        // Two points define the diameter endpoints
+        return VCircle.FromTwoPoints(Points[0], Points[1]);
+    }
+
+    private VCircle CreateCircleThreePoints()
+    {
+        // Three points on circumference
+        return new VCircle(Points[0], Points[1], Points[2]);
     }
 
     private VRectangle CreateRectangle()
@@ -892,6 +928,59 @@ public class DrawingTool
         circle.FillColor = "Transparent";
         return circle;
     }
+
+    private VCircle? CreatePreviewCircleDiameter(VPoint endPoint)
+    {
+        if (Points.Count < 1) return null;
+        // Distance is diameter, not radius
+        var diameter = Points[0].DistanceTo(endPoint);
+        var circle = new VCircle(Points[0], diameter / 2.0);
+        circle.StrokeColor = "Gray";
+        circle.FillColor = "Transparent";
+        return circle;
+    }
+
+    private Shape? CreatePreviewCircleTwoPoints(VPoint endPoint)
+    {
+        if (Points.Count < 1) return null;
+        // Two points define diameter endpoints, center is midpoint
+        var center = new VPoint((Points[0].X + endPoint.X) / 2.0, (Points[0].Y + endPoint.Y) / 2.0);
+        var radius = Points[0].DistanceTo(endPoint) / 2.0;
+        var circle = new VCircle(center, radius);
+        circle.StrokeColor = "Gray";
+        circle.FillColor = "Transparent";
+        return circle;
+    }
+
+    private Shape? CreatePreviewCircleThreePoints(VPoint endPoint)
+    {
+        if (Points.Count < 1) return null;
+
+        if (Points.Count == 1)
+        {
+            // Only have first point, show line to cursor
+            var line = new VLine(Points[0], endPoint);
+            line.StrokeColor = "Gray";
+            return line;
+        }
+
+        // Have two points, show preview circle through all three
+        try
+        {
+            var circle = new VCircle(Points[0], Points[1], endPoint);
+            circle.StrokeColor = "Gray";
+            circle.FillColor = "Transparent";
+            return circle;
+        }
+        catch
+        {
+            // Points are collinear, show polyline instead
+            var polyline = new VPolyline(Points[0], Points[1], endPoint);
+            polyline.StrokeColor = "Gray";
+            return polyline;
+        }
+    }
+
 
     private VRectangle? CreatePreviewRectangle(VPoint endPoint)
     {

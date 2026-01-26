@@ -211,7 +211,7 @@ namespace CSharpSample
                     VPolygon visiblePiece = new VPolygon(piece.Points);
                     visiblePiece.FillColor = colors[i];
                     visiblePiece.StrokeColor = "White";
-                    visiblePiece.StrokeThickness = 2;
+                    visiblePiece.LineWeight = 2;
 
                     double actual = piece.Area / totalArea * 100;
                     double target = sortedTargets[i] * 100;

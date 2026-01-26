@@ -355,7 +355,7 @@ namespace CSharpSample
 
                 piece.FillColor = colors[i % colors.Length];
                 piece.StrokeColor = "White";
-                piece.StrokeThickness = 2;
+                piece.LineWeight = 2;
 
                 VizConsole.Log("  Piece " + (i + 1) + ": Target=" + (targetRatio * 100).ToString("F1") + "%, Actual=" + (actualRatio * 100).ToString("F1") + "%, Error=" + error.ToString("F2") + "%");
             }
@@ -369,7 +369,7 @@ namespace CSharpSample
                 GeneToSliceLine(gene, out p1, out p2);
                 VLine sliceLine = new VLine(p1, p2);
                 sliceLine.StrokeColor = "Gray";
-                sliceLine.StrokeThickness = 1;
+                sliceLine.LineWeight = 1;
             }
         }
     }

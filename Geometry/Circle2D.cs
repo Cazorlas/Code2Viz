@@ -60,6 +60,32 @@ public class VCircle : Shape, ICurve
         StrokeColor = ShapeDefaults.GlobalStrokeColor ?? "Yellow";
     }
 
+    /// <summary>
+    /// Creates a circle from center point and diameter.
+    /// </summary>
+    public static VCircle FromCenterDiameter(VPoint center, double diameter)
+    {
+        return new VCircle(center, diameter / 2.0);
+    }
+
+    /// <summary>
+    /// Creates a circle from center point and diameter (coordinates version).
+    /// </summary>
+    public static VCircle FromCenterDiameter(double centerX, double centerY, double diameter)
+    {
+        return new VCircle(centerX, centerY, diameter / 2.0);
+    }
+
+    /// <summary>
+    /// Creates a circle where p1 and p2 are endpoints of a diameter.
+    /// </summary>
+    public static VCircle FromTwoPoints(VPoint p1, VPoint p2)
+    {
+        var center = VPoint.Internal((p1.X + p2.X) / 2.0, (p1.Y + p2.Y) / 2.0);
+        double radius = p1.DistanceTo(p2) / 2.0;
+        return new VCircle(new VPoint(center.X, center.Y), radius);
+    }
+
 
 
     public override Shape Clone()

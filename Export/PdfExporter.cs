@@ -128,7 +128,7 @@ public class PdfExporter
     private XPen CreatePen(Shape shape)
     {
         var color = ParseColor(shape.StrokeColor);
-        return new XPen(color, shape.StrokeThickness);
+        return new XPen(color, shape.LineWeight);
     }
 
     private XBrush? CreateBrush(Shape shape)

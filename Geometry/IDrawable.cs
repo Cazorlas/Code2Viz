@@ -6,7 +6,7 @@ namespace Code2Viz.Geometry;
 /// <summary>
 /// Defines the stroke style (line pattern) for shape outlines.
 /// </summary>
-public enum StrokeStyle
+public enum LineType
 {
     /// <summary>Solid continuous line (default).</summary>
     Continuous,
@@ -71,8 +71,13 @@ public interface IDrawable
     // Styling properties with defaults
     string StrokeColor { get; set; }
     string FillColor { get; set; }
-    double StrokeThickness { get; set; }
-    StrokeStyle StrokeStyle { get; set; }
+    double LineWeight { get; set; }
+    LineType LineType { get; set; }
+    /// <summary>
+    /// Scale factor for stroke pattern (dash/gap lengths). Default is 1.0.
+    /// Values greater than 1.0 create longer dashes/gaps, less than 1.0 create shorter ones.
+    /// </summary>
+    double LineTypeScale { get; set; }
 }
 
 public abstract class Shape : IDrawable
@@ -130,8 +135,9 @@ public abstract class Shape : IDrawable
     
     public string StrokeColor { get; set; } = ShapeDefaults.GlobalStrokeColor ?? "Cyan";
     public string FillColor { get; set; } = ShapeDefaults.GlobalFillColor ?? "Transparent";
-    public double StrokeThickness { get; set; } = ShapeDefaults.GlobalStrokeThickness ?? 2;
-    public StrokeStyle StrokeStyle { get; set; } = ShapeDefaults.GlobalStrokeStyle ?? StrokeStyle.Continuous;
+    public double LineWeight { get; set; } = ShapeDefaults.GlobalLineWeight ?? 2;
+    public LineType LineType { get; set; } = ShapeDefaults.GlobalLineType ?? LineType.Continuous;
+    public double LineTypeScale { get; set; } = ShapeDefaults.GlobalLineTypeScale ?? 1.0;
 
     // Animation properties
     /// <summary>
@@ -327,7 +333,8 @@ public abstract class Shape : IDrawable
     {
         target.StrokeColor = StrokeColor;
         target.FillColor = FillColor;
-        target.StrokeThickness = StrokeThickness;
-        target.StrokeStyle = StrokeStyle;
+        target.LineWeight = LineWeight;
+        target.LineType = LineType;
+        target.LineTypeScale = LineTypeScale;
     }
 }

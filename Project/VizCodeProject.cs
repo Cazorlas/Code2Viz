@@ -61,7 +61,7 @@ public class VizCodeProject
     {
         Geometry.ShapeDefaults.GlobalStrokeColor = ProjectFile.Settings.DefaultStrokeColor;
         Geometry.ShapeDefaults.GlobalFillColor = ProjectFile.Settings.DefaultFillColor;
-        Geometry.ShapeDefaults.GlobalStrokeThickness = ProjectFile.Settings.DefaultStrokeThickness;
+        Geometry.ShapeDefaults.GlobalLineWeight = ProjectFile.Settings.DefaultLineWeight;
     }
 
     public static VizCodeProject CreateNew(string directory, string projectName, ProjectLanguage language)

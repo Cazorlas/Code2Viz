@@ -96,6 +96,134 @@ public class VArc : Shape, ICurve
         EndAngle = StartAngle + sweep1 + sweep2;
     }
 
+    /// <summary>
+    /// Creates an arc from start point, center, and end point.
+    /// The arc goes from start to end through the shorter path.
+    /// </summary>
+    public static VArc FromStartCenterEnd(VPoint start, VPoint center, VPoint end)
+    {
+        double radius = center.DistanceTo(start);
+        double startAngle = Math.Atan2(start.Y - center.Y, start.X - center.X) * 180.0 / Math.PI;
+        double endAngle = Math.Atan2(end.Y - center.Y, end.X - center.X) * 180.0 / Math.PI;
+        return new VArc(new VPoint(center.X, center.Y), radius, startAngle, endAngle);
+    }
+
+    /// <summary>
+    /// Creates an arc from center, start point, and end point.
+    /// Same as FromStartCenterEnd but with different parameter order.
+    /// </summary>
+    public static VArc FromCenterStartEnd(VPoint center, VPoint start, VPoint end)
+    {
+        return FromStartCenterEnd(start, center, end);
+    }
+
+    /// <summary>
+    /// Creates an arc from start point, center, and sweep angle (in degrees).
+    /// </summary>
+    public static VArc FromStartCenterAngle(VPoint start, VPoint center, double sweepAngleDegrees)
+    {
+        double radius = center.DistanceTo(start);
+        double startAngle = Math.Atan2(start.Y - center.Y, start.X - center.X) * 180.0 / Math.PI;
+        double endAngle = startAngle + sweepAngleDegrees;
+        return new VArc(new VPoint(center.X, center.Y), radius, startAngle, endAngle);
+    }
+
+    /// <summary>
+    /// Creates an arc from center, start point, and sweep angle (in degrees).
+    /// </summary>
+    public static VArc FromCenterStartAngle(VPoint center, VPoint start, double sweepAngleDegrees)
+    {
+        return FromStartCenterAngle(start, center, sweepAngleDegrees);
+    }
+
+    /// <summary>
+    /// Creates an arc from start point, center, and arc length.
+    /// </summary>
+    public static VArc FromStartCenterLength(VPoint start, VPoint center, double arcLength)
+    {
+        double radius = center.DistanceTo(start);
+        double sweepAngleRad = arcLength / radius;
+        double sweepAngleDeg = sweepAngleRad * 180.0 / Math.PI;
+        return FromStartCenterAngle(start, center, sweepAngleDeg);
+    }
+
+    /// <summary>
+    /// Creates an arc from center, start point, and arc length.
+    /// </summary>
+    public static VArc FromCenterStartLength(VPoint center, VPoint start, double arcLength)
+    {
+        return FromStartCenterLength(start, center, arcLength);
+    }
+
+    /// <summary>
+    /// Creates an arc from start point, end point, and radius.
+    /// </summary>
+    /// <param name="largeArc">If true, creates the larger arc; otherwise the smaller arc.</param>
+    public static VArc FromStartEndRadius(VPoint start, VPoint end, double radius, bool largeArc = false)
+    {
+        // Find the two possible centers
+        double d = start.DistanceTo(end);
+        if (d > 2 * radius)
+            throw new ArgumentException("Radius too small for the given points.");
+
+        double midX = (start.X + end.X) / 2.0;
+        double midY = (start.Y + end.Y) / 2.0;
+
+        // Distance from midpoint to center
+        double h = Math.Sqrt(radius * radius - (d / 2.0) * (d / 2.0));
+
+        // Perpendicular direction
+        double dx = end.X - start.X;
+        double dy = end.Y - start.Y;
+        double perpX = -dy / d;
+        double perpY = dx / d;
+
+        // Two possible centers
+        double cx1 = midX + h * perpX;
+        double cy1 = midY + h * perpY;
+        double cx2 = midX - h * perpX;
+        double cy2 = midY - h * perpY;
+
+        // Choose center based on largeArc flag
+        // For simplicity, use center1 for small arc, center2 for large arc
+        VPoint center = largeArc ? new VPoint(cx2, cy2) : new VPoint(cx1, cy1);
+
+        double startAngle = Math.Atan2(start.Y - center.Y, start.X - center.X) * 180.0 / Math.PI;
+        double endAngle = Math.Atan2(end.Y - center.Y, end.X - center.X) * 180.0 / Math.PI;
+
+        return new VArc(center, radius, startAngle, endAngle);
+    }
+
+    /// <summary>
+    /// Creates an arc from start point, end point, and sweep angle.
+    /// </summary>
+    public static VArc FromStartEndAngle(VPoint start, VPoint end, double sweepAngleDegrees)
+    {
+        // Calculate radius from chord length and sweep angle
+        double chordLength = start.DistanceTo(end);
+        double sweepRad = Math.Abs(sweepAngleDegrees) * Math.PI / 180.0;
+        double radius = chordLength / (2 * Math.Sin(sweepRad / 2));
+
+        return FromStartEndRadius(start, end, radius, Math.Abs(sweepAngleDegrees) > 180);
+    }
+
+    /// <summary>
+    /// Creates an arc tangent to a previous curve, continuing from its end point.
+    /// </summary>
+    public static VArc Continue(ICurve previous, double arcLength)
+    {
+        var start = previous.EndPoint;
+        var tangent = previous.NormalAtPoint(start);
+        // Rotate 90 degrees to get tangent direction
+        var direction = new VXYZ(-tangent.Y, tangent.X, 0);
+
+        // Create arc with arbitrary radius, adjusted by arc length
+        double radius = arcLength / Math.PI; // Semicircle as default
+        var center = new VPoint(start.X - direction.X * radius, start.Y - direction.Y * radius);
+
+        return FromStartCenterLength(start, center, arcLength);
+    }
+
     private double NormalizePositive(double angle)
     {
         angle %= 360;

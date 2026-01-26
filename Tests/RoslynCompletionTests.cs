@@ -23,7 +23,7 @@ class Test {
         var position = code.IndexOf("//CURSOR");
         var service = new RoslynCompletionService();
 
-        var completions = await service.GetCompletionsAsync(code, position);
+        var (completions, _, _, _) = await service.GetCompletionsAsync(code, position);
 
         Assert.Contains(completions, c => c.Text == "myVar");
     }
@@ -48,7 +48,7 @@ class Test {
         };
         var service = new RoslynCompletionService(references);
 
-        var completions = await service.GetCompletionsAsync(code, position);
+        var (completions, _, _, _) = await service.GetCompletionsAsync(code, position);
 
         Assert.Contains(completions, c => c.Text == "Length");
         Assert.Contains(completions, c => c.Text == "Substring");

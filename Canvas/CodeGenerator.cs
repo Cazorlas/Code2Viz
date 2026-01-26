@@ -200,13 +200,13 @@ public static class CodeGenerator
                 lines.Add($"{varName}.FillColor = \"{shape.FillColor}\";");
         }
 
-        // Include StrokeThickness if it's not the default (2.0)
-        if (Math.Abs(shape.StrokeThickness - 2.0) > 0.01)
+        // Include LineWeight if it's not the default (2.0)
+        if (Math.Abs(shape.LineWeight - 2.0) > 0.01)
         {
             if (language == ProjectLanguage.FSharp)
-                lines.Add($"{varName}.StrokeThickness <- {FormatDouble(shape.StrokeThickness)}");
+                lines.Add($"{varName}.LineWeight <- {FormatDouble(shape.LineWeight)}");
             else
-                lines.Add($"{varName}.StrokeThickness = {FormatDouble(shape.StrokeThickness)};");
+                lines.Add($"{varName}.LineWeight = {FormatDouble(shape.LineWeight)};");
         }
 
         if (lines.Count == 0)

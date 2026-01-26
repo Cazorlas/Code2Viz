@@ -17,9 +17,12 @@ public class RoslynCompletionService
         _references = references ?? new ModuleCompiler().GetReferences();
     }
 
-    public async Task<List<ICompletionData>> GetCompletionsAsync(string code, int position)
+    public async Task<(List<ICompletionData> Completions, bool IsAfterNew, string Prefix, string? ExpectedType)> GetCompletionsAsync(string code, int position)
     {
         var completions = new List<ICompletionData>();
+        bool isAfterNew = false;
+        string prefix = "";
+        string? expectedType = null;
 
         try
         {
@@ -36,13 +39,23 @@ public class RoslynCompletionService
             // 2. Determine Context
             var root = await syntaxTree.GetRootAsync();
             var token = root.FindToken(position);
-            
-            // Debugging context
-            // System.Diagnostics.Debug.WriteLine($"Token: {token.Kind()}, Parent: {token.Parent?.Kind()}");
+
+            // Get the prefix being typed (word before cursor)
+            prefix = GetPrefixBeforePosition(code, position);
+
+            // Check if we're after 'new' keyword
+            isAfterNew = IsAfterNewKeyword(root, position, code);
+
+            // Get expected type from left-hand side of assignment
+            if (isAfterNew)
+            {
+                expectedType = GetExpectedTypeName(code, position);
+            }
 
             // 3. Lookup Symbols
             ImmutableArray<ISymbol> symbols;
-            
+            bool isEnumMemberAccess = false;
+
             // Handle Member Access (dot)
             var tokenLeft = position > 0 ? root.FindToken(position - 1) : default; // Get token BEFORE cursor
             if (tokenLeft != default && tokenLeft.IsKind(SyntaxKind.DotToken) && tokenLeft.Parent is MemberAccessExpressionSyntax memberAccess)
@@ -50,7 +63,13 @@ public class RoslynCompletionService
                  var lhsType = semanticModel.GetTypeInfo(memberAccess.Expression).Type;
                  if (lhsType != null)
                  {
-                     symbols = await Task.Run(() => 
+                     // Check if we're accessing an enum type (for static enum value completion)
+                     if (lhsType.TypeKind == TypeKind.Enum)
+                     {
+                         isEnumMemberAccess = true;
+                     }
+
+                     symbols = await Task.Run(() =>
                         semanticModel.LookupSymbols(position, container: lhsType, includeReducedExtensionMethods: true));
                  }
                  else
@@ -61,8 +80,23 @@ public class RoslynCompletionService
             else
             {
                 // Global/Local completion
-                symbols = await Task.Run(() => 
+                symbols = await Task.Run(() =>
                     semanticModel.LookupSymbols(position, includeReducedExtensionMethods: true));
+            }
+
+            // Find the statement containing the cursor to detect incomplete declarations
+            var containingStatement = token.Parent?.AncestorsAndSelf()
+                .OfType<LocalDeclarationStatementSyntax>()
+                .FirstOrDefault();
+
+            // Get variable names being declared in the current statement (incomplete declarations)
+            var declaringVariables = new HashSet<string>();
+            if (containingStatement != null)
+            {
+                foreach (var variable in containingStatement.Declaration.Variables)
+                {
+                    declaringVariables.Add(variable.Identifier.Text);
+                }
             }
 
             // 4. Convert to Completion Data
@@ -70,17 +104,46 @@ public class RoslynCompletionService
             {
                 if (ShouldHide(symbol)) continue;
 
+                // Skip variables that are being declared in the current statement
+                if (symbol.Kind == SymbolKind.Local && declaringVariables.Contains(symbol.Name))
+                    continue;
+
+                // For enum member access, only show enum fields (the actual values)
+                if (isEnumMemberAccess)
+                {
+                    // Only include fields that are enum members
+                    if (symbol.Kind != SymbolKind.Field)
+                        continue;
+                }
+
                 // Create CompletionData based on symbol kind
                 var kind = ConvertToCompletionKind(symbol.Kind);
-                
-                // Special handling for methods to add parentheses
-                var text = symbol.Name; 
-                
-                completions.Add(new CompletionData(text, GetDescription(symbol), kind));
+
+                // If after 'new', only include instantiable types
+                if (isAfterNew)
+                {
+                    if (symbol is INamedTypeSymbol namedType)
+                    {
+                        // Include classes and structs that can be instantiated
+                        if (namedType.TypeKind == TypeKind.Class || namedType.TypeKind == TypeKind.Struct)
+                        {
+                            if (!namedType.IsAbstract && !namedType.IsStatic)
+                            {
+                                completions.Add(new CompletionData(symbol.Name, GetDescription(symbol), kind));
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Normal completion - include everything
+                    var text = symbol.Name;
+                    completions.Add(new CompletionData(text, GetDescription(symbol), kind));
+                }
             }
-            
+
             // 5. Add Keywords (Simple fallback if not handled by LookupSymbols which primarily does identifiers)
-            // Roslyn's RecommendSymbols API is better for keywords but internal/more complex. 
+            // Roslyn's RecommendSymbols API is better for keywords but internal/more complex.
             // We can stick to a basic list or use the existing keyword list from CompletionProvider for now.
         }
         catch (Exception ex)
@@ -88,7 +151,147 @@ public class RoslynCompletionService
             System.Diagnostics.Debug.WriteLine($"Roslyn Completion Error: {ex.Message}");
         }
 
-        return completions;
+        return (completions, isAfterNew, prefix, expectedType);
+    }
+
+    /// <summary>
+    /// Gets the word being typed before the cursor position.
+    /// </summary>
+    private string GetPrefixBeforePosition(string code, int position)
+    {
+        if (position <= 0 || position > code.Length)
+            return "";
+
+        int start = position - 1;
+        while (start >= 0 && (char.IsLetterOrDigit(code[start]) || code[start] == '_'))
+        {
+            start--;
+        }
+        start++; // Move back to the first character of the word
+
+        if (start < position)
+            return code.Substring(start, position - start);
+        return "";
+    }
+
+    /// <summary>
+    /// Checks if the cursor position is after a 'new' keyword.
+    /// </summary>
+    private bool IsAfterNewKeyword(SyntaxNode root, int position, string code)
+    {
+        // Simple text-based check: look backwards for 'new' keyword
+        var prefix = GetPrefixBeforePosition(code, position);
+        var searchStart = position - prefix.Length - 1;
+
+        // Skip whitespace backwards
+        while (searchStart >= 0 && char.IsWhiteSpace(code[searchStart]))
+        {
+            searchStart--;
+        }
+
+        // Check if we have 'new' keyword ending at searchStart
+        if (searchStart >= 2)
+        {
+            var potentialNew = code.Substring(searchStart - 2, 3);
+            if (potentialNew == "new")
+            {
+                // Make sure it's not part of a longer identifier
+                if (searchStart - 3 < 0 || !char.IsLetterOrDigit(code[searchStart - 3]))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Gets the expected type name from the left-hand side of an assignment.
+    /// For example, in "VPoint p1 = new |", returns "VPoint".
+    /// </summary>
+    private string? GetExpectedTypeName(string code, int position)
+    {
+        // Look backwards for pattern: TypeName varName = new
+        var searchStart = position - 1;
+
+        // Skip whitespace and any partial word being typed
+        while (searchStart >= 0 && (char.IsLetterOrDigit(code[searchStart]) || code[searchStart] == '_'))
+            searchStart--;
+        while (searchStart >= 0 && char.IsWhiteSpace(code[searchStart]))
+            searchStart--;
+
+        // Should be at 'new' keyword - skip it
+        if (searchStart >= 2 && code.Substring(searchStart - 2, 3) == "new")
+        {
+            searchStart -= 3;
+        }
+        else
+        {
+            return null;
+        }
+
+        // Skip whitespace before 'new'
+        while (searchStart >= 0 && char.IsWhiteSpace(code[searchStart]))
+            searchStart--;
+
+        // Should be at '=' sign
+        if (searchStart < 0 || code[searchStart] != '=')
+            return null;
+        searchStart--;
+
+        // Skip whitespace before '='
+        while (searchStart >= 0 && char.IsWhiteSpace(code[searchStart]))
+            searchStart--;
+
+        // Now we should be at the end of the variable name - skip it
+        if (searchStart < 0 || !(char.IsLetterOrDigit(code[searchStart]) || code[searchStart] == '_'))
+            return null;
+
+        while (searchStart >= 0 && (char.IsLetterOrDigit(code[searchStart]) || code[searchStart] == '_'))
+            searchStart--;
+
+        // Skip whitespace before variable name
+        while (searchStart >= 0 && char.IsWhiteSpace(code[searchStart]))
+            searchStart--;
+
+        // Now extract the type name (could include generics, arrays, namespaces)
+        if (searchStart < 0)
+            return null;
+
+        int typeEnd = searchStart + 1;
+
+        // Handle generic types like List<T> by tracking angle brackets
+        int angleBrackets = 0;
+        if (code[searchStart] == '>')
+        {
+            angleBrackets = 1;
+            searchStart--;
+            while (searchStart >= 0 && angleBrackets > 0)
+            {
+                if (code[searchStart] == '>') angleBrackets++;
+                else if (code[searchStart] == '<') angleBrackets--;
+                searchStart--;
+            }
+        }
+
+        // Now get the type identifier
+        while (searchStart >= 0 && (char.IsLetterOrDigit(code[searchStart]) || code[searchStart] == '_' || code[searchStart] == '.'))
+            searchStart--;
+
+        int typeStart = searchStart + 1;
+        if (typeStart < typeEnd)
+        {
+            var fullType = code.Substring(typeStart, typeEnd - typeStart);
+            // Extract just the type name (last part after any dots, before any <)
+            var ltIndex = fullType.IndexOf('<');
+            if (ltIndex > 0) fullType = fullType.Substring(0, ltIndex);
+            var dotIndex = fullType.LastIndexOf('.');
+            if (dotIndex >= 0) fullType = fullType.Substring(dotIndex + 1);
+            return fullType;
+        }
+
+        return null;
     }
 
     private bool ShouldHide(ISymbol symbol)

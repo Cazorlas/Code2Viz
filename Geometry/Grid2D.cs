@@ -138,7 +138,7 @@ public class VGrid : Shape
                 var point = new VPoint(x, y);
                 point.StrokeColor = StrokeColor;
                 point.FillColor = FillColor;
-                point.StrokeThickness = StrokeThickness;
+                point.LineWeight = LineWeight;
                 Points.Add(point);
             }
         }
@@ -260,7 +260,7 @@ public class VGrid : Shape
         {
             point.StrokeColor = StrokeColor;
             point.FillColor = FillColor;
-            point.StrokeThickness = StrokeThickness;
+            point.LineWeight = LineWeight;
         }
     }
 

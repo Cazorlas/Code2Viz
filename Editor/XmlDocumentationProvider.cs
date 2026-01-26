@@ -326,7 +326,7 @@ namespace Code2Viz.Editor
                 "Shape.Draw" => "Renders the shape on the canvas.",
                 "Shape.StrokeColor" => "The color of the shape's outline.",
                 "Shape.FillColor" => "The fill color of the shape.",
-                "Shape.StrokeThickness" => "The thickness of the shape's outline.",
+                "Shape.LineWeight" => "The thickness of the shape's outline.",
                 "VizConsole.Write" => "Writes text to the console without a newline.",
                 "VizConsole.WriteLine" => "Writes text to the console followed by a newline.",
                 _ => null

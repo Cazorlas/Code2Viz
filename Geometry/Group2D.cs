@@ -286,10 +286,10 @@ public class VGroup : Shape
     /// <summary>
     /// Applies the group's stroke thickness to all shapes.
     /// </summary>
-    public VGroup ApplyStrokeThickness()
+    public VGroup ApplyLineWeight()
     {
         foreach (var shape in Shapes)
-            shape.StrokeThickness = StrokeThickness;
+            shape.LineWeight = LineWeight;
         return this;
     }
 
@@ -302,7 +302,7 @@ public class VGroup : Shape
         {
             shape.StrokeColor = StrokeColor;
             shape.FillColor = FillColor;
-            shape.StrokeThickness = StrokeThickness;
+            shape.LineWeight = LineWeight;
         }
         return this;
     }

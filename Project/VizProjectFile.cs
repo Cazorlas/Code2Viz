@@ -64,5 +64,5 @@ public class ProjectSettings
     public string? DefaultFillColor { get; set; }
     public string? DefaultCanvasBackgroundColor { get; set; }
     public string? DefaultExportBackground { get; set; } // "Transparent", "Canvas", "White", "Black", "Light"
-    public double? DefaultStrokeThickness { get; set; }
+    public double? DefaultLineWeight { get; set; }
 }

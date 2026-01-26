@@ -34,9 +34,9 @@ namespace Code2Viz.Documentation
                 { "Code2Viz.Editor", "Contains classes related to the code editor, including formatting, completion, and snippets." },
 
                 // Base classes
-                { "Shape", "Abstract base class for all drawable shapes. Provides common properties like StrokeColor, FillColor, StrokeThickness, and animation properties (DrawFactor, OffsetX, OffsetY, RotationAngle). Also defines common methods: Draw(), Clone(), Move(), Rotate(), Flip(), Scale(), GetBounds(), Contains(), DistanceTo()." },
+                { "Shape", "Abstract base class for all drawable shapes. Provides common properties like StrokeColor, FillColor, LineWeight, and animation properties (DrawFactor, OffsetX, OffsetY, RotationAngle). Also defines common methods: Draw(), Clone(), Move(), Rotate(), Flip(), Scale(), GetBounds(), Contains(), DistanceTo()." },
                 { "IDrawable", "Interface for any object that can be drawn on the canvas. Defines Draw() method and styling properties." },
-                { "ICurve", "Interface for geometric shapes that can be treated as curves. Extends IDrawable, so all curves have Draw(), StrokeColor, FillColor, and StrokeThickness. Provides curve operations: StartPoint, EndPoint, SelfIntersecting, Divide(), Measure(), GetLength(), Project(), PointAtSegmentLength(), Offset(), PointsAtChordLengthFromPoint(), SplitAtPoint(), NormalAtPoint(), Intersect(). The SelfIntersecting property indicates if the curve crosses itself. The Intersect() method computes intersection points with another curve." },
+                { "ICurve", "Interface for geometric shapes that can be treated as curves. Extends IDrawable, so all curves have Draw(), StrokeColor, FillColor, and LineWeight. Provides curve operations: StartPoint, EndPoint, SelfIntersecting, Divide(), Measure(), GetLength(), Project(), PointAtSegmentLength(), Offset(), PointsAtChordLengthFromPoint(), SplitAtPoint(), NormalAtPoint(), Intersect(). The SelfIntersecting property indicates if the curve crosses itself. The Intersect() method computes intersection points with another curve." },
                 { "IntersectionResult", "Represents the result of an intersection operation between curves. Contains Points (list of intersection points) and Curves (list of overlapping segments). Properties: HasIntersection (true if any intersection), IsSinglePoint (exactly one point), HasOverlap (curves share a segment), Count (total elements). Use Intersect() method on any ICurve to compute intersections." },
                 { "CurveIntersection", "Static utility class providing curve intersection algorithms. Supports Line-Line, Line-Circle, Line-Arc, Line-Ellipse, Circle-Circle, Circle-Arc, Arc-Arc intersections with specialized algorithms. Complex curves use segment-based approximation. Also provides IsSelfIntersecting() for detecting self-intersections." },
 
@@ -80,8 +80,8 @@ namespace Code2Viz.Documentation
                 { "VTransform", "Represents a 3D transformation matrix for rotation and reflection operations." },
                 { "VCoordinateSystem", "Represents a 3D coordinate system with origin and orthonormal basis vectors (X, Y, Z axes)." },
                 { "GeometryHelper", "Static helper class providing common geometric algorithms like intersection, projection, distance calculations, and angle measurements." },
-                { "ShapeDefaults", "Static class holding global default settings for shapes (GlobalStrokeColor, GlobalFillColor, GlobalStrokeThickness, GlobalStrokeStyle). These are populated from Project Settings." },
-                { "StrokeStyle", "Enum defining the stroke style (line pattern) for shape outlines. Options: Continuous (solid, default), Dashed, Dotted, DashDot, DashDotDot, Center, Phantom, Hidden." },
+                { "ShapeDefaults", "Static class holding global default settings for shapes (GlobalStrokeColor, GlobalFillColor, GlobalLineWeight, GlobalLineType). These are populated from Project Settings." },
+                { "LineType", "Enum defining the stroke style (line pattern) for shape outlines. Options: Continuous (solid, default), Dashed, Dotted, DashDot, DashDotDot, Center, Phantom, Hidden." },
                 { "VColor", "Static utility class for easy color access and random color generation. Provides named color properties (Red, Blue, Green, etc.), GetRandomColor(pastel) for random colors, FromRgb/FromArgb for custom colors. Use with StrokeColor and FillColor properties." },
                 { "ColorName", "Enum containing common color names (Red, Green, Blue, Yellow, Orange, etc.). Use VColor.FromEnum(ColorName.Red) to convert to string." },
 
@@ -401,12 +401,12 @@ namespace Code2Viz.Documentation
             _fsharpSamples = new Dictionary<string, string>
             {
                 { "VPoint", "let p = VPoint(100.0, 200.0)" },
-                { "VLine", "let start = VPoint(0.0, 0.0)\nlet endP = VPoint(200.0, 200.0)\nlet line = VLine(start, endP)\nline.StrokeColor <- \"#00FF00\"\nline.StrokeThickness <- 2.0\nline.Draw()" },
+                { "VLine", "let start = VPoint(0.0, 0.0)\nlet endP = VPoint(200.0, 200.0)\nlet line = VLine(start, endP)\nline.StrokeColor <- \"#00FF00\"\nline.LineWeight <- 2.0\nline.Draw()" },
                 { "VXLine", "// Infinite construction line\nlet xline = VXLine(VPoint(0.0, 0.0), VXYZ(1.0, 1.0, 0.0))\nxline.StrokeColor <- \"Gray\"\nxline.Draw()\n\n// Horizontal and vertical helpers\nlet hLine = VXLine.Horizontal(100.0)\nlet vLine = VXLine.Vertical(50.0)\nhLine.Draw()\nvLine.Draw()" },
                 { "VRay", "// Semi-infinite ray\nlet ray = VRay(VPoint(0.0, 0.0), VXYZ(1.0, 0.5, 0.0))\nray.StrokeColor <- \"Orange\"\nray.Draw()\n\n// Static helpers\nlet rightRay = VRay.HorizontalRight(VPoint(0.0, 0.0))\nlet angledRay = VRay.AtAngle(VPoint(0.0, 0.0), 45.0)\nrightRay.Draw()\nangledRay.Draw()" },
                 { "VCircle", "let center = VPoint(300.0, 200.0)\nlet radius = 50.0\nlet circle = VCircle(center, radius)\ncircle.FillColor <- \"Blue\"\ncircle.Draw()" },
                 { "VRectangle", "let rect = VRectangle(VPoint(50.0, 50.0), 150.0, 100.0)\nrect.FillColor <- \"#800000FF\"\nrect.Draw()\n\n// Create from two corner points (bottom-left and top-right)\nlet rect2 = VRectangle(VPoint(0.0, 0.0), VPoint(100.0, 75.0))\nrect2.Draw()" },
-                { "VEllipse", "let ellipse = VEllipse(VPoint(400.0, 300.0), 80.0, 40.0)\nellipse.StrokeThickness <- 3.0\nellipse.Draw()" },
+                { "VEllipse", "let ellipse = VEllipse(VPoint(400.0, 300.0), 80.0, 40.0)\nellipse.LineWeight <- 3.0\nellipse.Draw()" },
                 { "VArc", "let arc = VArc(VPoint(200.0, 200.0), 100.0, 0.0, 180.0)\narc.Draw()" },
                 { "VPolygon", "let pts = [| VPoint(100.0,100.0); VPoint(200.0,100.0); VPoint(150.0,200.0) |]\nlet poly = VPolygon(pts)\npoly.FillColor <- \"Yellow\"\npoly.Draw()" },
                 { "VPolyline", "let pts = [| VPoint(100.0,300.0); VPoint(150.0,350.0); VPoint(200.0,300.0) |]\nlet line = VPolyline(pts)\nline.Draw()" },
@@ -670,7 +670,7 @@ p.Draw();" },
                 { "VLine", @"// Create a line from two points
 var line = new VLine(new VPoint(0, 0), new VPoint(100, 50));
 line.StrokeColor = ""Cyan"";
-line.StrokeThickness = 2;
+line.LineWeight = 2;
 line.Draw();
 
 // Or using coordinates directly
@@ -758,13 +758,13 @@ double area = rect.Area;  // Signed area from VPolygon" },
                 { "VEllipse", @"// Create an ellipse with center and radii
 var ellipse = new VEllipse(new VPoint(100, 100), 60, 30);
 ellipse.StrokeColor = ""Magenta"";
-ellipse.StrokeThickness = 2;
+ellipse.LineWeight = 2;
 ellipse.Draw();" },
 
                 { "VArc", @"// Create an arc (center, radius, startAngle, endAngle)
 var arc = new VArc(new VPoint(50, 50), 40, 0, 270);
 arc.StrokeColor = ""Orange"";
-arc.StrokeThickness = 3;
+arc.LineWeight = 3;
 arc.Draw();
 
 // Angles are in degrees, counter-clockwise from positive X-axis" },
@@ -802,7 +802,7 @@ var bezier = new VBezier(
     new VPoint(100, 0)     // End point
 );
 bezier.StrokeColor = ""Magenta"";
-bezier.StrokeThickness = 2;
+bezier.LineWeight = 2;
 bezier.Draw();" },
 
                 { "VSpline", @"// Create a smooth spline through points
@@ -869,7 +869,7 @@ group.ApplyStyle();
 // Utility methods
 var circles = group.GetShapesOfType<VCircle>();
 var allShapes = group.Flatten();  // Includes nested groups
-group.ForEach(s => s.StrokeThickness = 2);
+group.ForEach(s => s.LineWeight = 2);
 
 // Draw as a single selectable entity
 group.Draw();" },
@@ -928,8 +928,8 @@ var reflection = VTransform.CreateReflection(plane);" },
                 { "ShapeDefaults", @"// Set global defaults for all new shapes
 ShapeDefaults.GlobalStrokeColor = ""Cyan"";
 ShapeDefaults.GlobalFillColor = ""#20FFFFFF"";
-ShapeDefaults.GlobalStrokeThickness = 2.0;
-ShapeDefaults.GlobalStrokeStyle = StrokeStyle.Continuous;
+ShapeDefaults.GlobalLineWeight = 2.0;
+ShapeDefaults.GlobalLineType = LineType.Continuous;
 
 // Now all new shapes use these defaults
 var circle = new VCircle(0, 0, 50);  // Uses Cyan stroke
@@ -938,31 +938,31 @@ circle.Draw();
 // Reset to original defaults
 ShapeDefaults.Reset();" },
 
-                { "StrokeStyle", @"// StrokeStyle controls the line pattern for shape outlines
+                { "LineType", @"// LineType controls the line pattern for shape outlines
 
 // Solid line (default)
 var line1 = new VLine(0, 0, 100, 0);
-line1.StrokeStyle = StrokeStyle.Continuous;
+line1.LineType = LineType.Continuous;
 line1.Draw();
 
 // Dashed line
 var line2 = new VLine(0, 20, 100, 20);
-line2.StrokeStyle = StrokeStyle.Dashed;
+line2.LineType = LineType.Dashed;
 line2.Draw();
 
 // Dotted line
 var line3 = new VLine(0, 40, 100, 40);
-line3.StrokeStyle = StrokeStyle.Dotted;
+line3.LineType = LineType.Dotted;
 line3.Draw();
 
 // Dash-dot pattern (commonly used for centerlines)
 var line4 = new VLine(0, 60, 100, 60);
-line4.StrokeStyle = StrokeStyle.DashDot;
+line4.LineType = LineType.DashDot;
 line4.Draw();
 
 // Hidden line (short dashes for hidden edges)
 var rect = new VRectangle(0, 100, 80, 50);
-rect.StrokeStyle = StrokeStyle.Hidden;
+rect.LineType = LineType.Hidden;
 rect.Draw();" },
 
                 { "Shape", @"// Shape is the base class for all drawable shapes
@@ -970,8 +970,8 @@ rect.Draw();" },
 
 shape.StrokeColor = ""Cyan"";           // Outline color
 shape.FillColor = ""Transparent"";      // Fill color
-shape.StrokeThickness = 2.0;           // Line thickness
-shape.StrokeStyle = StrokeStyle.Continuous;  // Line pattern (Continuous, Dashed, Dotted, etc.)
+shape.LineWeight = 2.0;           // Line thickness
+shape.LineType = LineType.Continuous;  // Line pattern (Continuous, Dashed, Dotted, etc.)
 
 // Animation properties
 shape.DrawFactor = 1.0;    // 0-1, for progressive drawing
@@ -1220,7 +1220,7 @@ triangle.Mirror(mirrorAxis).DrawAll();" }
                 { "VGrid.Scale", "Scales all points in the grid relative to a center point by the specified factor. Factor > 1 enlarges, < 1 shrinks." },
                 { "VGrid.GetBounds", "Returns the axis-aligned bounding box of all points as a tuple (minPoint, maxPoint)." },
                 { "VGrid.DistanceTo", "Returns the minimum distance from any point in the grid to the specified point." },
-                { "VGrid.ApplyStyle", "Applies the grid's StrokeColor, FillColor, and StrokeThickness to all contained points." },
+                { "VGrid.ApplyStyle", "Applies the grid's StrokeColor, FillColor, and LineWeight to all contained points." },
                 { "VGrid.GetRow", "Returns a list of all points in the specified row (0-based index, row 0 is the bottom row)." },
                 { "VGrid.GetColumn", "Returns a list of all points in the specified column (0-based index, column 0 is the leftmost)." },
                 { "VGrid.GetCenter", "Calculates and returns the geometric center point of the grid based on its bounding box." },
@@ -1242,10 +1242,10 @@ triangle.Mirror(mirrorAxis).DrawAll();" }
                 { "VGroup.ForEach", "Executes the specified action on each shape in the group." },
                 { "VGroup.Where", "Returns a new VGroup containing only shapes that match the predicate." },
                 { "VGroup.GetShapesOfType", "Returns all shapes of the specified type T from the group." },
-                { "VGroup.ApplyStyle", "Applies the group's StrokeColor, FillColor, and StrokeThickness to all contained shapes." },
+                { "VGroup.ApplyStyle", "Applies the group's StrokeColor, FillColor, and LineWeight to all contained shapes." },
                 { "VGroup.ApplyStrokeColor", "Applies only the group's StrokeColor to all contained shapes." },
                 { "VGroup.ApplyFillColor", "Applies only the group's FillColor to all contained shapes." },
-                { "VGroup.ApplyStrokeThickness", "Applies only the group's StrokeThickness to all contained shapes." },
+                { "VGroup.ApplyLineWeight", "Applies only the group's LineWeight to all contained shapes." },
                 { "VGroup.SetOpacity", "Sets the opacity (0.0 to 1.0) for all shapes in the group by adjusting their fill color alpha." },
                 { "VGroup.GetCenter", "Calculates and returns the geometric center point of all shapes in the group." },
 
@@ -1633,8 +1633,9 @@ triangle.Mirror(mirrorAxis).DrawAll();" }
                 { "Shape.Id", "Gets the unique identifier for this shape, automatically assigned on creation." },
                 { "Shape.StrokeColor", "Gets or sets the outline/stroke color as a string (named color or hex code like '#FF0000' or '#80FF0000')." },
                 { "Shape.FillColor", "Gets or sets the fill color as a string. Use 'Transparent' for no fill." },
-                { "Shape.StrokeThickness", "Gets or sets the thickness of the outline stroke in pixels." },
-                { "Shape.StrokeStyle", "Gets or sets the stroke style (line pattern). Options: Continuous (solid), Dashed, Dotted, DashDot, DashDotDot, Center, Phantom, Hidden." },
+                { "Shape.LineWeight", "Gets or sets the thickness of the outline stroke in pixels." },
+                { "Shape.LineType", "Gets or sets the stroke style (line pattern). Options: Continuous (solid), Dashed, Dotted, DashDot, DashDotDot, Center, Phantom, Hidden." },
+                { "Shape.LineTypeScale", "Gets or sets the scale factor for stroke patterns (default 1.0). Values > 1.0 create longer dashes/gaps, < 1.0 create shorter ones." },
                 { "Shape.DrawFactor", "Gets or sets the draw factor (0.0 to 1.0) for progressive drawing animations." },
                 { "Shape.OffsetX", "Gets or sets the X offset for translation animations." },
                 { "Shape.OffsetY", "Gets or sets the Y offset for translation animations." },
@@ -1831,24 +1832,26 @@ triangle.Mirror(mirrorAxis).DrawAll();" }
                 { "IDrawable.Draw", "Renders the drawable object to the canvas." },
                 { "IDrawable.StrokeColor", "Gets or sets the stroke/outline color." },
                 { "IDrawable.FillColor", "Gets or sets the fill color." },
-                { "IDrawable.StrokeThickness", "Gets or sets the stroke thickness." },
+                { "IDrawable.LineWeight", "Gets or sets the stroke thickness." },
+                { "IDrawable.LineTypeScale", "Gets or sets the scale factor for stroke patterns. Default is 1.0." },
 
                 // ShapeDefaults
                 { "ShapeDefaults.GlobalStrokeColor", "Gets or sets the default stroke color for new shapes." },
                 { "ShapeDefaults.GlobalFillColor", "Gets or sets the default fill color for new shapes." },
-                { "ShapeDefaults.GlobalStrokeThickness", "Gets or sets the default stroke thickness for new shapes." },
-                { "ShapeDefaults.GlobalStrokeStyle", "Gets or sets the default stroke style for new shapes. Options: Continuous, Dashed, Dotted, DashDot, DashDotDot, Center, Phantom, Hidden." },
+                { "ShapeDefaults.GlobalLineWeight", "Gets or sets the default stroke thickness for new shapes." },
+                { "ShapeDefaults.GlobalLineType", "Gets or sets the default stroke style for new shapes. Options: Continuous, Dashed, Dotted, DashDot, DashDotDot, Center, Phantom, Hidden." },
+                { "ShapeDefaults.GlobalLineTypeScale", "Gets or sets the default stroke style scale for new shapes. Controls the scale of dash patterns (default 1.0)." },
                 { "ShapeDefaults.Reset", "Resets all global defaults to their original values." },
 
-                // StrokeStyle enum values
-                { "StrokeStyle.Continuous", "Solid continuous line (default). Standard line with no gaps." },
-                { "StrokeStyle.Dashed", "Dashed line pattern with long dashes and short gaps." },
-                { "StrokeStyle.Dotted", "Dotted line pattern with short dots and gaps." },
-                { "StrokeStyle.DashDot", "Alternating dash and dot pattern (dash-dot-dash-dot)." },
-                { "StrokeStyle.DashDotDot", "Alternating dash and two dots pattern (dash-dot-dot-dash)." },
-                { "StrokeStyle.Center", "Center line pattern (long-short-long), commonly used for centerlines in technical drawings." },
-                { "StrokeStyle.Phantom", "Phantom line pattern (long-short-short), used for alternate positions or hidden features." },
-                { "StrokeStyle.Hidden", "Hidden line pattern with short dashes, used for hidden edges in technical drawings." },
+                // LineType enum values
+                { "LineType.Continuous", "Solid continuous line (default). Standard line with no gaps." },
+                { "LineType.Dashed", "Dashed line pattern with long dashes and short gaps." },
+                { "LineType.Dotted", "Dotted line pattern with short dots and gaps." },
+                { "LineType.DashDot", "Alternating dash and dot pattern (dash-dot-dash-dot)." },
+                { "LineType.DashDotDot", "Alternating dash and two dots pattern (dash-dot-dot-dash)." },
+                { "LineType.Center", "Center line pattern (long-short-long), commonly used for centerlines in technical drawings." },
+                { "LineType.Phantom", "Phantom line pattern (long-short-short), used for alternate positions or hidden features." },
+                { "LineType.Hidden", "Hidden line pattern with short dashes, used for hidden edges in technical drawings." },
 
                 // VCoordinateSystem
                 { "VCoordinateSystem.Origin", "Gets or sets the origin point of the coordinate system." },
@@ -2129,6 +2132,11 @@ namespace StartViz
             // Editor operations
             AddShortcutRow(rowGroup, "Ctrl+Shift+F", "Format code", false);
             AddShortcutRow(rowGroup, "Ctrl+/", "Toggle comment", true);
+            // Find and Replace
+            AddShortcutRow(rowGroup, "Ctrl+F", "Find", false);
+            AddShortcutRow(rowGroup, "Ctrl+H", "Find and Replace", true);
+            AddShortcutRow(rowGroup, "F3", "Find Next", false);
+            AddShortcutRow(rowGroup, "Shift+F3", "Find Previous", true);
             // Line operations
             AddShortcutRow(rowGroup, "Alt+Up/Down", "Move line up/down", false);
             AddShortcutRow(rowGroup, "Shift+Alt+Up", "Copy line up", true);
@@ -2189,6 +2197,7 @@ namespace StartViz
             AddListItem(tipsList, "Animation", "Create a Timeline, add animations, and call .Play() to animate shapes");
             AddListItem(tipsList, "Drawing Tools", "Use the toolbar or press P/L/C/R to draw shapes directly on canvas with auto-generated code");
             AddListItem(tipsList, "Help Browser", "Select any class from the tree on the left to see its documentation");
+            AddListItem(tipsList, "Find and Replace", "Press Ctrl+F to find, Ctrl+H to find and replace. Supports regex and project-wide search");
             AddListItem(tipsList, "NuGet Packages", "Use Tools > NuGet Package Manager to add external libraries like Newtonsoft.Json");
             AddListItem(tipsList, "Shape IDs", "Every shape has a unique Id property. Use Ctrl+G to zoom to a shape by its ID");
             AddListItem(tipsList, "Outliner", "The Outliner panel shows all shapes grouped by type. Click an ID to zoom to that shape");

@@ -90,7 +90,7 @@ Example: `[StartViz:15] Hello World`
 - `Shape` implements `IDrawable` interface
 - Curve shapes (VLine, VCircle, VArc, etc.) also implement `ICurve` interface
 - `ICurve` extends `IDrawable`, so all curves can be drawn via the interface
-- Shapes have: `StrokeColor`, `FillColor`, `StrokeThickness`, `IsVisible`
+- Shapes have: `StrokeColor`, `FillColor`, `LineWeight`, `LineType`, `LineTypeScale`, `IsVisible`
 - **Shapes auto-register on construction** - no need to call `Draw()`
 - `Draw()` is kept for backwards compatibility but is a no-op
 - Use `Show()` and `Hide()` methods to control visibility
@@ -207,6 +207,7 @@ new VCircle(150.00, 100.00, 75.50).Draw();
 - All keyboard shortcuts working
 - **Auto-update canvas**: Canvas updates automatically when code changes (debounced 500ms)
 - **Shapes auto-register**: No need to call `Draw()` - shapes appear when created
+- **Find and Replace**: Full find/replace with RegEx support, project-wide search, tabbed results panel
 
 ## Known Issues
 - None currently
@@ -228,6 +229,12 @@ new VCircle(150.00, 100.00, 75.50).Draw();
 
 ### Editor Operations
 - `Ctrl+/` - Toggle comment (single/multi-line)
+
+### Find and Replace
+- `Ctrl+F` - Open Find dialog
+- `Ctrl+H` - Open Find and Replace dialog
+- `F3` - Find Next (in dialog)
+- `Shift+F3` - Find Previous (in dialog)
 
 ### Line Operations
 - `Alt+Up` - Move line up

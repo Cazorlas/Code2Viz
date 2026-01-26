@@ -25,6 +25,7 @@ using Code2Viz.Editor;
 using Code2Viz.Execution;
 using Code2Viz.Export;
 using Code2Viz.Project;
+using Code2Viz.Search;
 using ICSharpCode.AvalonEdit.Rendering;
 using Microsoft.CodeAnalysis;
 
@@ -109,6 +110,10 @@ public partial class MainWindow : Window
 
     // Hierarchy Provider
     private Editor.HierarchyProvider? _hierarchyProvider;
+
+    // Find and Replace
+    private FindReplaceService _findReplaceService = new();
+    private FindReplaceDialog? _findReplaceDialog;
 
     public static RoutedCommand RenameCommand = new RoutedCommand();
     public static RoutedCommand GoToDefinitionCommand = new RoutedCommand();
@@ -245,6 +250,15 @@ public partial class MainWindow : Window
         {
             Dispatcher.Invoke(RefreshConsole);
         };
+
+        // Initialize Find Results Panel
+        FindResultsPanel.ResultActivated += (s, result) =>
+        {
+            if (result != null)
+            {
+                NavigateToSearchResult(result);
+            }
+        };
     }
 
     private void InitializeContextMenu()
@@ -369,9 +383,59 @@ public partial class MainWindow : Window
         System.Windows.Clipboard.SetText(text);
     }
 
-    private void ConsoleSplitter_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    private bool _isResizingConsole;
+    private Point _consoleResizeStartPoint;
+    private double _consoleResizeStartHeight;
+
+    private void ConsoleSplitter_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        ResetCanvasConsoleLayout();
+        // Handle double-click to reset layout
+        if (e.ClickCount == 2)
+        {
+            ResetCanvasConsoleLayout();
+            e.Handled = true;
+            return;
+        }
+
+        // Start resize drag
+        _isResizingConsole = true;
+        _consoleResizeStartPoint = e.GetPosition(CanvasConsoleGrid);
+        _consoleResizeStartHeight = ConsoleRow.ActualHeight;
+        ((Border)sender).CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void ConsoleSplitter_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_isResizingConsole)
+        {
+            _isResizingConsole = false;
+            ((Border)sender).ReleaseMouseCapture();
+            e.Handled = true;
+        }
+    }
+
+    private void ConsoleSplitter_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (_isResizingConsole)
+        {
+            var currentPoint = e.GetPosition(CanvasConsoleGrid);
+            var delta = _consoleResizeStartPoint.Y - currentPoint.Y;
+            var newHeight = _consoleResizeStartHeight + delta;
+
+            // Apply min/max constraints
+            var minHeight = 80.0;
+            var maxHeight = CanvasConsoleGrid.ActualHeight - 200; // Keep canvas at least 200px
+
+            newHeight = Math.Max(minHeight, Math.Min(maxHeight, newHeight));
+
+            // Update the console row height
+            ConsoleRow.Height = new GridLength(newHeight);
+            // Keep canvas as star-sized to fill remaining space
+            CanvasRow.Height = new GridLength(1, GridUnitType.Star);
+
+            e.Handled = true;
+        }
     }
 
     private void ResetLayout_Click(object sender, RoutedEventArgs e)
@@ -397,9 +461,9 @@ public partial class MainWindow : Window
 
     private void ResetCanvasConsoleLayout()
     {
-        // Reset the canvas/console splitter
-        CanvasRow.Height = new GridLength(1, GridUnitType.Star);
-        ConsoleRow.Height = new GridLength(200);
+        // Reset the canvas/console splitter to default 3:1 ratio
+        CanvasRow.Height = new GridLength(3, GridUnitType.Star);
+        ConsoleRow.Height = new GridLength(1, GridUnitType.Star);
     }
 
     private void Caret_PositionChanged(object? sender, EventArgs e)
@@ -601,7 +665,34 @@ public partial class MainWindow : Window
 
     private void TextArea_PreviewMouseDown_ClearMultiSelect(object? sender, System.Windows.Input.MouseButtonEventArgs e)
     {
-        // Clear multi-selections when user clicks in the text area
+        // Ctrl+Alt+Click adds a new cursor at the click position
+        if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed &&
+            Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Alt))
+        {
+            // Get the position from mouse click
+            var position = CodeEditor.TextArea.TextView.GetPositionFloor(e.GetPosition(CodeEditor.TextArea.TextView));
+            if (position.HasValue)
+            {
+                var offset = CodeEditor.Document.GetOffset(position.Value.Location);
+
+                // Initialize multi-selection renderer if needed, starting from current caret
+                if (_multiSelectionRenderer != null)
+                {
+                    if (!_multiSelectionRenderer.HasSelections)
+                    {
+                        // Add the current caret position as first cursor
+                        _multiSelectionRenderer.AddSelection(CodeEditor.CaretOffset, 0);
+                    }
+                    // Add new cursor at click position
+                    _multiSelectionRenderer.AddSelection(offset, 0);
+                }
+
+                e.Handled = true;
+                return;
+            }
+        }
+
+        // Clear multi-selections when user clicks in the text area (without Ctrl+Alt)
         // This handles the case where SelectionChanged doesn't fire (e.g., clicking to place caret)
         if (_multiSelectionRenderer != null && _multiSelectionRenderer.HasSelections)
         {
@@ -1085,25 +1176,32 @@ public partial class MainWindow : Window
         var offset = CodeEditor.CaretOffset;
         var code = CodeEditor.Text;
 
-        try 
+        try
         {
              // Use Roslyn Completion Service
              var service = new Editor.RoslynCompletionService(_compiler.GetReferences());
-             var completions = await service.GetCompletionsAsync(code, offset);
+             var (completions, isAfterNew, prefix, expectedType) = await service.GetCompletionsAsync(code, offset);
 
              if (completions.Count > 0)
              {
                  _completionWindow = new CompletionWindow(CodeEditor.TextArea);
                  var data = _completionWindow.CompletionList.CompletionData;
-                 foreach (var item in completions)
+
+                 // Sort completions: expected type first, then types when after 'new', then by match quality
+                 var sortedCompletions = SortCompletions(completions, prefix, isAfterNew, expectedType);
+
+                 foreach (var item in sortedCompletions)
                  {
                      data.Add(item);
                  }
-                 
-                 // Add snippets
-                 foreach (var (trigger, description) in Editor.CodeSnippets.GetAll())
+
+                 // Add snippets (not when after 'new')
+                 if (!isAfterNew)
                  {
-                     data.Add(new Editor.SnippetCompletionData(trigger, description, Editor.CodeSnippets.GetSnippet(trigger)!));
+                     foreach (var (trigger, description) in Editor.CodeSnippets.GetAll())
+                     {
+                         data.Add(new Editor.SnippetCompletionData(trigger, description, Editor.CodeSnippets.GetSnippet(trigger)!));
+                     }
                  }
 
                  ShowCompletionWindowWithSelection();
@@ -1114,6 +1212,59 @@ public partial class MainWindow : Window
         {
              System.Diagnostics.Debug.WriteLine($"Completion Error: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Sorts completions by match quality and context.
+    /// Expected type from left-hand side appears first.
+    /// Types appear first when after 'new' keyword.
+    /// Best prefix matches appear at the top.
+    /// </summary>
+    private List<ICompletionData> SortCompletions(List<ICompletionData> completions, string prefix, bool isAfterNew, string? expectedType)
+    {
+        var prefixLower = prefix.ToLowerInvariant();
+        var expectedTypeLower = expectedType?.ToLowerInvariant();
+
+        return completions
+            .OrderBy(c =>
+            {
+                var textLower = c.Text.ToLowerInvariant();
+                var item = c as Editor.CompletionData;
+                var isType = item?.Kind == Editor.CompletionKind.Type;
+
+                // Priority -1: Expected type from left-hand side (e.g., VPoint p1 = new |)
+                if (expectedTypeLower != null && textLower == expectedTypeLower)
+                    return -1;
+
+                // Priority 0: Exact match with typed prefix (case-insensitive)
+                if (!string.IsNullOrEmpty(prefixLower) && textLower == prefixLower)
+                    return 0;
+
+                // Priority 1: Starts with prefix (case-insensitive)
+                if (!string.IsNullOrEmpty(prefixLower) && textLower.StartsWith(prefixLower))
+                {
+                    // If after 'new', prioritize types even more
+                    if (isAfterNew && isType)
+                        return 1;
+                    return isType ? 2 : 3;
+                }
+
+                // Priority 2: Contains prefix
+                if (!string.IsNullOrEmpty(prefixLower) && textLower.Contains(prefixLower))
+                {
+                    if (isAfterNew && isType)
+                        return 4;
+                    return isType ? 5 : 6;
+                }
+
+                // Priority 3: No prefix typed - sort types first when after 'new'
+                if (isAfterNew && isType)
+                    return 7;
+                return isType ? 8 : 9;
+            })
+            .ThenBy(c => c.Text.Length) // Shorter names first for same priority
+            .ThenBy(c => c.Text) // Alphabetical for same length
+            .ToList();
     }
 
     // Legacy methods removed
@@ -2632,8 +2783,8 @@ public partial class MainWindow : Window
         SettingsStrokeColorBox.Text = settings.DefaultStrokeColor ?? "";
         SettingsFillColorBox.Text = settings.DefaultFillColor ?? "";
         SettingsCanvasColorBox.Text = settings.DefaultCanvasBackgroundColor ?? "";
-        SettingsThicknessBox.Text = settings.DefaultStrokeThickness.HasValue 
-            ? settings.DefaultStrokeThickness.Value.ToString() 
+        SettingsThicknessBox.Text = settings.DefaultLineWeight.HasValue 
+            ? settings.DefaultLineWeight.Value.ToString() 
             : "";
             
         // Apply Canvas Background immediately on load (Fix for Issue 1)
@@ -2803,7 +2954,7 @@ public partial class MainWindow : Window
             settings.DefaultStrokeColor = strokeColor;
             settings.DefaultFillColor = fillColor;
             settings.DefaultCanvasBackgroundColor = canvasColor;
-            settings.DefaultStrokeThickness = thickness;
+            settings.DefaultLineWeight = thickness;
             // Remove DefaultExportBackground from Project Settings if desired, but nice to keep as fallback?
             // For now, we strictly use AppSettings for Export as requested.
 
@@ -2973,6 +3124,9 @@ public partial class MainWindow : Window
 
         SetStatus("Compiling...", isError: false);
         RunButton.IsEnabled = false;
+
+        // Show console tab when running code
+        ShowConsoleTab();
 
         try
         {
@@ -3815,17 +3969,74 @@ public partial class MainWindow : Window
     private void ShowConsoleMenuItem_Click(object sender, RoutedEventArgs e)
     {
         var isVisible = ShowConsoleMenuItem.IsChecked;
-        SetConsoleVisibility(isVisible);
-
-        ApplicationSettings.Instance.ShowConsole = isVisible;
-        ApplicationSettings.Save();
+        if (isVisible)
+        {
+            ShowConsoleTab();
+        }
+        else
+        {
+            ConsoleTab.Visibility = Visibility.Collapsed;
+            if (FindResultsTab.Visibility != Visibility.Visible)
+            {
+                SetConsoleVisibility(false);
+            }
+        }
     }
 
     private void SetConsoleVisibility(bool isVisible)
     {
         ConsolePanel.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
         ConsoleSplitter.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
-        ConsoleRow.Height = isVisible ? new GridLength(200) : new GridLength(0);
+        ConsoleRow.Height = isVisible ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+        ShowConsoleMenuItem.IsChecked = isVisible || ConsoleTab.Visibility == Visibility.Visible;
+    }
+
+    private void ShowConsoleTab()
+    {
+        ConsoleTab.Visibility = Visibility.Visible;
+        BottomTabControl.SelectedItem = ConsoleTab;
+        SetConsoleVisibility(true);
+        ShowConsoleMenuItem.IsChecked = true;
+    }
+
+    private void ShowFindResultsTab()
+    {
+        FindResultsTab.Visibility = Visibility.Visible;
+        BottomTabControl.SelectedItem = FindResultsTab;
+        SetConsoleVisibility(true);
+    }
+
+    private void CloseConsoleTab_Click(object sender, RoutedEventArgs e)
+    {
+        ConsoleTab.Visibility = Visibility.Collapsed;
+        ShowConsoleMenuItem.IsChecked = false;
+
+        // If Find Results tab is visible, switch to it
+        if (FindResultsTab.Visibility == Visibility.Visible)
+        {
+            BottomTabControl.SelectedItem = FindResultsTab;
+        }
+        else
+        {
+            // Both tabs hidden, hide the entire panel
+            SetConsoleVisibility(false);
+        }
+    }
+
+    private void CloseFindResultsTab_Click(object sender, RoutedEventArgs e)
+    {
+        FindResultsTab.Visibility = Visibility.Collapsed;
+
+        // If Console tab is visible, switch to it
+        if (ConsoleTab.Visibility == Visibility.Visible)
+        {
+            BottomTabControl.SelectedItem = ConsoleTab;
+        }
+        else
+        {
+            // Both tabs hidden, hide the entire panel
+            SetConsoleVisibility(false);
+        }
     }
 
     private void ShowCanvasMenuItem_Click(object sender, RoutedEventArgs e)
@@ -3844,9 +4055,9 @@ public partial class MainWindow : Window
 
         if (isVisible)
         {
-            CanvasRow.Height = new GridLength(1, GridUnitType.Star);
+            CanvasRow.Height = new GridLength(3, GridUnitType.Star);
             CanvasRow.MinHeight = 200;
-            ConsoleRow.Height = new GridLength(200);
+            ConsoleRow.Height = new GridLength(1, GridUnitType.Star);
         }
         else
         {
@@ -3878,8 +4089,16 @@ public partial class MainWindow : Window
 
         // Toolbar has been removed
 
+        // Console visibility
         ShowConsoleMenuItem.IsChecked = settings.ShowConsole;
-        SetConsoleVisibility(settings.ShowConsole);
+        if (settings.ShowConsole)
+        {
+            ShowConsoleTab();
+        }
+        else
+        {
+            SetConsoleVisibility(false);
+        }
 
         ShowCanvasMenuItem.IsChecked = settings.ShowCanvas;
         SetCanvasVisibility(settings.ShowCanvas);
@@ -4167,6 +4386,14 @@ public partial class MainWindow : Window
                     break;
                 case Key.M:
                     ToggleMeasuringTool();
+                    e.Handled = true;
+                    break;
+                case Key.F:
+                    FindMenuItem_Click(sender, e);
+                    e.Handled = true;
+                    break;
+                case Key.H:
+                    FindReplaceMenuItem_Click(sender, e);
                     e.Handled = true;
                     break;
             }
@@ -7412,9 +7639,9 @@ public partial class MainWindow : Window
         Console.ConsoleOutput.Instance.AddEntry("Double-click to navigate to reference");
 
         // Ensure console panel is visible
-        if (ConsoleRow.Height.Value < 100)
+        if (ConsoleRow.Height.Value < 0.5)
         {
-            ConsoleRow.Height = new GridLength(200);
+            ConsoleRow.Height = new GridLength(1, GridUnitType.Star);
         }
     }
 
@@ -8654,6 +8881,210 @@ public partial class MainWindow : Window
                 _lastTimeline = null;
                 TimelinePanel.SetTimeline(null);
             }
+        }
+    }
+
+    #endregion
+
+    #region Find and Replace
+
+    private void FindMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        ShowFindReplaceDialog(showReplace: false);
+    }
+
+    private void FindReplaceMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        ShowFindReplaceDialog(showReplace: true);
+    }
+
+    private void FindInFilesMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        ShowFindReplaceDialog(showReplace: false, projectScope: true);
+    }
+
+    private void ShowFindReplaceDialog(bool showReplace, bool projectScope = false)
+    {
+        if (_findReplaceDialog == null)
+        {
+            _findReplaceDialog = new FindReplaceDialog { Owner = this };
+
+            _findReplaceDialog.FindNextRequested += (s, options) => PerformFindNext(options);
+            _findReplaceDialog.FindAllRequested += (s, options) => PerformFindAll(options);
+            _findReplaceDialog.ReplaceRequested += (s, options) => PerformReplace(options);
+            _findReplaceDialog.ReplaceAllRequested += (s, options) => PerformReplaceAll(options);
+        }
+
+        _findReplaceDialog.ShowReplace = showReplace;
+
+        // Set initial search text from selection
+        if (CodeEditor.SelectionLength > 0 && CodeEditor.SelectionLength < 100)
+        {
+            var selectedText = CodeEditor.SelectedText;
+            if (!selectedText.Contains('\n') && !selectedText.Contains('\r'))
+            {
+                _findReplaceDialog.SearchText = selectedText;
+            }
+        }
+
+        if (projectScope)
+        {
+            _findReplaceDialog.SetProjectScope();
+        }
+
+        _findReplaceDialog.Show();
+        _findReplaceDialog.Activate();
+    }
+
+    private void PerformFindNext(SearchOptions options)
+    {
+        if (_activeFile == null) return;
+
+        var content = CodeEditor.Text;
+        var startIndex = CodeEditor.CaretOffset;
+
+        var result = _findReplaceService.FindNext(content, options, startIndex);
+
+        if (result.HasValue)
+        {
+            CodeEditor.Select(result.Value.Start, result.Value.Length);
+            CodeEditor.ScrollTo(CodeEditor.Document.GetLineByOffset(result.Value.Start).LineNumber, 0);
+            _findReplaceDialog?.SetStatus($"Match found at offset {result.Value.Start}");
+        }
+        else
+        {
+            _findReplaceDialog?.SetStatus("No matches found");
+        }
+    }
+
+    private void PerformFindAll(SearchOptions options)
+    {
+        var results = new List<SearchResult>();
+
+        if (options.Scope == SearchScope.EntireProject && _currentProject != null)
+        {
+            // Search all files in project
+            var files = new Dictionary<string, string>();
+            foreach (var file in _currentProject.Files)
+            {
+                files[file.FilePath] = file.Content;
+            }
+            results = _findReplaceService.FindInProject(files, options);
+        }
+        else if (_activeFile != null)
+        {
+            // Search current file only
+            results = _findReplaceService.FindAll(CodeEditor.Text, _activeFile.FilePath, options);
+        }
+
+        ShowFindResults(results, options.SearchText);
+    }
+
+    private void ShowFindResults(List<SearchResult> results, string searchTerm)
+    {
+        FindResultsPanel.Results = results;
+        FindResultsPanel.SetSearchTerm(searchTerm);
+        ShowFindResultsTab();
+
+        if (results.Count > 0)
+        {
+            _findReplaceDialog?.SetStatus($"Found {results.Count} match{(results.Count == 1 ? "" : "es")}");
+        }
+        else
+        {
+            _findReplaceDialog?.SetStatus("No matches found");
+        }
+    }
+
+    private void PerformReplace(SearchOptions options)
+    {
+        if (_activeFile == null) return;
+
+        var content = CodeEditor.Text;
+        var startIndex = CodeEditor.CaretOffset;
+
+        var result = _findReplaceService.ReplaceNext(content, options, startIndex);
+
+        if (result.HasValue)
+        {
+            CodeEditor.Document.Text = result.Value.NewContent;
+            CodeEditor.Select(result.Value.MatchStart, result.Value.MatchLength);
+            CodeEditor.ScrollTo(CodeEditor.Document.GetLineByOffset(result.Value.MatchStart).LineNumber, 0);
+            _findReplaceDialog?.SetStatus("Replaced 1 occurrence");
+        }
+        else
+        {
+            _findReplaceDialog?.SetStatus("No matches found");
+        }
+    }
+
+    private void PerformReplaceAll(SearchOptions options)
+    {
+        if (options.Scope == SearchScope.EntireProject && _currentProject != null)
+        {
+            // Replace in all files
+            int totalReplacements = 0;
+            int filesModified = 0;
+
+            foreach (var file in _currentProject.Files)
+            {
+                var (newContent, count) = _findReplaceService.ReplaceAll(file.Content, options);
+                if (count > 0)
+                {
+                    file.Content = newContent;
+                    totalReplacements += count;
+                    filesModified++;
+
+                    // Update editor if this is the active file
+                    if (file == _activeFile)
+                    {
+                        CodeEditor.Document.Text = newContent;
+                    }
+                }
+            }
+
+            _findReplaceDialog?.SetStatus($"Replaced {totalReplacements} occurrence{(totalReplacements == 1 ? "" : "s")} in {filesModified} file{(filesModified == 1 ? "" : "s")}");
+        }
+        else if (_activeFile != null)
+        {
+            // Replace in current file only
+            var (newContent, count) = _findReplaceService.ReplaceAll(CodeEditor.Text, options);
+
+            if (count > 0)
+            {
+                CodeEditor.Document.Text = newContent;
+                _findReplaceDialog?.SetStatus($"Replaced {count} occurrence{(count == 1 ? "" : "s")}");
+            }
+            else
+            {
+                _findReplaceDialog?.SetStatus("No matches found");
+            }
+        }
+    }
+
+    private void NavigateToSearchResult(SearchResult result)
+    {
+        // Find and open the file if it's different from current
+        if (_currentProject != null)
+        {
+            var file = _currentProject.Files.FirstOrDefault(f => f.FilePath == result.FilePath);
+            if (file != null && file != _activeFile)
+            {
+                SelectFile(file);
+            }
+        }
+
+        // Navigate to the location
+        if (_activeFile != null && _activeFile.FilePath == result.FilePath)
+        {
+            var line = Math.Min(result.LineNumber, CodeEditor.Document.LineCount);
+            var lineObj = CodeEditor.Document.GetLineByNumber(line);
+            var offset = lineObj.Offset + Math.Max(0, result.Column - 1);
+
+            CodeEditor.CaretOffset = offset;
+            CodeEditor.Select(offset, result.MatchLength);
+            CodeEditor.ScrollTo(line, result.Column);
+            CodeEditor.Focus();
         }
     }
 

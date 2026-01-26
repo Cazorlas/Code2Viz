@@ -21,12 +21,18 @@ public static class ShapeDefaults
     /// <summary>
     /// Global default stroke thickness. If null, shapes use default (usually 2.0).
     /// </summary>
-    public static double? GlobalStrokeThickness { get; set; } = null;
+    public static double? GlobalLineWeight { get; set; } = null;
 
     /// <summary>
     /// Global default stroke style. If null, shapes use default (Continuous).
     /// </summary>
-    public static StrokeStyle? GlobalStrokeStyle { get; set; } = null;
+    public static LineType? GlobalLineType { get; set; } = null;
+
+    /// <summary>
+    /// Global default stroke style scale. If null, shapes use default (1.0).
+    /// Controls the scale of dash patterns (dash length, gap size).
+    /// </summary>
+    public static double? GlobalLineTypeScale { get; set; } = null;
 
     /// <summary>
     /// Resets defaults to initial state (nulls).
@@ -35,7 +41,8 @@ public static class ShapeDefaults
     {
         GlobalStrokeColor = null;
         GlobalFillColor = null;
-        GlobalStrokeThickness = null;
-        GlobalStrokeStyle = null;
+        GlobalLineWeight = null;
+        GlobalLineType = null;
+        GlobalLineTypeScale = null;
     }
 }

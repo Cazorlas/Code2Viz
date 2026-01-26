@@ -806,6 +806,14 @@ triangle.Mirror(mirrorAxis).DrawAll();
 | `Ctrl+/` | Toggle comment |
 | `Tab` / `Shift+Tab` | Indent / Unindent |
 
+### Find and Replace
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+F` | Open Find dialog |
+| `Ctrl+H` | Open Find and Replace dialog |
+| `F3` | Find Next (in dialog) |
+| `Shift+F3` | Find Previous (in dialog) |
+
 ### Line Operations
 | Shortcut | Action |
 |----------|--------|
@@ -894,6 +902,25 @@ Code2Viz includes a full-featured code editor with VSCode-like intellisense powe
 | **Rename** | `F2` | Rename symbol across all usages |
 | **Format Document** | `Ctrl+Shift+F` | Auto-format entire document |
 | **Format on Type** | Automatic | Formats line when typing `;` or `}` |
+
+### Find and Replace
+| Feature | Shortcut | Description |
+|---------|----------|-------------|
+| **Find** | `Ctrl+F` | Search in current file |
+| **Find and Replace** | `Ctrl+H` | Search and replace in current file |
+| **Find in Files** | Edit menu | Search across all project files |
+| **Find Next** | `F3` | Jump to next match |
+| **Find Previous** | `Shift+F3` | Jump to previous match |
+
+**Search Options:**
+- **Case sensitive**: Match exact case
+- **Whole word**: Match complete words only
+- **Regular expressions**: Use regex patterns for advanced searches
+
+**Find Results Panel:**
+- Results displayed in a tabbed panel below the canvas
+- Click any result to navigate to that location
+- Results show file name, line number, and matching text
 
 ### Advanced Features
 | Feature | Toggle | Description |
