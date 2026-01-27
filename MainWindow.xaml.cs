@@ -4320,10 +4320,35 @@ public partial class MainWindow : Window
     private void SetConsoleVisibility(bool isVisible)
     {
         ConsolePanel.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
-        ConsoleSplitter.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
-        ConsoleRow.Height = isVisible ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
-        ConsoleRow.MinHeight = isVisible ? 80 : 0;
         ShowConsoleMenuItem.IsChecked = isVisible || ConsoleTab.Visibility == Visibility.Visible;
+
+        bool canvasVisible = RenderCanvas.Visibility == Visibility.Visible;
+
+        // Splitter only needed when both canvas and console are visible
+        ConsoleSplitter.Visibility = (isVisible && canvasVisible) ? Visibility.Visible : Visibility.Collapsed;
+
+        if (isVisible)
+        {
+            ConsoleRow.MinHeight = 80;
+            ConsoleRow.Height = new GridLength(1, GridUnitType.Star);
+
+            if (canvasVisible)
+            {
+                // Both visible: restore MaxHeight constraint
+                ConsoleRow.MaxHeight = 500;
+            }
+            else
+            {
+                // Only console visible: let it take full height
+                ConsoleRow.MaxHeight = double.PositiveInfinity;
+            }
+        }
+        else
+        {
+            ConsoleRow.Height = new GridLength(0);
+            ConsoleRow.MinHeight = 0;
+            ConsoleRow.MaxHeight = double.PositiveInfinity;
+        }
     }
 
     private void ShowConsoleTab()
@@ -4386,20 +4411,35 @@ public partial class MainWindow : Window
     private void SetCanvasVisibility(bool isVisible)
     {
         RenderCanvas.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
-        ConsoleSplitter.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
+
+        bool consoleVisible = ConsolePanel.Visibility == Visibility.Visible;
+
+        // Splitter only needed when both canvas and console are visible
+        ConsoleSplitter.Visibility = (isVisible && consoleVisible) ? Visibility.Visible : Visibility.Collapsed;
 
         if (isVisible)
         {
             CanvasRow.Height = new GridLength(3, GridUnitType.Star);
             CanvasRow.MinHeight = 200;
-            ConsoleRow.Height = new GridLength(1, GridUnitType.Star);
+
+            if (consoleVisible)
+            {
+                // Both visible: restore standard ratio and MaxHeight
+                ConsoleRow.Height = new GridLength(1, GridUnitType.Star);
+                ConsoleRow.MaxHeight = 500;
+            }
         }
         else
         {
             CanvasRow.Height = new GridLength(0);
             CanvasRow.MinHeight = 0;
-            // Let Console take up the space
-            ConsoleRow.Height = new GridLength(1, GridUnitType.Star);
+
+            if (consoleVisible)
+            {
+                // Only console visible: let it take full height
+                ConsoleRow.Height = new GridLength(1, GridUnitType.Star);
+                ConsoleRow.MaxHeight = double.PositiveInfinity;
+            }
         }
 
         // Disable Run and Draw when canvas is not visible
