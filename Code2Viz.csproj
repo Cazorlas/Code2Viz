@@ -21,6 +21,12 @@
     <Compile Remove="FSharp-SampleProject\**" />
     <Compile Remove="CSharp-SampleProject\**" />
     <Compile Remove="Tests\**" />
+    <Compile Remove="McpBridge\**" />
+    <Compile Remove="McpServer\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="McpBridge\Code2Viz.McpBridge.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -25,6 +25,7 @@ using Code2Viz.Editor;
 using Code2Viz.Execution;
 using Code2Viz.Export;
 using Code2Viz.Project;
+using Code2Viz.Mcp;
 using Code2Viz.Search;
 using ICSharpCode.AvalonEdit.Rendering;
 using Microsoft.CodeAnalysis;
@@ -95,6 +96,9 @@ public partial class MainWindow : Window
     // Peek Definition popup
     private System.Windows.Controls.Primitives.Popup? _peekPopup;
 
+    // MCP Bridge
+    private McpBridgeHost? _mcpBridgeHost;
+
     // Inlay Hints
     private Editor.InlayHintGenerator? _inlayHintGenerator;
 
@@ -142,6 +146,7 @@ public partial class MainWindow : Window
         InitializeCanvas();
         InitializeConsole();
         InitializeContextMenu();
+        InitializeMcpBridge();
 
         if (project != null)
         {
@@ -3221,6 +3226,9 @@ public partial class MainWindow : Window
 
         // Clean up file watcher
         StopProjectWatcher();
+
+        // Stop MCP bridge
+        _mcpBridgeHost?.Dispose();
     }
 
     private void SaveButton_Click(object sender, RoutedEventArgs e)
@@ -3474,6 +3482,125 @@ public partial class MainWindow : Window
             Console.ConsoleOutput.Instance.Flush();
             RunButton.IsEnabled = true;
         }
+    }
+
+    private void InitializeMcpBridge()
+    {
+        _mcpBridgeHost = new McpBridgeHost(
+            Dispatcher,
+            executeCode: ExecuteCodeFromMcp,
+            exportPng: ExportPngFromMcp,
+            getShapes: () => CanvasRenderer.Instance.GetShapes());
+        _mcpBridgeHost.Start();
+    }
+
+    /// <summary>
+    /// Executes vizcode from an MCP command. Sets the entry point file content,
+    /// compiles and executes, then returns a result string.
+    /// Must be called on the UI thread.
+    /// </summary>
+    internal async Task<string> ExecuteCodeFromMcp(string codeBody)
+    {
+        // Ensure we have a project - create a temp one if needed
+        if (_currentProject == null)
+        {
+            var tempDir = Path.Combine(Path.GetTempPath(), "Code2Viz_Mcp_" + Guid.NewGuid().ToString("N")[..8]);
+            _currentProject = VizCodeProject.CreateNew(tempDir, "McpProject", ProjectLanguage.CSharp);
+            LoadProjectTree();
+            RefreshFileTabs();
+            var entry = _currentProject.EntryPointFile;
+            if (entry != null) SelectFile(entry);
+        }
+
+        var entryFile = _currentProject.EntryPointFile;
+        if (entryFile == null)
+            return "Error: No entry point file found";
+
+        // Build the full source with the code body wrapped in the template
+        var projectName = _currentProject.ProjectFile.Name ?? "StartViz";
+        var safeName = Templates.SanitizeIdentifier(projectName);
+        var fullCode = $$"""
+            using System;
+            using System.Linq;
+            using System.Numerics;
+            using System.Collections.Generic;
+            using Code2Viz.Geometry;
+            using Code2Viz.Console;
+            using Code2Viz.Animation;
+
+            namespace {{safeName}}
+            {
+                public class Viz
+                {
+                    public static void Main()
+                    {
+            {{codeBody}}
+                    }
+                }
+            }
+            """;
+
+        // Set the file content and update editor
+        entryFile.Content = fullCode;
+        _suppressUnsavedMarking = true;
+        if (_activeFile == entryFile)
+            CodeEditor.Text = fullCode;
+        else
+            SelectFile(entryFile);
+        _suppressUnsavedMarking = false;
+
+        // Compile and execute
+        SetStatus("Compiling (MCP)...", isError: false);
+        ShowConsoleTab();
+
+        try
+        {
+            _textMarkerService?.Clear();
+            var result = await _compiler.CompileAndExecuteAsync(_currentProject);
+
+            _currentProject.ApplySettings();
+
+            if (result.Success)
+            {
+                _animationStopwatch.Restart();
+                Commands.TransactionManager.Instance.Clear();
+
+                var shapes = CanvasRenderer.Instance.GetShapes();
+                var count = shapes.Count;
+
+                CanvasRenderer.Instance.RenderTo(RenderCanvas);
+                var statusMsg = $"Success: {count} shape{(count != 1 ? "s" : "")} drawn";
+                SetStatus(statusMsg, isError: false);
+                PopulateOutliner(shapes);
+
+                Console.ConsoleOutput.Instance.Flush();
+                return statusMsg;
+            }
+            else
+            {
+                var errorMsg = result.Error ?? "Compilation failed";
+                SetStatus("Compilation failed (MCP)", isError: true);
+                if (!string.IsNullOrEmpty(result.Error))
+                    Console.ConsoleOutput.Instance.WriteLine("Compiler", 0, result.Error);
+
+                Console.ConsoleOutput.Instance.Flush();
+                return $"Error: {errorMsg}";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.ConsoleOutput.Instance.Flush();
+            return $"Error: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Exports the canvas to PNG for MCP. Must be called on the UI thread.
+    /// </summary>
+    internal Task ExportPngFromMcp(string filePath)
+    {
+        ExportCanvasToPng(filePath);
+        return Task.CompletedTask;
     }
 
     /// <summary>

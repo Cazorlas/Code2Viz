@@ -11,13 +11,16 @@ Viz2d is a WPF 2D geometry visualization application that allows users to write 
 
 ## Project Structure
 ```
-Viz2d/
+Code2Viz/
 ├── Geometry/           # Shape classes (Point, Line, Arc, Circle, Rectangle, Ellipse, Polygon, Polyline, Grid, Group)
 ├── Canvas/             # RenderCanvas (zoom/pan), CanvasRenderer (shape collection)
 ├── Console/            # VizConsole (output), ConsoleOutput (singleton collector)
 ├── Editor/             # Code editor features: IntelliSenseProvider, SemanticHighlighter, CodeLensProvider, HierarchyProvider
 ├── Execution/          # ModuleCompiler (Roslyn CSharpCompilation)
 ├── Project/            # VizCodeFile, VizCodeProject, Templates
+├── Mcp/                # McpBridgeHost (named pipe listener, command handlers for MCP)
+├── McpBridge/          # Shared IPC library (IpcClient, IpcServer, IpcMessages)
+├── McpServer/          # MCP Server console app (stdio transport, tools, resources, SKILL.md)
 ├── img/                # Logo assets (logo.png, logo.ico)
 ├── docs/               # PRD.md, TASKS.md, TODO.md
 ├── MainWindow.xaml     # UI layout (tabbed editor, console panel)
@@ -53,16 +56,15 @@ Viz2d/
 using System;
 using System.Collections.Generic;
 using Viz2d.Geometry;    // Point, Line, Circle, Arc, Rectangle, Ellipse, Polygon, Polyline, Grid, Group
-using Viz2d.Console;     // VizConsole.Write(), VizConsole.WriteLine()
+using Viz2d.Console;     // VizConsole.Log()
 ```
 
 ## Console Output
 
 ### VizConsole Class
 ```csharp
-VizConsole.Write("message");      // Output without newline
-VizConsole.WriteLine("message");  // Output with newline
-VizConsole.WriteLine(42);         // Supports any object
+VizConsole.Log("message");        // Only method - logs with auto file/line tracking
+VizConsole.Log(42);               // Accepts any object
 ```
 
 ### Output Format
@@ -72,6 +74,7 @@ VizConsole.WriteLine(42);         // Supports any object
 Example: `[StartViz:15] Hello World`
 
 ### Features
+- `Log()` is the only public method (no `Write()` or `WriteLine()`)
 - Auto-captures calling file name and line number
 - Console panel below canvas (resizable)
 - Clear button to clear output
@@ -90,7 +93,7 @@ Example: `[StartViz:15] Hello World`
 - `Shape` implements `IDrawable` interface
 - Curve shapes (VLine, VCircle, VArc, etc.) also implement `ICurve` interface
 - `ICurve` extends `IDrawable`, so all curves can be drawn via the interface
-- Shapes have: `Color`, `FillColor`, `LineWeight`, `LineType`, `LineTypeScale`, `IsVisible`
+- Shapes have: `Color`, `FillColor`, `LineWeight`, `LineType`, `LineTypeScale`, `IsVisible`, `Opacity`, `Name`, `Id`
 - **Shapes auto-register on construction** - no need to call `Draw()`
 - `Draw()` is kept for backwards compatibility but is a no-op
 - Use `Show()` and `Hide()` methods to control visibility
