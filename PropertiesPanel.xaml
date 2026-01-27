@@ -168,27 +168,19 @@
 
                         <!-- Line Weight -->
                         <TextBlock Grid.Row="2" Grid.Column="0" Text="Weight" Style="{StaticResource PropLabel}" />
-                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,2">
-                            <Slider x:Name="LineWeightSlider"
-                                    Width="120" Minimum="0.5" Maximum="20" TickFrequency="0.5"
-                                    IsSnapToTickEnabled="True"
-                                    ValueChanged="LineWeightSlider_ValueChanged" />
-                            <TextBlock x:Name="LineWeightLabel"
-                                       Foreground="{StaticResource ForegroundBrush}"
-                                       FontSize="11" VerticalAlignment="Center" Margin="6,0,0,0" />
-                        </StackPanel>
+                        <TextBox x:Name="LineWeightBox" Grid.Row="2" Grid.Column="1"
+                                 Style="{StaticResource PropTextBox}"
+                                 LostFocus="LineWeightBox_LostFocus"
+                                 KeyDown="PropTextBox_KeyDown"
+                                 Margin="0,2" />
 
                         <!-- Opacity -->
                         <TextBlock Grid.Row="3" Grid.Column="0" Text="Opacity" Style="{StaticResource PropLabel}" />
-                        <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="0,2">
-                            <Slider x:Name="OpacitySlider"
-                                    Width="120" Minimum="0" Maximum="100" TickFrequency="5"
-                                    IsSnapToTickEnabled="True"
-                                    ValueChanged="OpacitySlider_ValueChanged" />
-                            <TextBlock x:Name="OpacityLabel"
-                                       Foreground="{StaticResource ForegroundBrush}"
-                                       FontSize="11" VerticalAlignment="Center" Margin="6,0,0,0" />
-                        </StackPanel>
+                        <TextBox x:Name="OpacityBox" Grid.Row="3" Grid.Column="1"
+                                 Style="{StaticResource PropTextBox}"
+                                 LostFocus="OpacityBox_LostFocus"
+                                 KeyDown="PropTextBox_KeyDown"
+                                 Margin="0,2" />
 
                         <!-- Visible -->
                         <TextBlock Grid.Row="4" Grid.Column="0" Text="Visible" Style="{StaticResource PropLabel}" />

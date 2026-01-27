@@ -262,12 +262,10 @@ public partial class PropertiesPanel : UserControl
         FillColorLabel.Text = first.FillColor;
 
         // Line Weight
-        LineWeightSlider.Value = first.LineWeight;
-        LineWeightLabel.Text = first.LineWeight.ToString("F1");
+        LineWeightBox.Text = first.LineWeight.ToString("F1");
 
-        // Opacity (shape stores 0.0-1.0, slider shows 0-100)
-        OpacitySlider.Value = first.Opacity * 100.0;
-        OpacityLabel.Text = $"{first.Opacity * 100.0:F0}%";
+        // Opacity (shape stores 0.0-1.0, display as 0-100%)
+        OpacityBox.Text = $"{first.Opacity * 100.0:F0}%";
 
         // Visible
         VisibleCheckBox.IsChecked = first.IsVisible;
@@ -351,29 +349,43 @@ public partial class PropertiesPanel : UserControl
         }
     }
 
-    private void LineWeightSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    private void LineWeightBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (_isUpdating || _selectedShapes.Count == 0) return;
-        foreach (var shape in _selectedShapes)
+        if (double.TryParse(LineWeightBox.Text, out var weight) && weight > 0)
         {
-            shape.LineWeight = e.NewValue;
+            foreach (var shape in _selectedShapes)
+            {
+                shape.LineWeight = weight;
+            }
+            RaisePropertyChanged(_selectedShapes[0], "LineWeight");
         }
-        if (LineWeightLabel != null)
-            LineWeightLabel.Text = e.NewValue.ToString("F1");
-        RaisePropertyChanged(_selectedShapes[0], "LineWeight");
+        else
+        {
+            // Revert to current value
+            LineWeightBox.Text = _selectedShapes[0].LineWeight.ToString("F1");
+        }
     }
 
-    private void OpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    private void OpacityBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (_isUpdating || _selectedShapes.Count == 0) return;
-        double normalizedOpacity = e.NewValue / 100.0;
-        foreach (var shape in _selectedShapes)
+        var text = OpacityBox.Text?.Trim().TrimEnd('%') ?? "";
+        if (double.TryParse(text, out var pct) && pct >= 0 && pct <= 100)
         {
-            shape.Opacity = normalizedOpacity;
+            double normalizedOpacity = pct / 100.0;
+            foreach (var shape in _selectedShapes)
+            {
+                shape.Opacity = normalizedOpacity;
+            }
+            OpacityBox.Text = $"{pct:F0}%";
+            RaisePropertyChanged(_selectedShapes[0], "Opacity");
         }
-        if (OpacityLabel != null)
-            OpacityLabel.Text = $"{e.NewValue:F0}%";
-        RaisePropertyChanged(_selectedShapes[0], "Opacity");
+        else
+        {
+            // Revert to current value
+            OpacityBox.Text = $"{_selectedShapes[0].Opacity * 100.0:F0}%";
+        }
     }
 
     private void VisibleCheckBox_Click(object sender, RoutedEventArgs e)
