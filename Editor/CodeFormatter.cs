@@ -22,10 +22,25 @@ public static partial class CodeFormatter
         // We replace { with \r\n{\r\n and } with \r\n}\r\n
         // This guarantees separation. We'll clean up double newlines later during line processing.
         
-        var sb = new StringBuilder(maskedCode);
-        sb.Replace("{", "\r\n{\r\n");
-        sb.Replace("}", "\r\n}\r\n");
-        maskedCode = sb.ToString();
+        // Protect auto-property accessors from brace expansion (e.g. { get; set; } stays on one line)
+        var autoProps = new List<string>();
+        maskedCode = Regex.Replace(maskedCode, @"\{\s*(?:(?:private|protected|internal)\s+)?(?:get|set|init)\s*;\s*(?:(?:private|protected|internal)\s+)?(?:(?:get|set|init)\s*;)?\s*\}", match =>
+        {
+            autoProps.Add(match.Value);
+            return $"__AUTOPROP_{autoProps.Count - 1}__";
+        });
+
+        // Ensure braces are on their own lines - replace any whitespace (including newlines) before brace with single newline
+        maskedCode = Regex.Replace(maskedCode, @"\s*\{", "\r\n{");
+        maskedCode = Regex.Replace(maskedCode, @"\s*\}", "\r\n}");
+
+        // Restore auto-property accessors
+        for (int i = 0; i < autoProps.Count; i++)
+        {
+            // Normalize whitespace in the auto-property to canonical form
+            var normalized = Regex.Replace(autoProps[i].Trim(), @"\s+", " ");
+            maskedCode = maskedCode.Replace($"__AUTOPROP_{i}__", normalized);
+        }
 
         // 3. Restore Literals
         // We restore them BEFORE processing lines to proper indentation?
@@ -89,14 +104,22 @@ public static partial class CodeFormatter
         // Standard "Format Document" usually respects the internal formatting of the string.
         
         var formattedLines = new List<string>();
-        var splitMasked = maskedCode.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var splitMasked = maskedCode.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
         
         indentLevel = 0;
         
         foreach (var line in splitMasked)
         {
             var trim = line.Trim();
-            if (string.IsNullOrWhiteSpace(trim)) continue;
+            if (string.IsNullOrWhiteSpace(trim))
+            {
+                // Only add blank line if previous line was not also blank (collapse consecutive blanks)
+                if (formattedLines.Count == 0 || !string.IsNullOrWhiteSpace(formattedLines[^1]))
+                {
+                    formattedLines.Add("");
+                }
+                continue;
+            }
             
             // Indent Logic
             var (opens, closes) = CountBraces(trim);
