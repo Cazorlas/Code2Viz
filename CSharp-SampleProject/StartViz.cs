@@ -22,19 +22,16 @@ namespace CSharpSample
                 rooms.Add(room);
                 n++;
             }
-            
-            
-            
+
             Room[] roomsArray = rooms.ToArray();
             Random.Shared.Shuffle<Room>(roomsArray);
             List<Room> SelectedRooms = roomsArray.Take(5).ToList();
+            SelectedRooms = SelectedRooms.OrderBy(r => r.Area).ToList();
+            
+            LayoutMaker layoutMaker = new LayoutMaker(SelectedRooms);
             
             
-            foreach (var item in SelectedRooms)
-            {
-                VizConsole.Log($"{item}");
-                item
-            }
+            
         }
     }
 }

@@ -14,6 +14,8 @@ namespace CSharpSample
         public int Width { get; private set; }
         public int Depth { get; private set; }
         public VPoint Location { get; private set; }
+        public double Area {get {return Boundary.Area;} }
+        public List<VPoint> Corners {get {return Boundary.Points; }}
         public VRectangle Boundary
         {
             get

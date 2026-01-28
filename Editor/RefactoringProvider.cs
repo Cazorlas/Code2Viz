@@ -124,6 +124,44 @@ namespace Code2Viz.Editor
                         var enclosingMethod = node.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault();
                         bool isStatic = enclosingMethod?.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword)) ?? false;
                         
+                        // Infer return type from context
+                        string returnType = "void";
+                        
+                        // Case 1: Variable declaration: "List<Room> rooms = GetRooms();"
+                        var varDeclaration = invocation.Ancestors().OfType<LocalDeclarationStatementSyntax>().FirstOrDefault();
+                        if (varDeclaration != null)
+                        {
+                            var declType = varDeclaration.Declaration.Type;
+                            if (declType.IsVar)
+                            {
+                                // Can't infer from 'var' - keep void
+                                returnType = "void";
+                            }
+                            else
+                            {
+                                returnType = declType.ToString();
+                            }
+                        }
+                        // Case 2: Assignment expression: "existingVar = GetRooms();"
+                        else if (invocation.Parent is AssignmentExpressionSyntax assignment && 
+                                 assignment.Right == invocation)
+                        {
+                            var leftType = model.GetTypeInfo(assignment.Left);
+                            if (leftType.Type != null)
+                            {
+                                returnType = leftType.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+                            }
+                        }
+                        // Case 3: Return statement: "return GetRooms();"
+                        else if (invocation.Parent is ReturnStatementSyntax && enclosingMethod != null)
+                        {
+                            var methodReturnType = enclosingMethod.ReturnType.ToString();
+                            if (methodReturnType != "void")
+                            {
+                                returnType = methodReturnType;
+                            }
+                        }
+                        
                         // Infer parameter types from arguments
                         var parameters = new List<string>();
                         var argIndex = 0;
@@ -153,7 +191,8 @@ namespace Code2Viz.Editor
                                 ["MethodName"] = tokenText, 
                                 ["InvocationSpan"] = invocation.Span.ToString(),
                                 ["IsStatic"] = isStatic.ToString(),
-                                ["Parameters"] = parametersStr
+                                ["Parameters"] = parametersStr,
+                                ["ReturnType"] = returnType
                             }
                         });
                     }
@@ -183,6 +222,100 @@ namespace Code2Viz.Editor
                      }
                 }
 
+                // Generate Type Check - detect unknown type names
+                // Case 1: Variable declaration with unknown type: "UnknownType variable = ..."
+                if (token.IsKind(SyntaxKind.IdentifierToken) && node is IdentifierNameSyntax typeIdName)
+                {
+                    var symbolInfo = model.GetSymbolInfo(typeIdName);
+                    if (symbolInfo.Symbol == null)
+                    {
+                        // Check if this identifier is being used as a type name
+                        bool isTypeName = false;
+                        string typeName = token.Text;
+                        
+                        // Check if parent is a type context
+                        var parent = node.Parent;
+                        
+                        // Case: "TypeName variable = ..." or "TypeName variable;"
+                        if (parent is VariableDeclarationSyntax varDecl && varDecl.Type == node)
+                        {
+                            isTypeName = true;
+                        }
+                        // Case: "new TypeName()" 
+                        else if (parent is ObjectCreationExpressionSyntax objCreate && objCreate.Type == node)
+                        {
+                            isTypeName = true;
+                        }
+                        // Case: Generic type argument "List<TypeName>"
+                        else if (parent is TypeArgumentListSyntax)
+                        {
+                            isTypeName = true;
+                        }
+                        // Case: Method return type or parameter type
+                        else if (parent is MethodDeclarationSyntax methodWithType && methodWithType.ReturnType == node)
+                        {
+                            isTypeName = true;
+                        }
+                        else if (parent is ParameterSyntax paramWithType && paramWithType.Type == node)
+                        {
+                            isTypeName = true;
+                        }
+                        // Case: Field declaration
+                        else if (parent is VariableDeclarationSyntax fieldDecl2 && 
+                                 fieldDecl2.Parent is FieldDeclarationSyntax)
+                        {
+                            isTypeName = true;
+                        }
+                        // Case: Property type
+                        else if (parent is PropertyDeclarationSyntax propDecl && propDecl.Type == node)
+                        {
+                            isTypeName = true;
+                        }
+                        
+                        if (isTypeName && char.IsUpper(typeName[0])) // Only if starts with uppercase (convention for types)
+                        {
+                            // Infer constructor parameters from object creation
+                            var ctorParams = "";
+                            var objCreation = node.Ancestors().OfType<ObjectCreationExpressionSyntax>().FirstOrDefault();
+                            if (objCreation != null && objCreation.ArgumentList != null)
+                            {
+                                var parameters = new List<string>();
+                                var argIndex = 0;
+                                foreach (var arg in objCreation.ArgumentList.Arguments)
+                                {
+                                    var argType = model.GetTypeInfo(arg.Expression);
+                                    var paramTypeName = argType.Type?.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat) ?? "object";
+                                    var paramName = arg.Expression is IdentifierNameSyntax argId 
+                                        ? char.ToLower(argId.Identifier.Text[0]) + argId.Identifier.Text.Substring(1)
+                                        : $"arg{argIndex}";
+                                    parameters.Add($"{paramTypeName} {paramName}");
+                                    argIndex++;
+                                }
+                                ctorParams = string.Join(", ", parameters);
+                            }
+                            
+                            actions.Add(new QuickActionItem
+                            {
+                                Title = $"Generate class '{typeName}'",
+                                ActionId = "GenerateType",
+                                Data = {
+                                    ["TypeName"] = typeName,
+                                    ["ConstructorParams"] = ctorParams
+                                }
+                            });
+                            
+                            actions.Add(new QuickActionItem
+                            {
+                                Title = $"Generate class '{typeName}' in new file",
+                                ActionId = "GenerateTypeInNewFile",
+                                Data = {
+                                    ["TypeName"] = typeName,
+                                    ["ConstructorParams"] = ctorParams
+                                }
+                            });
+                        }
+                    }
+                }
 
                 // 2. Class Context
                 var classDecl = node?.AncestorsAndSelf().OfType<ClassDeclarationSyntax>().FirstOrDefault();

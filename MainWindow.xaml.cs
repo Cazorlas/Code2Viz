@@ -8057,9 +8057,13 @@ public partial class MainWindow : Window
                 action.Data.TryGetValue("Parameters", out var parameters);
                 parameters ??= "";
                 
+                // Get inferred return type (defaults to void if not available)
+                action.Data.TryGetValue("ReturnType", out var returnType);
+                returnType = string.IsNullOrEmpty(returnType) ? "void" : returnType;
+                
                 // Build the method signature
                 var staticModifier = isStatic ? "static " : "";
-                var stub = $"\r\n\r\n        private {staticModifier}void {methodName}({parameters})\r\n        {{\r\n            throw new NotImplementedException();\r\n        }}";
+                var stub = $"\r\n\r\n        private {staticModifier}{returnType} {methodName}({parameters})\r\n        {{\r\n            throw new NotImplementedException();\r\n        }}";
                 
                 // Find the class closing brace (second-to-last '}' in the file)
                 // The last '}' is typically the namespace closing brace
@@ -8089,6 +8093,171 @@ public partial class MainWindow : Window
                     // Fallback: insert before last brace if only one found
                     CodeEditor.Document.Insert(text.LastIndexOf('}'), stub);
                 }
+            }
+        }
+        else if (action.ActionId == "GenerateType")
+        {
+            if (action.Data.TryGetValue("TypeName", out var typeName))
+            {
+                action.Data.TryGetValue("ConstructorParams", out var ctorParams);
+                ctorParams ??= "";
+                
+                // Generate class stub with constructor if parameters are available
+                var constructorCode = "";
+                if (!string.IsNullOrEmpty(ctorParams))
+                {
+                    // Generate fields and constructor body from parameters
+                    var paramList = ctorParams.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
+                    var fields = new List<string>();
+                    var assignments = new List<string>();
+                    
+                    foreach (var param in paramList)
+                    {
+                        var parts = param.Split(' ');
+                        if (parts.Length >= 2)
+                        {
+                            var paramType = parts[0];
+                            var paramName = parts[1];
+                            var fieldName = "_" + paramName;
+                            fields.Add($"        private {paramType} {fieldName};");
+                            assignments.Add($"            {fieldName} = {paramName};");
+                        }
+                    }
+                    
+                    var fieldsStr = string.Join("\r\n", fields);
+                    var assignmentsStr = string.Join("\r\n", assignments);
+                    constructorCode = $@"
+{fieldsStr}
+
+        public {typeName}({ctorParams})
+        {{
+{assignmentsStr}
+        }}";
+                }
+                else
+                {
+                    constructorCode = $@"
+        public {typeName}()
+        {{
+        }}";
+                }
+                
+                var classStub = $@"
+
+public class {typeName}
+{{{constructorCode}
+}}
+";
+                
+                // Insert at end of file (before last closing brace if there's a namespace)
+                var text = CodeEditor.Text;
+                var lastBrace = text.LastIndexOf('}');
+                if (lastBrace > 0)
+                {
+                    CodeEditor.Document.Insert(lastBrace, classStub);
+                }
+                else
+                {
+                    CodeEditor.Document.Insert(text.Length, classStub);
+                }
+            }
+        }
+        else if (action.ActionId == "GenerateTypeInNewFile")
+        {
+            if (action.Data.TryGetValue("TypeName", out var typeName) && _currentProject != null)
+            {
+                action.Data.TryGetValue("ConstructorParams", out var ctorParams);
+                ctorParams ??= "";
+                
+                // Get namespace from current file
+                var currentNamespace = "";
+                var nsMatch = System.Text.RegularExpressions.Regex.Match(CodeEditor.Text, @"namespace\s+([\w.]+)");
+                if (nsMatch.Success)
+                {
+                    currentNamespace = nsMatch.Groups[1].Value;
+                }
+                
+                // Generate class stub with constructor if parameters are available
+                var constructorCode = "";
+                if (!string.IsNullOrEmpty(ctorParams))
+                {
+                    // Generate fields and constructor body from parameters
+                    var paramList = ctorParams.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries);
+                    var fields = new List<string>();
+                    var assignments = new List<string>();
+                    
+                    foreach (var param in paramList)
+                    {
+                        var parts = param.Split(' ');
+                        if (parts.Length >= 2)
+                        {
+                            var paramType = parts[0];
+                            var paramName = parts[1];
+                            var fieldName = "_" + paramName;
+                            fields.Add($"        private {paramType} {fieldName};");
+                            assignments.Add($"            {fieldName} = {paramName};");
+                        }
+                    }
+                    
+                    var fieldsStr = string.Join("\r\n", fields);
+                    var assignmentsStr = string.Join("\r\n", assignments);
+                    constructorCode = $@"
+{fieldsStr}
+
+        public {typeName}({ctorParams})
+        {{
+{assignmentsStr}
+        }}";
+                }
+                else
+                {
+                    constructorCode = $@"
+        public {typeName}()
+        {{
+        }}";
+                }
+                
+                // Build full file content
+                var fileContent = "";
+                if (!string.IsNullOrEmpty(currentNamespace))
+                {
+                    fileContent = $@"namespace {currentNamespace}
+{{
+    public class {typeName}
+    {{{constructorCode.Replace("\r\n", "\r\n    ")}
+    }}
+}}
+";
+                }
+                else
+                {
+                    fileContent = $@"public class {typeName}
+{{{constructorCode}
+}}
+";
+                }
+                
+                // Create new file in project
+                var newFileName = typeName + ".cs";
+                var projectDir = _currentProject.ProjectDirectory ?? "";
+                var newFilePath = System.IO.Path.Combine(projectDir, newFileName);
+                
+                // Add file to project
+                var newFile = new VizCodeFile
+                {
+                    FilePath = newFilePath,
+                    Content = fileContent,
+                    HasUnsavedChanges = true,
+                    IsNew = true
+                };
+                
+                _currentProject.Files.Add(newFile);
+                RefreshFileTabs();
+                
+                // Open the new file
+                SelectFile(newFile);
+                
+                SetStatus($"Created new file: {newFileName}", false);
             }
         }
         else if (action.ActionId == "GenerateConstructor")
