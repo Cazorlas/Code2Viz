@@ -74,7 +74,7 @@ Viz2d is a desktop application that enables users to visualize 2D geometric shap
 | FR-033 | Grid Lines | Done | Toggleable grid display |
 | FR-034 | Coordinate Axes | Done | X/Y axes at origin |
 | FR-035 | Coordinate Display | Done | Real-time mouse coords |
-| FR-036 | Snap to Grid | Planned | Snap points to grid |
+| FR-036 | Snap to Grid | Done | Snap points to grid (F9 toggle) |
 
 ### 2.4 Code Editor
 

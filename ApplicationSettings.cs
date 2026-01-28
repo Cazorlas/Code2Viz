@@ -31,6 +31,7 @@ public class AppSettingsData
     public bool SnapPerpendicularEnabled { get; set; } = true;
     public bool SnapExtensionEnabled { get; set; } = true;
     public bool SnapTangentEnabled { get; set; } = true;
+    public bool SnapToGridEnabled { get; set; } = false;
 
     // Highlight Settings (for Outliner hover)
     public string HighlightColor { get; set; } = "Yellow";

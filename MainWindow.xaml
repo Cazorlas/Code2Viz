@@ -1738,6 +1738,7 @@
                                                     <RowDefinition Height="Auto" />
                                                     <RowDefinition Height="Auto" />
                                                     <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
                                                 </Grid.RowDefinitions>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="200" />
@@ -2106,9 +2107,27 @@
                                                     Foreground="{StaticResource ForegroundBrush}"
                                                     IsChecked="True" />
 
-                                                <!--  Highlight Settings Sub-header  -->
+                                                <!--  Snap to Grid  -->
                                                 <TextBlock
                                                     Grid.Row="18"
+                                                    Grid.Column="0"
+                                                    Margin="0,0,0,16"
+                                                    VerticalAlignment="Center"
+                                                    Foreground="{StaticResource ForegroundBrush}"
+                                                    Text="Snap to Grid:" />
+                                                <CheckBox
+                                                    x:Name="SnapToGridCheck"
+                                                    Grid.Row="18"
+                                                    Grid.Column="1"
+                                                    Margin="0,0,0,16"
+                                                    VerticalAlignment="Center"
+                                                    Content="Enabled (F9)"
+                                                    Foreground="{StaticResource ForegroundBrush}"
+                                                    IsChecked="False" />
+
+                                                <!--  Highlight Settings Sub-header  -->
+                                                <TextBlock
+                                                    Grid.Row="19"
                                                     Grid.ColumnSpan="3"
                                                     Margin="0,8,0,12"
                                                     FontSize="14"
@@ -2118,7 +2137,7 @@
 
                                                 <!--  Highlight Color  -->
                                                 <TextBlock
-                                                    Grid.Row="19"
+                                                    Grid.Row="20"
                                                     Grid.Column="0"
                                                     Margin="0,0,0,8"
                                                     VerticalAlignment="Center"
@@ -2126,7 +2145,7 @@
                                                     Text="Highlight Color:" />
                                                 <TextBox
                                                     x:Name="HighlightColorBox"
-                                                    Grid.Row="19"
+                                                    Grid.Row="20"
                                                     Grid.Column="1"
                                                     Margin="0,0,0,8"
                                                     Padding="6"
@@ -2137,7 +2156,7 @@
                                                     TextChanged="HighlightColorBox_TextChanged" />
                                                 <Button
                                                     x:Name="HighlightColorBtn"
-                                                    Grid.Row="19"
+                                                    Grid.Row="20"
                                                     Grid.Column="2"
                                                     Width="30"
                                                     Height="30"
@@ -2150,14 +2169,14 @@
 
                                                 <!--  Highlight Opacity  -->
                                                 <TextBlock
-                                                    Grid.Row="20"
+                                                    Grid.Row="21"
                                                     Grid.Column="0"
                                                     Margin="0,0,0,16"
                                                     VerticalAlignment="Center"
                                                     Foreground="{StaticResource ForegroundBrush}"
                                                     Text="Highlight Opacity:" />
                                                 <StackPanel
-                                                    Grid.Row="20"
+                                                    Grid.Row="21"
                                                     Grid.Column="1"
                                                     Margin="0,0,0,16"
                                                     Orientation="Horizontal">
@@ -2180,7 +2199,7 @@
 
                                                 <!--  Canvas Settings Sub-header  -->
                                                 <TextBlock
-                                                    Grid.Row="21"
+                                                    Grid.Row="22"
                                                     Grid.ColumnSpan="3"
                                                     Margin="0,8,0,12"
                                                     FontSize="14"
@@ -2190,7 +2209,7 @@
 
                                                 <!--  Zoom to Fit on Run  -->
                                                 <TextBlock
-                                                    Grid.Row="22"
+                                                    Grid.Row="23"
                                                     Grid.Column="0"
                                                     Margin="0,0,0,0"
                                                     VerticalAlignment="Center"
@@ -2198,7 +2217,7 @@
                                                     Text="Zoom to Fit on Run:" />
                                                 <CheckBox
                                                     x:Name="SettingsZoomToFitCheck"
-                                                    Grid.Row="22"
+                                                    Grid.Row="23"
                                                     Grid.Column="1"
                                                     Margin="0,0,0,0"
                                                     VerticalAlignment="Center"
@@ -2209,7 +2228,7 @@
 
                                                 <!--  Auto-update Canvas  -->
                                                 <TextBlock
-                                                    Grid.Row="23"
+                                                    Grid.Row="24"
                                                     Grid.Column="0"
                                                     Margin="0,8,0,0"
                                                     VerticalAlignment="Center"
@@ -2217,7 +2236,7 @@
                                                     Text="Auto-update Canvas:" />
                                                 <CheckBox
                                                     x:Name="SettingsAutoUpdateCanvasCheck"
-                                                    Grid.Row="23"
+                                                    Grid.Row="24"
                                                     Grid.Column="1"
                                                     Margin="0,8,0,0"
                                                     VerticalAlignment="Center"

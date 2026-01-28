@@ -151,9 +151,21 @@ public class ModuleCompiler
                 };
             }
 
+            // Set working directory to project folder so relative paths resolve correctly
+            var previousDirectory = Environment.CurrentDirectory;
+            if (!string.IsNullOrEmpty(project.ProjectDirectory))
+                Environment.CurrentDirectory = project.ProjectDirectory;
+
             // Execute
             ms.Seek(0, SeekOrigin.Begin);
-            return await ExecuteAssemblyAsync(ms, allDlls, project.ProjectFile.Name ?? "MyProject");
+            try
+            {
+                return await ExecuteAssemblyAsync(ms, allDlls, project.ProjectFile.Name ?? "MyProject");
+            }
+            finally
+            {
+                Environment.CurrentDirectory = previousDirectory;
+            }
         }
         catch (Exception ex)
         {

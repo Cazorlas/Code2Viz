@@ -2976,6 +2976,8 @@ public partial class MainWindow : Window
         SnapPerpendicularCheck.IsChecked = appSettings.SnapPerpendicularEnabled;
         SnapExtensionCheck.IsChecked = appSettings.SnapExtensionEnabled;
         SnapTangentCheck.IsChecked = appSettings.SnapTangentEnabled;
+        SnapToGridCheck.IsChecked = appSettings.SnapToGridEnabled;
+        RenderCanvas.SnapToGrid = appSettings.SnapToGridEnabled;
 
         // Highlight Settings
         HighlightColorBox.Text = appSettings.HighlightColor ?? "Yellow";
@@ -3184,6 +3186,8 @@ public partial class MainWindow : Window
         ApplicationSettings.Instance.SnapPerpendicularEnabled = SnapPerpendicularCheck.IsChecked == true;
         ApplicationSettings.Instance.SnapExtensionEnabled = SnapExtensionCheck.IsChecked == true;
         ApplicationSettings.Instance.SnapTangentEnabled = SnapTangentCheck.IsChecked == true;
+        ApplicationSettings.Instance.SnapToGridEnabled = SnapToGridCheck.IsChecked == true;
+        RenderCanvas.SnapToGrid = ApplicationSettings.Instance.SnapToGridEnabled;
 
         // Save Highlight Settings
         ApplicationSettings.Instance.HighlightColor = HighlightColorBox.Text.Trim();
@@ -3263,7 +3267,9 @@ public partial class MainWindow : Window
             var dialog = new SaveFileDialog
             {
                 FileName = file.FileName,
-                Filter = isFSharp ? "F# Files (*.fs)|*.fs" : "C# Files (*.cs)|*.cs",
+                Filter = isFSharp
+                    ? "F# Files (*.fs)|*.fs|Text Files (*.txt)|*.txt|JSON Files (*.json)|*.json"
+                    : "C# Files (*.cs)|*.cs|Text Files (*.txt)|*.txt|JSON Files (*.json)|*.json",
                 DefaultExt = isFSharp ? ".fs" : ".cs",
                 InitialDirectory = _currentProject.ProjectDirectory
             };
@@ -5254,6 +5260,17 @@ public partial class MainWindow : Window
         {
             ShowPropertiesMenuItem.IsChecked = !ShowPropertiesMenuItem.IsChecked;
             ShowPropertiesMenuItem_Click(sender, e);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.F9 && Keyboard.Modifiers == ModifierKeys.None)
+        {
+            // Toggle Snap to Grid
+            var newValue = !ApplicationSettings.Instance.SnapToGridEnabled;
+            ApplicationSettings.Instance.SnapToGridEnabled = newValue;
+            SnapToGridCheck.IsChecked = newValue;
+            RenderCanvas.SnapToGrid = newValue;
+            ApplicationSettings.Save();
+            SetStatus($"Snap to Grid: {(newValue ? "ON" : "OFF")}", isError: false);
             e.Handled = true;
         }
         // Handle numeric input for drawing tool distance/angle

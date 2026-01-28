@@ -139,7 +139,7 @@
 - [ ] **Pattern fills** - Hatch patterns (diagonal, cross, dots)
 
 ### Canvas Features
-- [ ] **Snap to grid** - Snap coordinates to grid intersections
+- [x] **Snap to grid** - Snap coordinates to grid intersections (F9 toggle, adaptive spacing)
 - [ ] **Ruler display** - Show rulers along canvas edges
 - [ ] **Zoom slider** - Visual zoom control in UI
 - [ ] **Mini-map** - Overview of entire canvas
@@ -190,8 +190,8 @@
 - [x] All shape types with click-based creation
 - [x] Code generation for drawn shapes
 
-### Snap System (6 types)
-- [x] Endpoint, Midpoint, Center, Intersection, Perpendicular, Nearest
+### Snap System (9 types)
+- [x] Endpoint, Midpoint, Center, Intersection, Perpendicular, Nearest, Extension, Tangent, Grid
 
 ### Animation System
 - [x] Draw, Move, Rotate, Flip, FadeIn, FadeOut animations
@@ -213,6 +213,7 @@
 - [x] Grid and axes
 - [x] Coordinate display
 - [x] Measuring tool
+- [x] Snap to grid (F9 toggle)
 
 ### Shape Editing
 - [x] Shape-specific control points (13 shape types)

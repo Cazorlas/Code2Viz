@@ -117,6 +117,11 @@ public class RenderCanvas : FrameworkElement
     /// </summary>
     public bool IsSelectionMode { get; set; } = true;
 
+    /// <summary>
+    /// When enabled, the effective cursor position snaps to the nearest grid intersection.
+    /// </summary>
+    public bool SnapToGrid { get; set; } = false;
+
     // Shape highlighting (for Outliner hover)
     private long? _highlightedShapeId;
     public long? HighlightedShapeId
@@ -456,6 +461,13 @@ public class RenderCanvas : FrameworkElement
     {
         var screenPos = e.GetPosition(this);
         var worldPos = ScreenToWorld(screenPos.X, screenPos.Y);
+
+        if (SnapToGrid && !_isPanning)
+        {
+            var snapped = SnapPointToGrid(worldPos.X, worldPos.Y);
+            worldPos = new Point(snapped.X, snapped.Y);
+        }
+
         MouseWorldPositionChanged?.Invoke(this, worldPos);
 
         if (_isPanning)
@@ -1524,6 +1536,14 @@ public class RenderCanvas : FrameworkElement
             var screenY = WorldToScreen(0, y).Y;
             dc.DrawLine(gridPen, new Point(0, screenY), new Point(ActualWidth, screenY));
         }
+    }
+
+    private VPoint SnapPointToGrid(double worldX, double worldY)
+    {
+        var spacing = CalculateAdaptiveSpacing();
+        var snappedX = Math.Round(worldX / spacing) * spacing;
+        var snappedY = Math.Round(worldY / spacing) * spacing;
+        return new VPoint(snappedX, snappedY);
     }
 
     private double CalculateAdaptiveSpacing()

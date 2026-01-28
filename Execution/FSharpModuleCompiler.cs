@@ -137,9 +137,21 @@ public class FSharpModuleCompiler
                 using var ms = new MemoryStream();
                 await fs.CopyToAsync(ms);
                 ms.Seek(0, SeekOrigin.Begin);
-                
+
+                // Set working directory to project folder so relative paths resolve correctly
+                var previousDirectory = Environment.CurrentDirectory;
+                if (!string.IsNullOrEmpty(project.ProjectDirectory))
+                    Environment.CurrentDirectory = project.ProjectDirectory;
+
                 // Execute
-                return await ModuleCompiler.ExecuteAssemblyAsync(ms, refs, project.ProjectFile.Name ?? "MyProject");
+                try
+                {
+                    return await ModuleCompiler.ExecuteAssemblyAsync(ms, refs, project.ProjectFile.Name ?? "MyProject");
+                }
+                finally
+                {
+                    Environment.CurrentDirectory = previousDirectory;
+                }
             }
             finally
             {

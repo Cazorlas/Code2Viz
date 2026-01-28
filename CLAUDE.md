@@ -227,6 +227,8 @@ new VCircle(150.00, 100.00, 75.50).Draw();
 - **Properties panel**: Floating/dockable panel for editing shape geometry and style properties with full code sync
 - **Style code sync**: Property changes in Properties panel persist to code (Color, FillColor, LineWeight, Opacity, IsVisible, Name)
 - **Auto-deselect**: Selection cleared on Run and when clicking into the code editor
+- **Snap to Grid**: Locks cursor to grid intersections during drawing/measuring/selection (F9 toggle, adaptive spacing)
+- **Working directory**: Set to project folder before code execution so relative file paths resolve correctly
 
 ## Known Issues
 - None currently
@@ -281,6 +283,7 @@ new VCircle(150.00, 100.00, 75.50).Draw();
 - `Ctrl+M` - Toggle Measuring Tape tool
 - `Ctrl+G` - Zoom to shape by ID
 - `F4` - Toggle Properties panel
+- `F9` - Toggle Snap to Grid
 - `Esc` - Cancel current tool/operation
 
 ### Drawing Tools (when editor not focused)
@@ -326,6 +329,7 @@ dotnet test
 4. Colors parsed via WPF ColorConverter - any named color works
 5. Entry point must be `StartViz.Viz.Main()` in `StartViz.vizcode`
 6. Use `VizConsole` instead of `Console` for output with line tracking
+7. Working directory is set to project folder during execution - relative paths resolve from there
 
 ## Documentation Policy (MANDATORY)
 **After ANY code change that affects the public API (new classes, methods, properties, or signature changes), you MUST update:**
