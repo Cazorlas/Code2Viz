@@ -1222,6 +1222,22 @@ public partial class MainWindow : Window
                 }
                 return;
             }
+            else if (e.Key == Key.Enter)
+            {
+                _isMultiCursorEditing = true;
+                _isAddingNextOccurrence = true;
+                try
+                {
+                    _multiSelectionRenderer.EnterAtAllCursors(AutoIndentMenuItem.IsChecked);
+                    e.Handled = true;
+                }
+                finally
+                {
+                    _isAddingNextOccurrence = false;
+                    _isMultiCursorEditing = false;
+                }
+                return;
+            }
         }
 
         // Handle Tab for snippet placeholder navigation

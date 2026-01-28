@@ -356,6 +356,13 @@ public class RenderCanvas : FrameworkElement
             var worldPos = ScreenToWorld(screenPos.X, screenPos.Y);
             var vPoint = new VPoint(worldPos.X, worldPos.Y);
 
+            // Apply snap to grid on clicks (same as OnMouseMove preview)
+            if (SnapToGrid && !_isPanning)
+            {
+                var snapped = SnapPointToGrid(vPoint.X, vPoint.Y);
+                vPoint = snapped;
+            }
+
             // Handle drawing tool clicks first (if active)
             if (_drawingTool != null && _drawingTool.Mode != DrawingMode.None)
             {

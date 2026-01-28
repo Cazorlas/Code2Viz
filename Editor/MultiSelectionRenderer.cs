@@ -257,6 +257,140 @@ public class MultiSelectionRenderer : IBackgroundRenderer
     }
 
     /// <summary>
+    /// Inserts a newline with auto-indentation at all cursor positions.
+    /// </summary>
+    public void EnterAtAllCursors(bool autoIndent)
+    {
+        if (_selections.Count == 0) return;
+
+        var document = _textView.Document;
+        var mainSelection = _textArea.Selection;
+        var mainSegment = mainSelection.SurroundingSegment;
+
+        // Collect all cursor positions including main
+        var allSelections = new List<(int Offset, int Length, bool IsMain)>();
+
+        for (int i = 0; i < _selections.Count; i++)
+        {
+            allSelections.Add((_selections[i].StartOffset, _selections[i].Length, false));
+        }
+
+        if (mainSegment != null)
+        {
+            allSelections.Add((mainSegment.Offset, mainSegment.Length, true));
+        }
+        else
+        {
+            allSelections.Add((_textArea.Caret.Offset, 0, true));
+        }
+
+        // For each cursor, compute the text to insert (newline + indentation)
+        var insertions = new List<(int Offset, int Length, string Text, bool IsMain)>();
+        foreach (var (offset, length, isMain) in allSelections)
+        {
+            var insertText = "\n";
+            if (autoIndent)
+            {
+                var line = document.GetLineByOffset(offset);
+                var lineText = document.GetText(line.Offset, line.Length);
+                var currentIndent = GetLineIndentation(lineText);
+                var trimmedLine = lineText.TrimEnd();
+
+                var newIndent = currentIndent;
+                if (trimmedLine.EndsWith("{"))
+                {
+                    newIndent += "    ";
+                }
+
+                var afterCursor = document.GetText(offset, line.EndOffset - offset).Trim();
+                if (trimmedLine.EndsWith("{") && afterCursor.StartsWith("}"))
+                {
+                    insertText = "\n" + newIndent + "\n" + currentIndent;
+                }
+                else
+                {
+                    insertText = "\n" + newIndent;
+                }
+            }
+            insertions.Add((offset, length, insertText, isMain));
+        }
+
+        // Sort descending by offset for safe replacement
+        var sortedDesc = insertions.OrderByDescending(s => s.Offset).ToList();
+
+        document.BeginUpdate();
+        try
+        {
+            foreach (var (offset, length, text, _) in sortedDesc)
+            {
+                document.Replace(offset, length, text);
+            }
+        }
+        finally
+        {
+            document.EndUpdate();
+        }
+
+        // Calculate new positions (ascending order)
+        var sortedAsc = insertions.OrderBy(s => s.Offset).ToList();
+        int adjustment = 0;
+
+        _selections.Clear();
+        _anchors.Clear();
+        _carets.Clear();
+
+        int mainNewOffset = 0;
+
+        foreach (var (offset, length, text, isMain) in sortedAsc)
+        {
+            // Position cursor after first newline + indent (not after the closing brace line)
+            int cursorAdvance;
+            var firstNewline = text.IndexOf('\n', 1);
+            if (firstNewline > 0)
+            {
+                // Between braces case: place cursor at end of middle line
+                cursorAdvance = firstNewline;
+            }
+            else
+            {
+                cursorAdvance = text.Length;
+            }
+
+            var newOffset = offset + adjustment + cursorAdvance;
+            adjustment += text.Length - length;
+
+            if (isMain)
+            {
+                mainNewOffset = newOffset;
+            }
+            else
+            {
+                _selections.Add(new TextSegment { StartOffset = newOffset, Length = 0 });
+                _anchors.Add(newOffset);
+                _carets.Add(newOffset);
+            }
+        }
+
+        _textArea.Caret.Offset = mainNewOffset;
+        _textArea.Selection = Selection.Create(_textArea, mainNewOffset, mainNewOffset);
+
+        _textView.InvalidateLayer(Layer);
+    }
+
+    private static string GetLineIndentation(string line)
+    {
+        var indent = new System.Text.StringBuilder();
+        foreach (var c in line)
+        {
+            if (c == ' ' || c == '\t')
+                indent.Append(c);
+            else
+                break;
+        }
+        return indent.ToString();
+    }
+
+    /// <summary>
     /// Handles backspace at all cursor positions.
     /// </summary>
     public void BackspaceAtAllCursors()
