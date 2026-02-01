@@ -105,6 +105,8 @@ Example: `[StartViz:15] Hello World`
 - Grid lines (50 unit spacing, toggleable)
 - Auto ZoomExtents after code execution
 - Real-time coordinate display
+- **Animation loop**: Uses `CompositionTarget.Rendering` for vsync-aligned frame updates (not DispatcherTimer)
+- **Animation FPS throttling**: Spatial index (QuadTree) is bypassed during animation playback to avoid stale-bounds artifacts
 
 ### Code Execution (ModuleCompiler)
 - Compiles all `.vizcode` files using Roslyn CSharpCompilation
@@ -229,6 +231,7 @@ new VCircle(150.00, 100.00, 75.50).Draw();
 - **Auto-deselect**: Selection cleared on Run and when clicking into the code editor
 - **Snap to Grid**: Locks cursor to grid intersections during drawing/measuring/selection (F9 toggle, adaptive spacing)
 - **Working directory**: Set to project folder before code execution so relative file paths resolve correctly
+- **Animator FPS control**: `Animator.Fps` property (1-120, default 60) throttles animation rendering to target frame rate
 
 ## Known Issues
 - None currently

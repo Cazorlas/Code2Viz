@@ -471,6 +471,7 @@ let circle = VCircle(50.0, 50.0, 30.0)
 // Create animator
 let anim = Animator()
 anim.Repeat <- true  // Loop animation
+anim.Fps <- 30.0     // Limit to 30 frames per second
 
 // Add animations sequentially
 anim.AddToAnimations(DrawAnimation(line, 2.0))      // 0-2s
@@ -1111,6 +1112,7 @@ var circle = new VCircle(50, 50, 30);
 // Create animator
 var anim = new Animator();
 anim.Repeat = true;  // Loop animation
+anim.Fps = 30;       // Limit to 30 frames per second
 
 // Add animations sequentially - they auto-sequence
 anim.AddToAnimations(new DrawAnimation(line, 2.0));      // 0-2s
@@ -1808,6 +1810,7 @@ triangle.Mirror(mirrorAxis).DrawAll();" }
                 { "Animator.Duration", "Gets the total duration of all animations in seconds." },
                 { "Animator.Repeat", "Gets or sets whether the animation loops continuously." },
                 { "Animator.Speed", "Gets or sets the playback speed multiplier (1.0 = normal speed)." },
+                { "Animator.Fps", "Gets or sets the target frame rate in frames per second (1-120). Default is 60. Lower values reduce rendering frequency for slower visual updates." },
                 { "Animator.AddToAnimations", "Adds animation(s) to play. Single animation plays sequentially; List<Animation> plays in parallel." },
                 { "Animator.Pause", "Adds a pause (in seconds) before the next animation. Example: anim.Pause(5) inserts a 5-second gap." },
                 { "Animator.Animate", "Starts playback of all animations." },

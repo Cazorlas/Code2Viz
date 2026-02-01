@@ -370,6 +370,7 @@ namespace StartViz
             // Create animator
             var anim = new Animator();
             anim.Repeat = true;  // Loop animation
+            anim.Fps = 30;       // Limit to 30 frames per second (1-120, default 60)
 
             // Add animations - they play sequentially
             anim.AddToAnimations(new DrawAnimation(line, 2.0));           // 0-2s

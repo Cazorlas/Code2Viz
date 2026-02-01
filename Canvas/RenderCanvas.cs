@@ -718,10 +718,13 @@ public class RenderCanvas : FrameworkElement
         var maxY = visibleBounds.Bottom + padding;
 
         // Query spatial index for visible shapes (O(log n + k) instead of O(n))
+        // Skip spatial index during animation — shape bounds change every frame
+        // and rebuilding the index each frame would negate the performance benefit.
         var viewport = new AABB(minX, minY, maxX, maxY);
         HashSet<IDrawable>? visibleSet = null;
+        bool isAnimating = CanvasRenderer.Instance.ActiveTimeline?.IsPlaying == true;
 
-        if (_spatialIndex != null)
+        if (_spatialIndex != null && !isAnimating)
         {
             visibleSet = new HashSet<IDrawable>();
             _spatialIndex.Query(viewport, visibleSet);

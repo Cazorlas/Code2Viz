@@ -242,6 +242,7 @@ public class ApiReferenceResource
         var animator = new Animator();
         animator.Repeat = true;
         animator.Speed = 1.5;
+        animator.Fps = 30;  // Target frame rate (1-120, default 60)
         // Sequential: animator.AddToAnimations(new DrawAnimation(shape, duration));
         // Parallel: animator.AddToAnimations(new List<Animation> { anim1, anim2 });
         // Types: DrawAnimation, MoveAnimation(target, VXYZ, dur), RotateAnimation(target, pivot, deg, dur),

@@ -15,6 +15,7 @@ namespace Code2Viz.Animation
         public bool IsPlaying { get; set; }
         public bool Repeat { get; set; }
         public double Speed { get; set; } = 1.0;
+        public double Fps { get; set; } = 60;
 
         /// <summary>
         /// Creates a new timeline with no shapes. Shapes will be auto-drawn when animations are added.

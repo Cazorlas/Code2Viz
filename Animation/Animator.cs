@@ -36,6 +36,15 @@ namespace Code2Viz.Animation
         }
 
         /// <summary>
+        /// Gets or sets the target frame rate (1-120 FPS). Default is 60.
+        /// </summary>
+        public double Fps
+        {
+            get => _timeline.Fps;
+            set => _timeline.Fps = Math.Clamp(value, 1, 120);
+        }
+
+        /// <summary>
         /// Adds a single animation to play sequentially after any previous animations.
         /// </summary>
         /// <param name="animation">The animation to add.</param>

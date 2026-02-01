@@ -428,6 +428,7 @@ The animation system lets you animate shapes over time.
 var animator = new Animator();
 animator.Repeat = true;      // Loop
 animator.Speed = 1.5;        // Playback speed
+animator.Fps = 30;           // Target frame rate (1-120, default 60)
 
 // Sequential: each starts after the previous ends
 animator.AddToAnimations(new DrawAnimation(shape, 2.0));

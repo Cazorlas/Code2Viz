@@ -90,8 +90,8 @@ public partial class MainWindow : Window
     private bool _textChangedSinceLastCheck;
 
     // Animation
-    private DispatcherTimer? _animationTimer;
     private System.Diagnostics.Stopwatch _animationStopwatch = new();
+    private double _lastAnimationFrameTime = -1;
 
     // Peek Definition popup
     private System.Windows.Controls.Primitives.Popup? _peekPopup;
@@ -215,43 +215,54 @@ public partial class MainWindow : Window
             }
         };
 
-        // Animation Loop
-        _animationTimer = new DispatcherTimer();
-        _animationTimer.Interval = TimeSpan.FromMilliseconds(16); // ~60 FPS
+        // Animation Loop — uses CompositionTarget.Rendering for vsync-aligned frames
         bool _needsInitialZoom = true;
-        _animationTimer.Tick += (s, e) =>
+        TimeSpan _lastRenderTime = TimeSpan.Zero;
+        CompositionTarget.Rendering += (s, e) =>
         {
-            var timeline = CanvasRenderer.Instance.ActiveTimeline;
+            // Deduplicate: WPF can fire Rendering multiple times per frame
+            var args = (RenderingEventArgs)e;
+            if (args.RenderingTime == _lastRenderTime) return;
+            _lastRenderTime = args.RenderingTime;
 
-            // Update animation controls visibility and time display
-            UpdateAnimationControlsVisibility();
+            var timeline = CanvasRenderer.Instance.ActiveTimeline;
 
             if (timeline != null && timeline.IsPlaying)
             {
                 // Update animation state (sets DrawFactor, positions, etc.)
-                // Apply speed multiplier
-                var scaledTime = _animationStopwatch.Elapsed.TotalSeconds * timeline.Speed;
-                timeline.Update(scaledTime);
+                var elapsedSeconds = _animationStopwatch.Elapsed.TotalSeconds;
+                var scaledTime = elapsedSeconds * timeline.Speed;
 
-                // Redraw canvas with updated shape properties
-                RenderCanvas.Refresh();
-
-                // Zoom to fit on first frame that has visible shapes (if setting enabled)
-                if (_needsInitialZoom && timeline.Shapes.Count > 0)
+                // Throttle rendering to the user's desired FPS (using real time, not scaled)
+                var frameInterval = 1.0 / timeline.Fps;
+                if (elapsedSeconds - _lastAnimationFrameTime >= frameInterval - 0.002)
                 {
-                    if (ApplicationSettings.Instance.ZoomToFitOnRun)
+                    _lastAnimationFrameTime = elapsedSeconds;
+
+                    timeline.Update(scaledTime);
+
+                    // Redraw canvas first (critical path — before UI updates trigger layout)
+                    RenderCanvas.Refresh();
+
+                    // Zoom to fit on first frame that has visible shapes (if setting enabled)
+                    if (_needsInitialZoom && timeline.Shapes.Count > 0)
                     {
-                        RenderCanvas.ZoomExtents(CanvasRenderer.Instance.GetShapes());
+                        if (ApplicationSettings.Instance.ZoomToFitOnRun)
+                        {
+                            RenderCanvas.ZoomExtents(CanvasRenderer.Instance.GetShapes());
+                        }
+                        _needsInitialZoom = false;
                     }
-                    _needsInitialZoom = false;
                 }
             }
             else
             {
                 _needsInitialZoom = true; // Reset for next timeline
             }
+
+            // Update animation controls visibility and time display (after canvas draw)
+            UpdateAnimationControlsVisibility();
         };
-        _animationTimer.Start();
     }
 
     private void InitializeConsole()
@@ -3323,6 +3334,7 @@ public partial class MainWindow : Window
             timeline.IsPlaying = false;
             timeline.Stop();
             _animationStopwatch.Reset();
+            _lastAnimationFrameTime = -1;
         }
 
         // Clear active timeline reference
@@ -3451,6 +3463,7 @@ public partial class MainWindow : Window
             {
                 // Reset animation time
                 _animationStopwatch.Restart();
+                _lastAnimationFrameTime = -1;
 
                 // Clear undo stack since all shapes are regenerated from code
                 TransactionManager.Instance.Clear();
@@ -3691,6 +3704,7 @@ public partial class MainWindow : Window
             if (result.Success)
             {
                 _animationStopwatch.Restart();
+                _lastAnimationFrameTime = -1;
                 Commands.TransactionManager.Instance.Clear();
 
                 var shapes = CanvasRenderer.Instance.GetShapes();
@@ -3762,6 +3776,7 @@ public partial class MainWindow : Window
             if (result.Success)
             {
                 _animationStopwatch.Restart();
+                _lastAnimationFrameTime = -1;
                 TransactionManager.Instance.Clear();
 
                 var shapes = CanvasRenderer.Instance.GetShapes();
@@ -9869,6 +9884,7 @@ public class {typeName}
             // Start playing
             timeline.IsPlaying = true;
             _animationStopwatch.Restart();
+            _lastAnimationFrameTime = -1;
             PlayPauseBtn.Content = "\u23F8"; // Pause symbol
         }
     }
@@ -9882,6 +9898,7 @@ public class {typeName}
         timeline.IsPlaying = false;
         _isPaused = false;
         _animationStopwatch.Reset();
+        _lastAnimationFrameTime = -1;
         timeline.Update(0);
         RenderCanvas.Refresh();
 
