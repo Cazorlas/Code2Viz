@@ -33,6 +33,8 @@ public class ApiReferenceResource
         ```csharp
         VizConsole.Log("message");   // Only method — auto-tracks file and line number
         VizConsole.Log(42);          // Accepts any object
+        VizConsole.Log(myList);      // Itemizes collections (prints each item, default)
+        VizConsole.Log(myList, false); // Prints collection's ToString() instead
         // Output: [ModuleName:LineNumber] message
         ```
 

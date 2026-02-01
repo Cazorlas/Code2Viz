@@ -120,6 +120,9 @@ namespace Code2Viz.Documentation
                 { "SnapEngine", "Engine for detecting snap points on shapes. Supports 8 snap types (Endpoint, Midpoint, Center, Intersection, Nearest, Perpendicular, Extension, Tangent). Each snap type can be individually enabled/disabled via Settings. Uses spatial indexing for efficient detection even with many shapes." },
                 { "DrawingInputMode", "Enumeration for precise input modes while drawing: None (mouse-controlled), Distance (typing distance value), Angle (typing angle value). Press Tab to cycle between modes when drawing. Type numbers to enter precise values, Enter to confirm." },
                 { "DrawingTool", "Manages interactive drawing state and shape creation. Supports all shape types with visual preview. Features: snap detection with 8 snap types, orthogonal constraint (Shift key), precise distance/angle input (Tab to cycle, type value, Enter to confirm). The InputMode property indicates current input state; InputBuffer holds the typed value." },
+
+                // Console
+                { "VizConsole", "Static class providing console output. Log(value, itemize=true) prints to the console panel with auto file/line tracking. When itemize is true (default), collections are printed item-by-item; when false, prints the collection's ToString()." },
             };
         }
 
@@ -461,7 +464,7 @@ grid.Rotate(VPoint(0.0, 0.0), 45.0)" },
                 { "VTransform", "let t = VTransform.CreateRotation(VXYZ.BasisZ, 90.0)" },
 
                 { "CanvasRenderer", "CanvasRenderer.Instance.Clear()\nCanvasRenderer.Instance.AddShape(someShape)" },
-                { "VizConsole", "VizConsole.Log(\"Debug info\")\nVizConsole.Log($\"Value: {someVariable}\")" },
+                { "VizConsole", "VizConsole.Log(\"Debug info\")\nVizConsole.Log($\"Value: {someVariable}\")\n\nvar nums = new List<int> { 1, 2, 3 };\nVizConsole.Log(nums);          // prints each item\nVizConsole.Log(nums, false);   // prints collection type" },
 
                 // Animation
                 { "Animator", @"// Create shapes

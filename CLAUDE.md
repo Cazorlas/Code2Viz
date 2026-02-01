@@ -63,8 +63,10 @@ using Viz2d.Console;     // VizConsole.Log()
 
 ### VizConsole Class
 ```csharp
-VizConsole.Log("message");        // Only method - logs with auto file/line tracking
+VizConsole.Log("message");        // Logs with auto file/line tracking
 VizConsole.Log(42);               // Accepts any object
+VizConsole.Log(myList);           // Prints each item on its own line (itemize=true by default)
+VizConsole.Log(myList, false);    // Prints the collection's ToString() instead
 ```
 
 ### Output Format
@@ -74,7 +76,8 @@ VizConsole.Log(42);               // Accepts any object
 Example: `[StartViz:15] Hello World`
 
 ### Features
-- `Log()` is the only public method (no `Write()` or `WriteLine()`)
+- `Log(value, itemize=true)` is the only public method (no `Write()` or `WriteLine()`)
+- When `itemize` is true (default), collections are printed item-by-item; when false, prints the collection type
 - Auto-captures calling file name and line number
 - Console panel below canvas (resizable)
 - Clear button to clear output
@@ -107,6 +110,7 @@ Example: `[StartViz:15] Hello World`
 - Real-time coordinate display
 - **Animation loop**: Uses `CompositionTarget.Rendering` for vsync-aligned frame updates (not DispatcherTimer)
 - **Animation FPS throttling**: Spatial index (QuadTree) is bypassed during animation playback to avoid stale-bounds artifacts
+- **Crossing/Window selection**: Drag right = Window Selection (blue solid, selects shapes fully inside box); Drag left = Crossing Selection (green dashed, selects shapes intersecting box)
 
 ### Code Execution (ModuleCompiler)
 - Compiles all `.vizcode` files using Roslyn CSharpCompilation

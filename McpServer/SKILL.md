@@ -414,10 +414,13 @@ ShapeDefaults.Reset();                       // reset all to defaults
 VizConsole.Log("message");      // only method available
 VizConsole.Log(42);             // accepts any object
 VizConsole.Log(myVariable);     // auto-tracks calling file and line number
+VizConsole.Log(myList);         // itemizes collections (prints each item)
+VizConsole.Log(myList, false);  // prints collection's ToString() instead
 // Output format: [ModuleName:LineNumber] message
 ```
 
 **Important**: `VizConsole.Log()` is the only console method. There is no `Write()` or `WriteLine()`.
+The optional second parameter `itemize` (default `true`) controls whether collections are printed item-by-item or as their type.
 
 ## Animation (using Code2Viz.Animation)
 

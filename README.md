@@ -491,12 +491,20 @@ Use `VizConsole` to output debug messages:
 ```csharp
 VizConsole.Log("Starting visualization...");
 VizConsole.Log($"Circle radius: {circle.Radius}");
+
+// Collections are itemized by default
+var nums = new List<int> { 1, 2, 3 };
+VizConsole.Log(nums);           // Prints each item on its own line
+VizConsole.Log(nums, false);    // Prints "System.Collections.Generic.List`1[System.Int32]"
 ```
 
 Output appears in the console panel below the canvas with file and line number tracking:
 ```
 [StartViz:15] Starting visualization...
 [StartViz:16] Circle radius: 50
+[StartViz:19] 1
+[StartViz:19] 2
+[StartViz:19] 3
 ```
 
 ---

@@ -1,3 +1,4 @@
+using System.Collections;
 using System.IO;
 using System.Runtime.CompilerServices;
 
@@ -10,13 +11,27 @@ public static class VizConsole
 {
     /// <summary>
     /// Logs a message to the console with automatic module name and line number tracking.
+    /// When <paramref name="itemize"/> is true (default) and <paramref name="value"/> is a collection,
+    /// each item is printed on a separate line. When false, the collection's ToString() is printed.
     /// </summary>
     public static void Log(
         object? value,
+        bool itemize = true,
         [CallerFilePath] string filePath = "",
         [CallerLineNumber] int lineNumber = 0)
     {
         var moduleName = Path.GetFileNameWithoutExtension(filePath);
-        ConsoleOutput.Instance.WriteLine(moduleName, lineNumber, value?.ToString() ?? "");
+
+        if (itemize && value is IEnumerable enumerable and not string)
+        {
+            foreach (var item in enumerable)
+            {
+                ConsoleOutput.Instance.WriteLine(moduleName, lineNumber, item?.ToString() ?? "");
+            }
+        }
+        else
+        {
+            ConsoleOutput.Instance.WriteLine(moduleName, lineNumber, value?.ToString() ?? "");
+        }
     }
 }

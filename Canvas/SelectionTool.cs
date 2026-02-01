@@ -572,15 +572,31 @@ public class SelectionTool
             {
                 var boxSelectedShapes = new List<Shape>();
 
+                // Crossing selection (drag left): select shapes that intersect the box
+                // Window selection (drag right): select shapes fully inside the box
+                bool isCrossing = BoxEnd.X < BoxStart.X;
+
                 foreach (var drawable in shapes)
                 {
                     if (drawable is Shape shape)
                     {
                         var (boundsMin, boundsMax) = shape.GetBounds();
 
-                        // Check if shape bounds intersect with selection box
-                        if (boundsMax.X >= minX && boundsMin.X <= maxX &&
-                            boundsMax.Y >= minY && boundsMin.Y <= maxY)
+                        bool selected;
+                        if (isCrossing)
+                        {
+                            // Crossing: shape bounds intersect selection box
+                            selected = boundsMax.X >= minX && boundsMin.X <= maxX &&
+                                       boundsMax.Y >= minY && boundsMin.Y <= maxY;
+                        }
+                        else
+                        {
+                            // Window: shape must be completely inside selection box
+                            selected = boundsMin.X >= minX && boundsMax.X <= maxX &&
+                                       boundsMin.Y >= minY && boundsMax.Y <= maxY;
+                        }
+
+                        if (selected)
                         {
                             boxSelectedShapes.Add(shape);
                         }

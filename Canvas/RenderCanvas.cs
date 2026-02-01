@@ -1086,15 +1086,15 @@ public class RenderCanvas : FrameworkElement
     {
         if (_selectionTool == null) return;
 
-        // Create selection brushes and pens
-        var selectionBrush = new SolidColorBrush(Color.FromArgb(40, 0, 150, 255));
-        selectionBrush.Freeze();
-        var selectionPen = new Pen(new SolidColorBrush(Color.FromRgb(0, 150, 255)), 1.5);
-        selectionPen.Freeze();
+        // Create handle brushes and pens (always needed for selection handles)
         var handleBrush = new SolidColorBrush(Colors.White);
         handleBrush.Freeze();
         var handlePen = new Pen(new SolidColorBrush(Color.FromRgb(0, 120, 215)), 1.5);
         handlePen.Freeze();
+
+        // Default selection pen for handles bounding box
+        var selectionPen = new Pen(new SolidColorBrush(Color.FromRgb(0, 150, 255)), 1.5);
+        selectionPen.Freeze();
 
         // Draw selection box if dragging
         if (_selectionTool.IsBoxSelecting && _selectionTool.BoxStart != null && _selectionTool.BoxEnd != null)
@@ -1108,7 +1108,30 @@ public class RenderCanvas : FrameworkElement
                 Math.Abs(end.X - start.X),
                 Math.Abs(end.Y - start.Y));
 
-            dc.DrawRectangle(selectionBrush, selectionPen, rect);
+            // Crossing selection (drag left): green dashed
+            // Window selection (drag right): blue solid
+            bool isCrossing = _selectionTool.BoxEnd.X < _selectionTool.BoxStart.X;
+
+            Brush boxBrush;
+            Pen boxPen;
+            if (isCrossing)
+            {
+                boxBrush = new SolidColorBrush(Color.FromArgb(40, 0, 200, 80));
+                boxBrush.Freeze();
+                var strokeBrush = new SolidColorBrush(Color.FromRgb(0, 200, 80));
+                strokeBrush.Freeze();
+                boxPen = new Pen(strokeBrush, 1.5) { DashStyle = DashStyles.Dash };
+                boxPen.Freeze();
+            }
+            else
+            {
+                boxBrush = new SolidColorBrush(Color.FromArgb(40, 0, 150, 255));
+                boxBrush.Freeze();
+                boxPen = new Pen(new SolidColorBrush(Color.FromRgb(0, 150, 255)), 1.5);
+                boxPen.Freeze();
+            }
+
+            dc.DrawRectangle(boxBrush, boxPen, rect);
         }
 
         // Draw snap indicator when dragging control points
