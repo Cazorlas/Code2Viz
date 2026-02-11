@@ -353,9 +353,18 @@ internal static class PolygonClipper
             }
         }
 
+        // Normalize winding order - Greiner-Hormann requires consistent winding direction
+        // Ensure both are counter-clockwise (positive signed area)
+        var subjectPoints = subject.SignedArea < 0
+            ? subject.Points.AsEnumerable().Reverse().ToList()
+            : subject.Points;
+        var clipPoints = clip.SignedArea < 0
+            ? clip.Points.AsEnumerable().Reverse().ToList()
+            : clip.Points;
+
         // Build vertex lists
-        var subjectList = BuildVertexList(subject.Points);
-        var clipList = BuildVertexList(clip.Points);
+        var subjectList = BuildVertexList(subjectPoints);
+        var clipList = BuildVertexList(clipPoints);
 
         // Find and insert intersection points
         int intersectionCount = FindIntersections(subjectList, clipList);
@@ -363,8 +372,8 @@ internal static class PolygonClipper
         if (intersectionCount == 0)
         {
             // No intersections - check containment again
-            bool subjectStartInClip = PointInPolygonTest(subject.Points[0], clip.Points);
-            bool clipStartInSubject = PointInPolygonTest(clip.Points[0], subject.Points);
+            bool subjectStartInClip = PointInPolygonTest(subjectPoints[0], clipPoints);
+            bool clipStartInSubject = PointInPolygonTest(clipPoints[0], subjectPoints);
 
             switch (operation)
             {
@@ -394,8 +403,8 @@ internal static class PolygonClipper
         }
 
         // Mark entry/exit points
-        MarkEntryExitPoints(subjectList, clip.Points, operation == ClipOperation.Difference);
-        MarkEntryExitPoints(clipList, subject.Points, false);
+        MarkEntryExitPoints(subjectList, clipPoints);
+        MarkEntryExitPoints(clipList, subjectPoints);
 
         // Trace result polygons
         result = TraceResultPolygons(subjectList, clipList, operation);
@@ -564,7 +573,7 @@ internal static class PolygonClipper
         current.Next = intersection;
     }
 
-    private static void MarkEntryExitPoints(ClipVertex start, List<VPoint> otherPolygon, bool invertEntryExit)
+    private static void MarkEntryExitPoints(ClipVertex start, List<VPoint> otherPolygon)
     {
         var current = start;
 
@@ -583,7 +592,7 @@ internal static class PolygonClipper
         {
             if (current.IsIntersection)
             {
-                current.IsEntry = invertEntryExit ? isInside : !isInside;
+                current.IsEntry = !isInside;
                 isInside = !isInside;
             }
             current = current.Next!;
