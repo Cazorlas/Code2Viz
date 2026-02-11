@@ -665,8 +665,19 @@ internal static class PolygonClipper
                     current.Neighbor.Visited = true;
                 }
 
-                // Switch to other polygon
-                if (current.Neighbor != null)
+                // Decide whether to switch based on operation and entry/exit status
+                bool shouldSwitch = operation switch
+                {
+                    // For intersection: switch when exiting (to follow interior boundary)
+                    ClipOperation.Intersection => !current.IsEntry,
+                    // For union: switch when entering (to follow exterior boundary)
+                    ClipOperation.Union => current.IsEntry,
+                    // For difference: switch when entering clip polygon
+                    ClipOperation.Difference => current.IsEntry,
+                    _ => true
+                };
+
+                if (shouldSwitch && current.Neighbor != null)
                 {
                     current = current.Neighbor;
                     onSubject = !onSubject;
