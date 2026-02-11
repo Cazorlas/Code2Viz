@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>C2VGeometry</RootNamespace>
+    <AssemblyName>C2VGeometry</AssemblyName>
+    <Description>Standalone 2D geometry library extracted from Code2Viz. Provides shapes, curves, transformations, and boolean operations without any WPF dependencies.</Description>
+    <Authors>Code2Viz</Authors>
+    <PackageId>C2VGeometry</PackageId>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+</Project>
