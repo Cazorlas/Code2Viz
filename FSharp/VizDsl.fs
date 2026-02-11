@@ -85,12 +85,12 @@ let withStroke (color: string) (shape: #Shape) =
 /// Set stroke color and thickness together
 let withStrokeStyle color thickness (shape: #Shape) =
     shape.Color <- color
-    shape.StrokeThickness <- thickness
+    shape.LineWeight <- thickness
     shape
 
 /// Set the stroke thickness of a shape
 let withThickness (thickness: float) (shape: #Shape) =
-    shape.StrokeThickness <- thickness
+    shape.LineWeight <- thickness
     shape
 
 /// Set the opacity of a shape (0.0 to 1.0)

@@ -564,7 +564,7 @@ internal class AnimationNameRewriter : CSharpSyntaxRewriter
         var baseTypeName = type is GenericNameSyntax genericType
             ? genericType.Identifier.Text
             : typeName;
-        bool isNamedType = typeName == "var" || AnimationTypes.Contains(typeName) || AnimationTypes.Contains(baseTypeName) || ShapeTypes.Contains(typeName);
+        bool isExplicitNamedType = AnimationTypes.Contains(typeName) || AnimationTypes.Contains(baseTypeName) || ShapeTypes.Contains(typeName);
 
         // Check if initializer is an object creation expression
         if (variable.Initializer?.Value is ObjectCreationExpressionSyntax objectCreation)
@@ -575,7 +575,11 @@ internal class AnimationNameRewriter : CSharpSyntaxRewriter
             var baseCreatedTypeName = objectCreation.Type is GenericNameSyntax genericName
                 ? genericName.Identifier.Text
                 : createdTypeName;
-            if (!isNamedType && !AnimationTypes.Contains(createdTypeName) && !AnimationTypes.Contains(baseCreatedTypeName) && !ShapeTypes.Contains(createdTypeName))
+            bool isCreatedTypeNamed = AnimationTypes.Contains(createdTypeName) || AnimationTypes.Contains(baseCreatedTypeName) || ShapeTypes.Contains(createdTypeName);
+
+            // Only add Name initializer if the created type is actually an animation/shape type
+            // This prevents adding Name to List<VPoint> and other non-shape types when 'var' is used
+            if (!isExplicitNamedType && !isCreatedTypeNamed)
                 return variable;
 
             return TryAddNameInitializer(variable, objectCreation, objectCreation.Initializer);
@@ -584,7 +588,8 @@ internal class AnimationNameRewriter : CSharpSyntaxRewriter
         // Handle target-typed new: VLine line = new(...)
         if (variable.Initializer?.Value is ImplicitObjectCreationExpressionSyntax implicitCreation)
         {
-            if (!isNamedType)
+            // For implicit object creation, we need an explicit named type
+            if (!isExplicitNamedType)
                 return variable;
 
             return TryAddNameInitializerImplicit(variable, implicitCreation, implicitCreation.Initializer);
@@ -598,6 +603,10 @@ internal class AnimationNameRewriter : CSharpSyntaxRewriter
         ObjectCreationExpressionSyntax objectCreation,
         InitializerExpressionSyntax? existingInitializer)
     {
+        // Skip if has a collection initializer (cannot mix with object initializer)
+        if (existingInitializer != null && existingInitializer.Kind() == SyntaxKind.CollectionInitializerExpression)
+            return variable;
+
         // Skip if already has an initializer with Name set
         if (existingInitializer != null)
         {
@@ -643,6 +652,10 @@ internal class AnimationNameRewriter : CSharpSyntaxRewriter
         ImplicitObjectCreationExpressionSyntax implicitCreation,
         InitializerExpressionSyntax? existingInitializer)
     {
+        // Skip if has a collection initializer (cannot mix with object initializer)
+        if (existingInitializer != null && existingInitializer.Kind() == SyntaxKind.CollectionInitializerExpression)
+            return variable;
+
         // Skip if already has an initializer with Name set
         if (existingInitializer != null)
         {

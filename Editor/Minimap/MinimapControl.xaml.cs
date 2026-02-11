@@ -36,6 +36,7 @@ namespace Code2Viz.Editor.Minimap
         private double _dragStartY;
         private double _dragStartScrollOffset;
         private List<MinimapMarker> _markers = new();
+        private double _scaleFactor = 1.0;
 
         /// <summary>
         /// Height per line in the minimap (pixels).
@@ -167,9 +168,18 @@ namespace Code2Viz.Editor.Minimap
             {
                 var code = _editor.Text;
                 var maxWidth = ActualWidth > 0 ? ActualWidth : Width;
+                var controlHeight = ActualHeight > 0 ? ActualHeight : 400;
 
-                // Render to DrawingVisual
-                _cachedVisual = _renderer.Render(code, LineHeight, CharWidth, maxWidth);
+                // Calculate how many lines we have
+                var lineCount = code.Split('\n').Length;
+                var naturalHeight = lineCount * LineHeight;
+
+                // Calculate scale factor to fit content if it's taller than the control
+                _scaleFactor = naturalHeight > controlHeight ? controlHeight / naturalHeight : 1.0;
+                var effectiveLineHeight = LineHeight * _scaleFactor;
+
+                // Render to DrawingVisual with scaled line height
+                _cachedVisual = _renderer.Render(code, effectiveLineHeight, CharWidth, maxWidth);
 
                 // Clear and add to canvas
                 MinimapCanvas.Children.Clear();
@@ -203,8 +213,10 @@ namespace Code2Viz.Editor.Minimap
 
             if (_markers.Count == 0) return;
 
+            // Use scaled line height
+            var effectiveLineHeight = LineHeight * _scaleFactor;
             var markerWidth = 4.0;
-            var markerHeight = Math.Max(LineHeight, 3.0); // At least 3px for visibility
+            var markerHeight = Math.Max(effectiveLineHeight, 3.0); // At least 3px for visibility
 
             foreach (var marker in _markers)
             {
@@ -218,7 +230,7 @@ namespace Code2Viz.Editor.Minimap
                 };
 
                 // Position on the right edge
-                var y = (marker.Line - 1) * LineHeight;
+                var y = (marker.Line - 1) * effectiveLineHeight;
                 WpfCanvas.SetLeft(rect, ActualWidth - markerWidth - 2);
                 WpfCanvas.SetTop(rect, y);
 
@@ -276,8 +288,8 @@ namespace Code2Viz.Editor.Minimap
 
                 if (document.LineCount == 0) return;
 
-                // Calculate total document height in minimap coordinates
-                var totalMinimapHeight = document.LineCount * LineHeight;
+                // Use scaled line height
+                var effectiveLineHeight = LineHeight * _scaleFactor;
 
                 // Calculate viewport position and size
                 var scrollOffset = textView.VerticalOffset;
@@ -286,12 +298,12 @@ namespace Code2Viz.Editor.Minimap
 
                 // First visible line (0-based)
                 var firstVisibleLine = scrollOffset / editorLineHeight;
-                var viewportTop = firstVisibleLine * LineHeight;
-                var viewportHeight = visibleLines * LineHeight;
+                var viewportTop = firstVisibleLine * effectiveLineHeight;
+                var viewportHeight = visibleLines * effectiveLineHeight;
 
                 // Clamp values
                 viewportTop = Math.Max(0, viewportTop);
-                viewportHeight = Math.Max(20, Math.Min(viewportHeight, ActualHeight - viewportTop));
+                viewportHeight = Math.Max(10, Math.Min(viewportHeight, ActualHeight - viewportTop));
 
                 // Update viewport indicator
                 WpfCanvas.SetTop(ViewportIndicator, viewportTop);
@@ -348,9 +360,12 @@ namespace Code2Viz.Editor.Minimap
                 var pos = e.GetPosition(MinimapCanvas);
                 var deltaY = pos.Y - _dragStartY;
 
+                // Use scaled line height
+                var effectiveLineHeight = LineHeight * _scaleFactor;
+
                 // Convert minimap delta to editor scroll delta
                 var editorLineHeight = _editor.TextArea.TextView.DefaultLineHeight;
-                var scrollDelta = (deltaY / LineHeight) * editorLineHeight;
+                var scrollDelta = (deltaY / effectiveLineHeight) * editorLineHeight;
 
                 var newOffset = _dragStartScrollOffset + scrollDelta;
                 newOffset = Math.Max(0, newOffset);
@@ -378,8 +393,11 @@ namespace Code2Viz.Editor.Minimap
 
             try
             {
+                // Use scaled line height
+                var effectiveLineHeight = LineHeight * _scaleFactor;
+
                 // Calculate target line from minimap Y position
-                var targetLine = (int)(minimapY / LineHeight) + 1;
+                var targetLine = (int)(minimapY / effectiveLineHeight) + 1;
                 targetLine = Math.Max(1, Math.Min(targetLine, _editor.Document.LineCount));
 
                 // Calculate offset to center the target line in the viewport

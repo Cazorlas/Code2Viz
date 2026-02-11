@@ -1,14 +1,17 @@
-using Clipper2Lib;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Code2Viz.Console;
 
 namespace Code2Viz.Geometry;
 
 /// <summary>
-/// Provides boolean operations (union, intersection, difference) on polygons using Clipper2.
+/// Provides boolean operations (union, intersection, difference) on polygons.
+/// Uses native Greiner-Hormann algorithm implementation.
 /// </summary>
 public static class BooleanOps
 {
-    private const double Scale = 1000000.0; // Scale factor for integer conversion
+    #region Standard Boolean Operations
 
     /// <summary>
     /// Computes the union of multiple polygons.
@@ -26,28 +29,25 @@ public static class BooleanOps
             return (VPolygon)polygons[0].Clone();
         }
 
-        var subject = ToPath64(polygons[0]);
-        var clips = new Paths64();
+        // Chain union operations
+        var current = polygons[0];
         for (int i = 1; i < polygons.Length; i++)
         {
-            clips.Add(ToPath64(polygons[i]));
+            var results = PolygonClipper.Union(current, polygons[i]);
+            if (results.Count == 0)
+            {
+                ConsoleOutput.Instance.AddEntry("BooleanOps.Union: Operation resulted in no polygon (empty result).", isError: true);
+                return null;
+            }
+            if (results.Count > 1)
+            {
+                ConsoleOutput.Instance.AddEntry($"BooleanOps.Union: Cannot form a single polygon. Result contains {results.Count} disjoint regions (polygons do not overlap or touch).", isError: true);
+                return null;
+            }
+            current = results[0];
         }
 
-        var solution = Clipper.Union(new Paths64 { subject }, clips, FillRule.NonZero);
-        var results = FromPaths64(solution);
-
-        if (results.Count == 0)
-        {
-            ConsoleOutput.Instance.AddEntry("BooleanOps.Union: Operation resulted in no polygon (empty result).", isError: true);
-            return null;
-        }
-        if (results.Count > 1)
-        {
-            ConsoleOutput.Instance.AddEntry($"BooleanOps.Union: Cannot form a single polygon. Result contains {results.Count} disjoint regions (polygons do not overlap or touch).", isError: true);
-            return null;
-        }
-
-        return results[0];
+        return current;
     }
 
     /// <summary>
@@ -64,11 +64,7 @@ public static class BooleanOps
     /// </summary>
     public static List<VPolygon> Intersect(VPolygon a, VPolygon b)
     {
-        var subject = new Paths64 { ToPath64(a) };
-        var clip = new Paths64 { ToPath64(b) };
-
-        var solution = Clipper.Intersect(subject, clip, FillRule.NonZero);
-        return FromPaths64(solution);
+        return PolygonClipper.Intersect(a, b);
     }
 
     /// <summary>
@@ -76,11 +72,7 @@ public static class BooleanOps
     /// </summary>
     public static List<VPolygon> Difference(VPolygon a, VPolygon b)
     {
-        var subject = new Paths64 { ToPath64(a) };
-        var clip = new Paths64 { ToPath64(b) };
-
-        var solution = Clipper.Difference(subject, clip, FillRule.NonZero);
-        return FromPaths64(solution);
+        return PolygonClipper.Difference(a, b);
     }
 
     /// <summary>
@@ -88,33 +80,102 @@ public static class BooleanOps
     /// </summary>
     public static List<VPolygon> Xor(VPolygon a, VPolygon b)
     {
-        var subject = new Paths64 { ToPath64(a) };
-        var clip = new Paths64 { ToPath64(b) };
+        return PolygonClipper.Xor(a, b);
+    }
 
-        var solution = Clipper.Xor(subject, clip, FillRule.NonZero);
-        return FromPaths64(solution);
+    #endregion
+
+    #region Boolean Operations with Hole Support
+
+    /// <summary>
+    /// Computes the intersection of two polygons, returning results with hole information.
+    /// </summary>
+    public static List<PolygonWithHoles> IntersectWithHoles(VPolygon a, VPolygon b)
+    {
+        return PolygonClipper.IntersectWithHoles(a, b);
     }
 
     /// <summary>
+    /// Computes the union of two polygons, returning results with hole information.
+    /// </summary>
+    public static List<PolygonWithHoles> UnionWithHoles(VPolygon a, VPolygon b)
+    {
+        return PolygonClipper.UnionWithHoles(a, b);
+    }
+
+    /// <summary>
+    /// Computes the difference of two polygons, returning results with hole information.
+    /// </summary>
+    public static List<PolygonWithHoles> DifferenceWithHoles(VPolygon a, VPolygon b)
+    {
+        return PolygonClipper.DifferenceWithHoles(a, b);
+    }
+
+    #endregion
+
+    #region Self-Intersection Handling
+
+    /// <summary>
+    /// Converts a potentially self-intersecting polygon into one or more simple polygons.
+    /// Uses self-union to resolve self-intersections.
+    /// </summary>
+    public static List<VPolygon> MakeSimple(VPolygon polygon)
+    {
+        return PolygonClipper.MakeSimple(polygon);
+    }
+
+    /// <summary>
+    /// Checks if a polygon has self-intersections using spatial acceleration.
+    /// </summary>
+    public static bool HasSelfIntersections(VPolygon polygon)
+    {
+        var intersections = SpatialAccelerator.FindSelfIntersections(polygon);
+        return intersections.Count > 0;
+    }
+
+    #endregion
+
+    #region Offset Operations
+
+    /// <summary>
     /// Offsets a polygon by a distance. Positive = outward, negative = inward.
+    /// Self-intersections in the result are automatically resolved.
     /// </summary>
     public static List<VPolygon> OffsetPolygon(VPolygon polygon, double distance,
         JoinType joinType = JoinType.Miter, EndType endType = EndType.Polygon)
     {
-        var path = ToPath64(polygon);
-        var solution = Clipper.InflatePaths(new Paths64 { path }, distance * Scale, joinType, endType);
-        return FromPaths64(solution);
+        return PolygonOffset.Offset(polygon, distance, joinType, endType);
     }
 
     /// <summary>
-    /// Simplifies a polygon by removing redundant points.
+    /// Offsets a polygon with safe inward offset handling.
+    /// Automatically caps inward offsets at the maximum safe distance to prevent collapse.
+    /// </summary>
+    public static List<VPolygon> OffsetPolygonSafe(VPolygon polygon, double distance,
+        JoinType joinType = JoinType.Miter, EndType endType = EndType.Polygon)
+    {
+        return PolygonOffset.OffsetSafe(polygon, distance, joinType, endType);
+    }
+
+    /// <summary>
+    /// Computes the maximum safe inward offset distance for a polygon.
+    /// This is the distance at which the polygon would collapse or self-intersect.
+    /// </summary>
+    public static double MaxSafeInwardOffset(VPolygon polygon)
+    {
+        return PolygonOffset.ComputeMaxSafeInwardOffset(polygon);
+    }
+
+    #endregion
+
+    #region Simplification and Analysis
+
+    /// <summary>
+    /// Simplifies a polygon by removing redundant points using the Douglas-Peucker algorithm.
     /// </summary>
     public static VPolygon Simplify(VPolygon polygon, double tolerance = 0.1)
     {
-        var path = ToPath64(polygon);
-        var simplified = Clipper.SimplifyPath(path, tolerance * Scale);
-        var results = FromPaths64(new Paths64 { simplified });
-        return results.Count > 0 ? results[0] : (VPolygon)polygon.Clone();
+        return PolygonSimplify.Simplify(polygon, tolerance);
     }
 
     /// <summary>
@@ -122,48 +183,19 @@ public static class BooleanOps
     /// </summary>
     public static double Area(VPolygon polygon)
     {
-        var path = ToPath64(polygon);
-        return Clipper.Area(path) / (Scale * Scale);
+        return polygon.SignedArea;
     }
 
     /// <summary>
     /// Checks if a point is inside a polygon.
+    /// Returns true if the point is inside or on the boundary.
     /// </summary>
     public static bool PointInPolygon(VPolygon polygon, VPoint point)
     {
-        var path = ToPath64(polygon);
-        var pt = new Point64((long)(point.X * Scale), (long)(point.Y * Scale));
-        var result = Clipper.PointInPolygon(pt, path);
-        return result != PointInPolygonResult.IsOutside;
+        return PolygonClipper.PointInPolygonTest(point, polygon.Points);
     }
 
-    // Conversion helpers
-    private static Path64 ToPath64(VPolygon polygon)
-    {
-        var path = new Path64();
-        foreach (var pt in polygon.Points)
-        {
-            path.Add(new Point64((long)(pt.X * Scale), (long)(pt.Y * Scale)));
-        }
-        return path;
-    }
-
-    private static List<VPolygon> FromPaths64(Paths64 paths)
-    {
-        var result = new List<VPolygon>();
-        foreach (var path in paths)
-        {
-            if (path.Count < 3) continue;
-
-            var points = new List<VPoint>();
-            foreach (var pt in path)
-            {
-                points.Add(new VPoint(pt.X / Scale, pt.Y / Scale));
-            }
-            result.Add(new VPolygon(points));
-        }
-        return result;
-    }
+    #endregion
 }
 
 /// <summary>
@@ -210,6 +242,38 @@ public static class VPolygonBooleanExtensions
     public static List<VPolygon> OffsetPolygon(this VPolygon polygon, double distance)
     {
         return BooleanOps.OffsetPolygon(polygon, distance);
+    }
+
+    /// <summary>
+    /// Offsets this polygon by a distance with safe inward offset handling.
+    /// </summary>
+    public static List<VPolygon> OffsetPolygonSafe(this VPolygon polygon, double distance)
+    {
+        return BooleanOps.OffsetPolygonSafe(polygon, distance);
+    }
+
+    /// <summary>
+    /// Converts this potentially self-intersecting polygon into simple polygons.
+    /// </summary>
+    public static List<VPolygon> MakeSimple(this VPolygon polygon)
+    {
+        return BooleanOps.MakeSimple(polygon);
+    }
+
+    /// <summary>
+    /// Checks if this polygon has self-intersections.
+    /// </summary>
+    public static bool HasSelfIntersections(this VPolygon polygon)
+    {
+        return BooleanOps.HasSelfIntersections(polygon);
+    }
+
+    /// <summary>
+    /// Gets the maximum safe inward offset distance for this polygon.
+    /// </summary>
+    public static double MaxSafeInwardOffset(this VPolygon polygon)
+    {
+        return BooleanOps.MaxSafeInwardOffset(polygon);
     }
 
     /// <summary>
