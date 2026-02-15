@@ -1198,6 +1198,9 @@
                                                                     <Setter Property="Foreground" Value="#4EC9B0" />
                                                                     <Setter Property="Cursor" Value="Hand" />
                                                                 </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsError}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#FF5555" />
+                                                                </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
                                                     </TextBlock.Style>
@@ -1214,6 +1217,9 @@
                                                                     <Setter Property="Foreground" Value="#4EC9B0" />
                                                                     <Setter Property="Cursor" Value="Hand" />
                                                                 </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsError}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#FF5555" />
+                                                                </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
                                                     </TextBlock.Style>
@@ -1221,8 +1227,18 @@
                                                 <TextBlock
                                                     FontFamily="Cascadia Code, Consolas, Courier New"
                                                     FontSize="12"
-                                                    Foreground="#808080"
-                                                    Text="] " />
+                                                    Text="] ">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#808080" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsError}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#FF5555" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
                                                 <!--  Message  -->
                                                 <TextBlock
                                                     FontFamily="Cascadia Code, Consolas, Courier New"

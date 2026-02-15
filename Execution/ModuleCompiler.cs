@@ -262,11 +262,32 @@ public class ModuleCompiler
                     };
                 }
 
-                // Execute Main()
-                if (mainMethod.GetParameters().Length > 0)
-                    await Task.Run(() => mainMethod.Invoke(null, new object[] { Array.Empty<string>() })); // Handle string[] args if present
-                else
-                    await Task.Run(() => mainMethod.Invoke(null, null));
+                // Execute Main() - catch TargetInvocationException inside Task.Run
+                // to prevent VS debugger from breaking on "user-unhandled" exception
+                var invokeError = await Task.Run<string?>(() =>
+                {
+                    try
+                    {
+                        if (mainMethod.GetParameters().Length > 0)
+                            mainMethod.Invoke(null, new object[] { Array.Empty<string>() });
+                        else
+                            mainMethod.Invoke(null, null);
+                        return null;
+                    }
+                    catch (TargetInvocationException ex)
+                    {
+                        return ex.InnerException?.Message ?? ex.Message;
+                    }
+                });
+
+                if (invokeError != null)
+                {
+                    return new CompilationResult
+                    {
+                        Success = false,
+                        Error = $"Runtime Error: {invokeError}"
+                    };
+                }
 
                 // After successful execution, hide shapes without variable names
                 // (shapes with names have Name set by AnimationNameRewriter)

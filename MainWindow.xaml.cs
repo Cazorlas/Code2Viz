@@ -311,9 +311,14 @@ public partial class MainWindow : Window
     private void RefreshConsole()
     {
         ConsoleListBox.ItemsSource = Console.ConsoleOutput.Instance.GetEntries();
+        // Defer scroll to after WPF finishes rendering the new items.
         if (ConsoleListBox.Items.Count > 0)
         {
-            ConsoleListBox.ScrollIntoView(ConsoleListBox.Items[ConsoleListBox.Items.Count - 1]);
+            var lastItem = ConsoleListBox.Items[ConsoleListBox.Items.Count - 1];
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () =>
+            {
+                ConsoleListBox.ScrollIntoView(lastItem);
+            });
         }
     }
 
@@ -406,8 +411,7 @@ public partial class MainWindow : Window
     }
 
     private bool _isResizingConsole;
-    private Point _consoleResizeStartPoint;
-    private double _consoleResizeStartHeight;
+    private double _consoleSplitterClickOffset;
 
     private void ConsoleSplitter_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -419,10 +423,16 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Start resize drag
         _isResizingConsole = true;
-        _consoleResizeStartPoint = e.GetPosition(CanvasConsoleGrid);
-        _consoleResizeStartHeight = ConsoleRow.ActualHeight;
+        ConsoleRow.MaxHeight = double.PositiveInfinity;
+
+        // Store click offset within the splitter so the grab point stays under the cursor
+        _consoleSplitterClickOffset = e.GetPosition((Border)sender).Y;
+
+        // Switch console to pixel sizing before dragging to prevent layout jumps
+        ConsoleRow.Height = new GridLength(ConsoleRow.ActualHeight);
+        CanvasRow.Height = new GridLength(1, GridUnitType.Star);
+
         ((Border)sender).CaptureMouse();
         e.Handled = true;
     }
@@ -441,20 +451,18 @@ public partial class MainWindow : Window
     {
         if (_isResizingConsole)
         {
-            var currentPoint = e.GetPosition(CanvasConsoleGrid);
-            var delta = _consoleResizeStartPoint.Y - currentPoint.Y;
-            var newHeight = _consoleResizeStartHeight + delta;
+            var mouseY = e.GetPosition(CanvasConsoleGrid).Y;
+
+            // Console extends from the drag point to the bottom of the grid
+            var consoleTop = mouseY - _consoleSplitterClickOffset;
+            var newHeight = CanvasConsoleGrid.ActualHeight - consoleTop;
 
             // Apply min/max constraints
             var minHeight = 80.0;
             var maxHeight = CanvasConsoleGrid.ActualHeight - 200; // Keep canvas at least 200px
-
             newHeight = Math.Max(minHeight, Math.Min(maxHeight, newHeight));
 
-            // Update the console row height
             ConsoleRow.Height = new GridLength(newHeight);
-            // Keep canvas as star-sized to fill remaining space
-            CanvasRow.Height = new GridLength(1, GridUnitType.Star);
 
             e.Handled = true;
         }
@@ -3518,7 +3526,7 @@ public partial class MainWindow : Window
                     // Show the error message if no diagnostics but compilation failed
                     SetStatus("Compilation Error", isError: true);
                     // Also write full error to console
-                    Console.ConsoleOutput.Instance.WriteLine("Compiler", 0, result.Error);
+                    Console.ConsoleOutput.Instance.WriteError("Compiler", 0, result.Error);
                 }
                 else
                 {
@@ -3751,7 +3759,7 @@ public partial class MainWindow : Window
                 var errorMsg = result.Error ?? "Compilation failed";
                 SetStatus("Compilation failed (MCP)", isError: true);
                 if (!string.IsNullOrEmpty(result.Error))
-                    Console.ConsoleOutput.Instance.WriteLine("Compiler", 0, result.Error);
+                    Console.ConsoleOutput.Instance.WriteError("Compiler", 0, result.Error);
 
                 Console.ConsoleOutput.Instance.Flush();
                 return $"Error: {errorMsg}";
@@ -4618,6 +4626,7 @@ public partial class MainWindow : Window
 
     private void SetConsoleVisibility(bool isVisible)
     {
+        bool wasVisible = ConsolePanel.Visibility == Visibility.Visible;
         ConsolePanel.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
         ShowConsoleMenuItem.IsChecked = isVisible || ConsoleTab.Visibility == Visibility.Visible;
 
@@ -4629,17 +4638,13 @@ public partial class MainWindow : Window
         if (isVisible)
         {
             ConsoleRow.MinHeight = 80;
-            ConsoleRow.Height = new GridLength(1, GridUnitType.Star);
 
-            if (canvasVisible)
+            // Only reset height when transitioning from hidden to visible,
+            // not when already visible (preserves user's drag-resize)
+            if (!wasVisible)
             {
-                // Both visible: restore MaxHeight constraint
-                ConsoleRow.MaxHeight = 500;
-            }
-            else
-            {
-                // Only console visible: let it take full height
                 ConsoleRow.MaxHeight = double.PositiveInfinity;
+                ConsoleRow.Height = new GridLength(1, GridUnitType.Star);
             }
         }
         else
@@ -4723,9 +4728,9 @@ public partial class MainWindow : Window
 
             if (consoleVisible)
             {
-                // Both visible: restore standard ratio and MaxHeight
+                // Both visible: use star sizing, let drag handle control bounds
                 ConsoleRow.Height = new GridLength(1, GridUnitType.Star);
-                ConsoleRow.MaxHeight = 500;
+                ConsoleRow.MaxHeight = double.PositiveInfinity;
             }
         }
         else
