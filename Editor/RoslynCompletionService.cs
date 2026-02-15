@@ -11,10 +11,21 @@ namespace Code2Viz.Editor;
 public class RoslynCompletionService
 {
     private readonly IEnumerable<MetadataReference> _references;
+    private readonly CachedCompilationWorkspace? _workspace;
 
     public RoslynCompletionService(IEnumerable<MetadataReference>? references = null)
     {
         _references = references ?? new ModuleCompiler().GetReferences();
+    }
+
+    /// <summary>
+    /// Constructor that uses a CachedCompilationWorkspace for incremental compilation.
+    /// The workspace must already have the files loaded.
+    /// </summary>
+    public RoslynCompletionService(CachedCompilationWorkspace workspace)
+    {
+        _workspace = workspace;
+        _references = Array.Empty<MetadataReference>(); // Not used when workspace is provided
     }
 
     public async Task<(List<ICompletionData> Completions, bool IsAfterNew, string Prefix, string? ExpectedType)> GetCompletionsAsync(string code, int position)
@@ -23,7 +34,54 @@ public class RoslynCompletionService
         return await GetCompletionsAsync(code, position, Array.Empty<string>());
     }
 
+    /// <summary>
+    /// Overload that uses the CachedCompilationWorkspace. The active file must be
+    /// identified by fileId so the correct syntax tree / semantic model is used.
+    /// </summary>
+    public async Task<(List<ICompletionData> Completions, bool IsAfterNew, string Prefix, string? ExpectedType)> GetCompletionsAsync(
+        string code, int position, CachedCompilationWorkspace workspace, string fileId)
+    {
+        // Ensure the workspace has the latest content for this file
+        workspace.UpdateFile(fileId, code);
+
+        var compilation = workspace.GetCompilation();
+        var syntaxTree = workspace.GetSyntaxTree(fileId);
+        var semanticModel = workspace.GetSemanticModel(fileId);
+
+        if (syntaxTree == null || semanticModel == null)
+            return (new List<ICompletionData>(), false, "", null);
+
+        return await GetCompletionsInternal(code, position, compilation, syntaxTree, semanticModel);
+    }
+
     public async Task<(List<ICompletionData> Completions, bool IsAfterNew, string Prefix, string? ExpectedType)> GetCompletionsAsync(string code, int position, IEnumerable<string> otherProjectFiles)
+    {
+        // 1. Create Compilation with all project files
+        var syntaxTree = CSharpSyntaxTree.ParseText(code);
+
+        // Parse other project files as additional syntax trees
+        var allTrees = new List<SyntaxTree> { syntaxTree };
+        foreach (var otherFile in otherProjectFiles)
+        {
+            if (!string.IsNullOrWhiteSpace(otherFile))
+            {
+                allTrees.Add(CSharpSyntaxTree.ParseText(otherFile));
+            }
+        }
+
+        var compilation = CSharpCompilation.Create(
+            "CompletionAnalysis",
+            allTrees,
+            _references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var semanticModel = compilation.GetSemanticModel(syntaxTree);
+
+        return await GetCompletionsInternal(code, position, compilation, syntaxTree, semanticModel);
+    }
+
+    private async Task<(List<ICompletionData> Completions, bool IsAfterNew, string Prefix, string? ExpectedType)> GetCompletionsInternal(
+        string code, int position, CSharpCompilation compilation, SyntaxTree syntaxTree, SemanticModel semanticModel)
     {
         var completions = new List<ICompletionData>();
         bool isAfterNew = false;
@@ -32,30 +90,18 @@ public class RoslynCompletionService
 
         try
         {
-            // 1. Create Compilation with all project files
-            var syntaxTree = CSharpSyntaxTree.ParseText(code);
-            
-            // Parse other project files as additional syntax trees
-            var allTrees = new List<SyntaxTree> { syntaxTree };
-            foreach (var otherFile in otherProjectFiles)
-            {
-                if (!string.IsNullOrWhiteSpace(otherFile))
-                {
-                    allTrees.Add(CSharpSyntaxTree.ParseText(otherFile));
-                }
-            }
-            
-            var compilation = CSharpCompilation.Create(
-                "CompletionAnalysis",
-                allTrees,
-                _references,
-                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-            var semanticModel = compilation.GetSemanticModel(syntaxTree);
 
             // 2. Determine Context
             var root = await syntaxTree.GetRootAsync();
-            var token = root.FindToken(position);
+            var token = root.FindToken(position); // Finds the token at or immediately preceding position
+            
+            // If we are at the end of a word, FindToken might return that word. 
+            // If we are int he middle of whitespace, it might return the previous token.
+            // Adjust to ensure we are looking at the token to the left if we are strictly modifying it
+            if (token.Span.Start >= position && position > 0)
+            {
+                token = root.FindToken(position - 1);
+            }
 
             // Get the prefix being typed (word before cursor)
             prefix = GetPrefixBeforePosition(code, position);
@@ -63,11 +109,9 @@ public class RoslynCompletionService
             // Check if we're after 'new' keyword
             isAfterNew = IsAfterNewKeyword(root, position, code);
 
-            // Get expected type from left-hand side of assignment
-            if (isAfterNew)
-            {
-                expectedType = GetExpectedTypeName(code, position);
-            }
+            // Determine expected type from context (Assignment or Method Argument)
+            // valid even if not after 'new' (e.g. "VPoint p = |")
+            expectedType = GetExpectedTypeFromContext(root, semanticModel, position, code);
 
             // 3. Lookup Symbols
             ImmutableArray<ISymbol> symbols;
@@ -76,70 +120,92 @@ public class RoslynCompletionService
             ITypeSymbol? memberAccessType = null;
 
             // Handle Member Access (dot)
-            var tokenLeft = position > 0 ? root.FindToken(position - 1) : default; // Get token BEFORE cursor
-
-            // Check for proper MemberAccessExpressionSyntax
-            if (tokenLeft != default && tokenLeft.IsKind(SyntaxKind.DotToken) && tokenLeft.Parent is MemberAccessExpressionSyntax memberAccess)
+            // Check if strict member access syntax
+            var tokenLeft = position > 0 ? root.FindToken(position - 1) : default;
+            
+            // Refined check for dot:
+            // Check both immediately before position (just typed dot) AND before the prefix
+            // (user typed letters after a dot, e.g. "roomTypeQ.Enq" — prefix is "Enq", dot is before it)
+            bool isDot = position > 0 && code[position - 1] == '.';
+            if (!isDot && !string.IsNullOrEmpty(prefix))
             {
-                 // First try to get the type of the expression (for instance members)
-                 memberAccessType = semanticModel.GetTypeInfo(memberAccess.Expression).Type;
-
-                 // If that fails, check if it's a type name (for static members/enum values)
-                 if (memberAccessType == null)
-                 {
-                     var symbolInfo = semanticModel.GetSymbolInfo(memberAccess.Expression);
-                     if (symbolInfo.Symbol is INamedTypeSymbol typeSymbol)
-                     {
-                         memberAccessType = typeSymbol;
-                         isStaticTypeAccess = true;
-                     }
-                 }
-            }
-            // Fallback: Check for incomplete member access (e.g., "VFont." with cursor after dot)
-            else if (position > 1 && code[position - 1] == '.')
-            {
-                // Find the identifier before the dot
-                var dotPos = position - 1;
-                var identEnd = dotPos;
-                var identStart = dotPos - 1;
-                while (identStart >= 0 && (char.IsLetterOrDigit(code[identStart]) || code[identStart] == '_'))
+                var dotCheckPos = position - prefix.Length - 1;
+                if (dotCheckPos >= 0 && code[dotCheckPos] == '.')
                 {
-                    identStart--;
+                    isDot = true;
+                    // Adjust position context: the dot is before the prefix
                 }
-                identStart++;
-
-                if (identStart < identEnd)
+            }
+            
+            if (isDot)
+            {
+                // We are explicitly after a dot.
+                // Re-parsing or finding the expression before the dot is safest.
+                // Simple approach: parse the expression before the dot.
+                
+                // Find start of expression before dot
+                // dotPos is the actual position of the '.' character
+                var dotPos = (position > 0 && code[position - 1] == '.') 
+                    ? position - 1 
+                    : position - prefix.Length - 1;
+                // Walk back simple dotted identifiers
+                var exprEnd = dotPos;
+                var exprStart = dotPos - 1;
+                int parenDepth = 0;
+                
+                // Allow walking back over . and identifier characters and parens (method calls)
+                while (exprStart >= 0)
                 {
-                    var identName = code.Substring(identStart, identEnd - identStart);
-
-                    // Try to find this identifier as a type or variable
-                    var availableSymbols = semanticModel.LookupSymbols(identStart);
-                    foreach (var sym in availableSymbols)
+                    char c = code[exprStart];
+                    if (c == ')') parenDepth++;
+                    else if (c == '(')
                     {
-                        if (sym.Name == identName)
+                        if (parenDepth > 0) parenDepth--;
+                        else break; // Unbalanced
+                    }
+                    else if (c == ';' || c == '{' || c == '}') break; // Boundary
+                    else if (char.IsWhiteSpace(c) && parenDepth == 0) 
+                    {
+                        // Stop at whitespace if not in parens? 
+                        // Actually, "A . B" is valid, but usually "A.B". Let's assume no spaces for simple completion.
+                         if (exprStart < dotPos - 1 && !char.IsWhiteSpace(code[exprStart+1])) break;
+                    }
+                    else if (!char.IsLetterOrDigit(c) && c != '_' && c != '.' && c != ')' && c != '(' && c != '"' && c != '\'')
+                    {
+                       // Stop at operators like +, =, etc.
+                       break;
+                    }
+                    exprStart--;
+                }
+                exprStart++;
+                
+                if (exprStart < exprEnd)
+                {
+                    var exprText = code.Substring(exprStart, exprEnd - exprStart).Trim();
+                    if (!string.IsNullOrEmpty(exprText))
+                    {
+                        // Try to bind this expression
+                        // We need a proper syntax node. find the node at dotPos - 1
+                        var nodeBeforeDot = root.FindToken(dotPos - 1).Parent;
+                        
+                        // If the tree is well-formed enough, Roslyn handles it.
+                        // If we are adding a dot to a complete statement, the tree might be "Expression . <Missing>"
+                        
+                        if (nodeBeforeDot != null)
                         {
-                            if (sym is INamedTypeSymbol typeSymbol)
+                            var typeInfo = semanticModel.GetTypeInfo(nodeBeforeDot);
+                            memberAccessType = typeInfo.Type;
+                            
+                            if (memberAccessType == null)
                             {
-                                memberAccessType = typeSymbol;
-                                isStaticTypeAccess = true;
+                                // Maybe it's a namespace or type name (statics)
+                                var symbolInfo = semanticModel.GetSymbolInfo(nodeBeforeDot);
+                                if (symbolInfo.Symbol is INamedTypeSymbol typeSym)
+                                {
+                                    memberAccessType = typeSym;
+                                    isStaticTypeAccess = true;
+                                }
                             }
-                            else if (sym is ILocalSymbol local)
-                            {
-                                memberAccessType = local.Type;
-                            }
-                            else if (sym is IParameterSymbol param)
-                            {
-                                memberAccessType = param.Type;
-                            }
-                            else if (sym is IFieldSymbol field)
-                            {
-                                memberAccessType = field.Type;
-                            }
-                            else if (sym is IPropertySymbol prop)
-                            {
-                                memberAccessType = prop.Type;
-                            }
-                            break;
                         }
                     }
                 }
@@ -205,6 +271,7 @@ public class RoslynCompletionService
 
                 // Create CompletionData based on symbol kind
                 var kind = ConvertToCompletionKind(symbol.Kind);
+                var scope = ClassifyScope(symbol, token);
 
                 // If after 'new', only include instantiable types
                 if (isAfterNew)
@@ -216,7 +283,7 @@ public class RoslynCompletionService
                         {
                             if (!namedType.IsAbstract && !namedType.IsStatic)
                             {
-                                completions.Add(new CompletionData(symbol.Name, GetDescription(symbol), kind));
+                                completions.Add(new CompletionData(symbol.Name, GetDescription(symbol), kind) { Symbol = symbol, Scope = scope });
                             }
                         }
                     }
@@ -225,20 +292,45 @@ public class RoslynCompletionService
                 {
                     // Normal completion - include everything
                     var text = symbol.Name;
-                    completions.Add(new CompletionData(text, GetDescription(symbol), kind));
+                    completions.Add(new CompletionData(text, GetDescription(symbol), kind) { Symbol = symbol, Scope = scope });
                 }
             }
 
-            // 5. Add expected type as a special completion item when after 'new' with generic type
-            // This ensures "List<double>" appears for "List<double> vals = new |"
-            if (isAfterNew && expectedType != null && expectedType.Contains("<"))
+            // 5. Add expected type as a special completion item
+            // This ensures expected types (e.g. from assignments or method args) are available
+            if (expectedType != null)
             {
-                // Check if this exact generic type isn't already in completions
+                var expectedTypeName = expectedType;
+                
+                // Cleanup generic names if coming fully qualified from Roslyn (e.g. System.Collections.Generic.List<int>)
+                // ExpectedType from our helper might already be simplified, but let's ensure.
+                // For 'new' context, we want the constructor call "new List<int>()"
+                // For assignment context, we just want the type name "List<int>" or "VPoint"
+                
                 var existingNames = new HashSet<string>(completions.Select(c => c.Text));
-                if (!existingNames.Contains(expectedType))
+                
+                if (isAfterNew && expectedType.Contains("<"))
                 {
-                    // Add the full generic type as a high-priority completion
-                    completions.Insert(0, new CompletionData(expectedType, $"new {expectedType}()", CompletionKind.Type));
+                     if (!existingNames.Contains(expectedTypeName))
+                     {
+                         // Add the full generic type as a high-priority completion
+                          completions.Insert(0, new CompletionData(expectedTypeName, $"new {expectedTypeName}()", CompletionKind.Type));
+                     }
+                }
+                else if (!isAfterNew)
+                {
+                    // For local variable assignment: VPoint p = |
+                    // We want "VPoint" to be in the list.
+                    // If it's a simple type name, it might already be there from LookupSymbols.
+                    // But if it was filtered or is a specific construction, ensure it's there.
+                    
+                    // If expected type is simple (VPoint), check if it's already there
+                    if (!existingNames.Contains(expectedTypeName))
+                    {
+                         // Add it if missing (e.g. if it was filtered for some reason, or if we want to boost it)
+                         // Note: We don't have the symbol here easily to get description, so simple description.
+                         completions.Insert(0, new CompletionData(expectedTypeName, expectedTypeName, CompletionKind.Type));
+                    }
                 }
             }
 
@@ -247,10 +339,6 @@ public class RoslynCompletionService
             {
                 AddCode2VizTypes(completions, compilation, prefix);
             }
-
-            // 6. Add Keywords (Simple fallback if not handled by LookupSymbols which primarily does identifiers)
-            // Roslyn's RecommendSymbols API is better for keywords but internal/more complex.
-            // We can stick to a basic list or use the existing keyword list from CompletionProvider for now.
         }
         catch (Exception ex)
         {
@@ -313,8 +401,100 @@ public class RoslynCompletionService
     }
 
     /// <summary>
-    /// Gets the expected type name from the left-hand side of an assignment.
-    /// For example, in "VPoint p1 = new |", returns "VPoint".
+    /// Determines the expected type at the current position based on context (Assignment, Method Argument, etc.)
+    /// </summary>
+    private string? GetExpectedTypeFromContext(SyntaxNode root, SemanticModel semanticModel, int position, string code)
+    {
+        try
+        {
+            var token = root.FindToken(position);
+
+            // 1. Assignment Context: Type x = |
+            // Look for VariableDeclarator or AssignmentExpression
+            var node = token.Parent;
+            while (node != null)
+            {
+                if (node is EqualsValueClauseSyntax equalsNode)
+                {
+                    // var x = ...; found the '='
+                    if (equalsNode.Parent is VariableDeclaratorSyntax varDecl)
+                    {
+                        // It's a variable declaration: Type x = ...
+                        // We need the type of 'x'
+                        if (varDecl.Parent is VariableDeclarationSyntax decl)
+                        {
+                            var type = decl.Type;
+                            // If 'var', we can't infer from LHS (that's the point of var)
+                            if (type.IsVar) return null;
+                            
+                            var typeSymbol = semanticModel.GetTypeInfo(type).Type;
+                            return typeSymbol?.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+                        }
+                    }
+                }
+                else if (node is AssignmentExpressionSyntax assignment)
+                {
+                    // x = ...
+                    // We need the type of 'x' (Left)
+                     var left = assignment.Left;
+                     var typeSymbol = semanticModel.GetTypeInfo(left).Type;
+                     return typeSymbol?.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+                }
+                else if (node is ArgumentListSyntax argList)
+                {
+                    // 2. Method Argument Context: Method(|)
+                    // We are in an argument list. Find which argument we are.
+                    
+                    if (node.Parent is InvocationExpressionSyntax invocation)
+                    {
+                        // Determine parameter index
+                        int paramIndex = 0;
+                        // Simple comma counting similar to SignatureHelp
+                        // (Ideally we map arguments to parameters properly using name: etc, but simpler for now)
+                        var spanBefore = TextSpan.FromBounds(argList.OpenParenToken.Span.End, position);
+                        var textInSpan = code.Substring(spanBefore.Start, Math.Min(spanBefore.Length, code.Length - spanBefore.Start));
+                        paramIndex = textInSpan.Count(c => c == ',');
+                        
+                        var symbolInfo = semanticModel.GetSymbolInfo(invocation);
+                        var methodSymbol = symbolInfo.Symbol as IMethodSymbol ?? symbolInfo.CandidateSymbols.FirstOrDefault() as IMethodSymbol;
+                        
+                        if (methodSymbol != null)
+                        {
+                            if (paramIndex < methodSymbol.Parameters.Length)
+                            {
+                                return methodSymbol.Parameters[paramIndex].Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+                            }
+                            // Handle params array?
+                            else if (methodSymbol.Parameters.Length > 0 && methodSymbol.Parameters.Last().IsParams)
+                            {
+                                var lastParam = methodSymbol.Parameters.Last();
+                                if (lastParam.Type is IArrayTypeSymbol arrayType)
+                                {
+                                    return arrayType.ElementType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+                                }
+                            }
+                        }
+                    }
+                    // Break after finding arg list to avoid going up to other contexts
+                    break;
+                }
+                
+                node = node.Parent;
+            }
+
+            // Fallback to text-based parsing for 'new' context or incomplete trees if Roslyn failed
+            return GetExpectedTypeName(code, position);
+
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Legacy text-based fallback for expected type. (Updated to use new logic primarily)
+    /// Left here as a backup for 'new' scenarios which might be incomplete syntax.
     /// </summary>
     private string? GetExpectedTypeName(string code, int position)
     {
@@ -327,15 +507,19 @@ public class RoslynCompletionService
         while (searchStart >= 0 && char.IsWhiteSpace(code[searchStart]))
             searchStart--;
 
-        // Should be at 'new' keyword - skip it
+        // Check for 'new' keyword
+        bool hasNew = false;
         if (searchStart >= 2 && code.Substring(searchStart - 2, 3) == "new")
         {
+            hasNew = true;
             searchStart -= 3;
         }
-        else
-        {
-            return null;
-        }
+
+        // If explicitly checking for assignment without new (text fallback), we need to be careful.
+        // But for "VPoint p = new |", this logic works.
+        // For "VPoint p = |", we should have caught it in Roslyn traversal above.
+        
+        if (!hasNew) return null; // Logic below relies on skipping 'new'
 
         // Skip whitespace before 'new'
         while (searchStart >= 0 && char.IsWhiteSpace(code[searchStart]))
@@ -394,7 +578,6 @@ public class RoslynCompletionService
             var ltIndex = fullType.IndexOf('<');
             if (ltIndex > 0)
             {
-                // Has generic arguments - extract base type name and preserve arguments
                 var basePart = fullType.Substring(0, ltIndex);
                 var genericPart = fullType.Substring(ltIndex); // includes <...>
                 var dotIndex = basePart.LastIndexOf('.');
@@ -403,7 +586,6 @@ public class RoslynCompletionService
             }
             else
             {
-                // No generic arguments - just remove namespace prefix
                 var dotIndex = fullType.LastIndexOf('.');
                 if (dotIndex >= 0) fullType = fullType.Substring(dotIndex + 1);
                 return fullType;
@@ -500,6 +682,14 @@ public class RoslynCompletionService
         // Hide obsolete symbols
         if (symbol.GetAttributes().Any(a => a.AttributeClass?.Name == "ObsoleteAttribute")) return true;
 
+        // Hide helper namespaces (MS, ABI, etc.)
+        if (symbol is INamespaceSymbol nsSymbol)
+        {
+            var name = nsSymbol.Name;
+            if (name == "MS" || name == "ABI" || name == "Windows" || name == "Internal" || name == "XamlGeneratedNamespace" || name == "FXAssembly")
+                return true;
+        }
+
         // Hide base Object members that clutter completions (users rarely need these)
         if (symbol is IMethodSymbol method)
         {
@@ -535,9 +725,37 @@ public class RoslynCompletionService
         // For types, filter out irrelevant system types
         if (symbol is INamedTypeSymbol typeSymbol)
         {
+            // Hide System.Void
+            if (typeSymbol.SpecialType == SpecialType.System_Void) return true;
+
+            // Hide Primitives (Byte, Int32, String, Boolean, etc.)
+            // Users should use keywords (int, string, bool) which are provided by AvalonEdit/Roslyn separately,
+            // or we just want to declutter. Providing "Int32" AND "int" is noise. "int" is usually done via keywords.
+            // Roslyn sometimes provides the struct Int32. Let's hide the struct if it matches a keyword type.
+            switch (typeSymbol.SpecialType)
+            {
+                case SpecialType.System_Boolean:
+                case SpecialType.System_Char:
+                case SpecialType.System_SByte:
+                case SpecialType.System_Byte:
+                case SpecialType.System_Int16:
+                case SpecialType.System_UInt16:
+                case SpecialType.System_Int32:
+                case SpecialType.System_UInt32:
+                case SpecialType.System_Int64:
+                case SpecialType.System_UInt64:
+                case SpecialType.System_Decimal:
+                case SpecialType.System_Single:
+                case SpecialType.System_Double:
+                case SpecialType.System_String:
+                case SpecialType.System_Object:
+                    return true;
+            }
+
             var ns = typeSymbol.ContainingNamespace?.ToDisplayString() ?? "";
 
             // Hide types from low-level runtime namespaces
+            // EXPANDED LIST based on analysis
             if (ns.StartsWith("System.Runtime") ||
                 ns.StartsWith("System.Reflection") ||
                 ns.StartsWith("System.Diagnostics") ||
@@ -554,16 +772,23 @@ public class RoslynCompletionService
                 ns.StartsWith("Internal") ||
                 ns.StartsWith("Microsoft.") ||
                 ns.StartsWith("FSharp.") ||
-                ns.StartsWith("Interop"))
+                ns.StartsWith("Interop") ||
+                // New additions to further declutter
+                ns.StartsWith("System.Collections.Concurrent") ||
+                ns.StartsWith("System.IO.Compression") ||
+                ns.StartsWith("System.IO.MemoryMappedFiles") ||
+                ns.StartsWith("System.IO.Pipes") ||
+                ns.StartsWith("System.Net") ||
+                ns.StartsWith("System.Xml") ||
+                ns.StartsWith("System.Data"))
             {
                 return true;
             }
 
-            // Hide Action/Func delegates with many type parameters (keep simple ones)
-            if ((typeSymbol.Name == "Action" || typeSymbol.Name == "Func") &&
-                typeSymbol.TypeParameters.Length > 4)
+            // Hide generic Action/Func (unless specific context, but simpler to hide all for now)
+            if (typeSymbol.Name == "Action" || typeSymbol.Name == "Func")
             {
-                return true;
+                 return true;
             }
 
             // Hide obscure System types that aren't useful for geometry coding
@@ -580,9 +805,23 @@ public class RoslynCompletionService
                 "GC", "BitConverter", "Convert", "FormattableString",
                 "Progress", "Lazy", "Lookup", "Grouping",
                 "ValueType", "Enum", "Delegate", "MulticastDelegate",
-                "Attribute", "MarshalByRefObject", "ContextBoundObject"
+                "Attribute", "MarshalByRefObject", "ContextBoundObject",
+                // Additional clutter reducers
+                "Uri", "UriBuilder", "Version", "Random", "Timer", 
+                "Console", "Tuple", "ValueTuple", "ParamArrayAttribute",
+                "ObsoleteAttribute", "Thread", "ThreadStart", "Monitor",
+                
+                // Aggressive filtering
+                "Guid", "Type", "Array", "Exception", "DateTime", "TimeSpan",
+                "MathF", "Math", // We might want Math, but often users use our vector math? 
+                                 // Wait, Math is useful. Let's keep Math. 
+                                 // "Math", 
+                "BitOperations", "Interlocked"
             };
-            if (hiddenTypes.Contains(typeSymbol.Name))
+            // Keeping Random available as it's common.
+            // Keeping Math.
+            
+            if (hiddenTypes.Contains(typeSymbol.Name) && typeSymbol.Name != "Random" && typeSymbol.Name != "Math")
             {
                 return true;
             }
@@ -610,7 +849,7 @@ public class RoslynCompletionService
     private bool IsCommonShortType(string name)
     {
         // Common short types that users might actually need
-        var commonShortTypes = new HashSet<string> { "IO", "ID" };
+        var commonShortTypes = new HashSet<string> { "IO", "ID", "PI" };
         return commonShortTypes.Contains(name);
     }
 
@@ -679,7 +918,7 @@ public class RoslynCompletionService
              int paramIndex = 0;
              var spanBefore = TextSpan.FromBounds(argList.OpenParenToken.Span.End, position);
              // Count commas in the span
-             var textInSpan = code.Substring(spanBefore.Start, spanBefore.Length);
+             var textInSpan = code.Substring(spanBefore.Start, Math.Min(spanBefore.Length, code.Length - spanBefore.Start));
              paramIndex = textInSpan.Count(c => c == ',');
 
              // Get symbols
@@ -703,7 +942,7 @@ public class RoslynCompletionService
             return (new List<string>(), 0);
         }
     }
-    public async Task<(string Kind, string TypeName, string Name, string Documentation)?> GetQuickInfoAsync(string code, int position)
+    public async Task<(string Kind, string TypeName, string Name, string? Documentation)?> GetQuickInfoAsync(string code, int position)
     {
         try
         {
@@ -743,7 +982,7 @@ public class RoslynCompletionService
             var kind = GetKindString(symbol);
             var typeName = GetSymbolType(symbol);
             var name = symbol.Name;
-            var doc = symbol.GetDocumentationCommentXml();
+            string? doc = symbol.GetDocumentationCommentXml();
             
             // If internal XML doc is empty, try to get standard description
             if (string.IsNullOrEmpty(doc))
@@ -753,6 +992,7 @@ public class RoslynCompletionService
                 // Let's return the raw XML or summary.
                 // For simplicity, let's just return the DisplayString as fallback documentation if XML is missing?
                 // Actually, let's leave documentation null if missing, UI handles it.
+                doc = null; 
             }
             else
             {
@@ -798,8 +1038,89 @@ public class RoslynCompletionService
         if (symbol is IFieldSymbol field) return field.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
         if (symbol is IPropertySymbol prop) return prop.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
         if (symbol is IMethodSymbol method) return method.ReturnType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
-        if (symbol is INamedTypeSymbol type) return type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
-        
-        return symbol.Name;
+        return "";
+    }
+
+    // ---- Context Detection Helpers (Phase 3) ----
+
+    /// <summary>
+    /// Checks if the position is inside a generic type argument list (e.g., List&lt;|&gt;).
+    /// </summary>
+    public static bool IsInGenericTypeArgument(SyntaxNode root, int position)
+    {
+        var token = root.FindToken(position);
+        return token.Parent?.AncestorsAndSelf().OfType<TypeArgumentListSyntax>().Any() == true;
+    }
+
+    /// <summary>
+    /// Checks if the position is inside an object initializer (e.g., new Type { | }).
+    /// </summary>
+    public static bool IsInObjectInitializer(SyntaxNode root, int position)
+    {
+        var token = root.FindToken(position);
+        return token.Parent?.AncestorsAndSelf().OfType<InitializerExpressionSyntax>().Any() == true;
+    }
+
+    /// <summary>
+    /// Gets the type being initialized in an object initializer, returns its settable properties.
+    /// </summary>
+    public static List<IPropertySymbol>? GetObjectInitializerProperties(SyntaxNode root, int position, SemanticModel model)
+    {
+        var token = root.FindToken(position);
+        var initializer = token.Parent?.AncestorsAndSelf().OfType<InitializerExpressionSyntax>().FirstOrDefault();
+        if (initializer == null) return null;
+
+        // The initializer's parent should be an ObjectCreationExpression
+        var creation = initializer.Parent as ObjectCreationExpressionSyntax;
+        if (creation == null) return null;
+
+        var typeInfo = model.GetTypeInfo(creation);
+        var type = typeInfo.Type;
+        if (type == null) return null;
+
+        return type.GetMembers()
+            .OfType<IPropertySymbol>()
+            .Where(p => p.SetMethod != null && p.DeclaredAccessibility == Microsoft.CodeAnalysis.Accessibility.Public)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Checks if the position is inside an attribute context (e.g., [|]).
+    /// </summary>
+    public static bool IsInAttributeContext(SyntaxNode root, int position)
+    {
+        var token = root.FindToken(position);
+        return token.Parent?.AncestorsAndSelf().OfType<AttributeListSyntax>().Any() == true;
+    }
+
+    // ---- Scope Classification (Phase 5) ----
+
+    /// <summary>
+    /// Classifies a symbol's scope for priority sorting.
+    /// </summary>
+    private static SymbolScope ClassifyScope(ISymbol symbol, SyntaxToken cursorToken)
+    {
+        // Local variables and parameters
+        if (symbol.Kind == SymbolKind.Local || symbol.Kind == SymbolKind.Parameter ||
+            symbol.Kind == SymbolKind.RangeVariable)
+            return SymbolScope.Local;
+
+        // Members of the containing type
+        var containingType = cursorToken.Parent?.AncestorsAndSelf()
+            .OfType<TypeDeclarationSyntax>()
+            .FirstOrDefault();
+
+        if (containingType != null && symbol.ContainingType != null)
+        {
+            var containingTypeName = containingType.Identifier.Text;
+            if (symbol.ContainingType.Name == containingTypeName)
+                return SymbolScope.ClassMember;
+        }
+
+        // Imported types (from using directives)
+        if (symbol is INamedTypeSymbol || symbol is INamespaceSymbol)
+            return SymbolScope.Imported;
+
+        return SymbolScope.Global;
     }
 }

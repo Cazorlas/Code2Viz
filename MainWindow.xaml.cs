@@ -116,6 +116,11 @@ public partial class MainWindow : Window
     // Hierarchy Provider
     private Editor.HierarchyProvider? _hierarchyProvider;
 
+    // IntelliSense: Cached compilation workspace, documentation sidecar, recently-used symbols
+    private Editor.CachedCompilationWorkspace? _completionWorkspace;
+    private Editor.DocumentationSidecar? _docSidecar;
+    private readonly LinkedList<string> _recentlyUsedSymbols = new();
+
     // Find and Replace
     private FindReplaceService _findReplaceService = new();
     private FindReplaceDialog? _findReplaceDialog;
@@ -167,6 +172,9 @@ public partial class MainWindow : Window
             StartProjectWatcher(_currentProject.ProjectDirectory);
 
             LoadSettingsToUI();
+
+            // Initialize cached compilation workspace for IntelliSense
+            InitializeCompletionWorkspace();
         }
 
         Loaded += MainWindow_Loaded;
@@ -1356,10 +1364,8 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Triggers completion based on context (Ctrl+Space).
-    /// </summary>
-    /// <summary>
     /// Triggers completion based on context (Ctrl+Space or typing).
+    /// Uses the CachedCompilationWorkspace when available for O(1) incremental updates.
     /// </summary>
     private async void TriggerManualCompletion()
     {
@@ -1371,12 +1377,25 @@ public partial class MainWindow : Window
 
         try
         {
-             // Use Roslyn Completion Service with all project files for proper type resolution
-             var service = new Editor.RoslynCompletionService(_compiler.GetReferences());
-             
-             // Get other project files for multi-file type resolution (important for 'var' inference)
-             var otherFiles = GetOtherProjectFiles();
-             var (completions, isAfterNew, prefix, expectedType) = await service.GetCompletionsAsync(code, offset, otherFiles);
+             List<ICompletionData> completions;
+             bool isAfterNew;
+             string prefix;
+             string? expectedType;
+
+             if (_completionWorkspace != null && _activeFile != null)
+             {
+                 // Use cached workspace for incremental compilation (Phase 1)
+                 var fileId = _activeFile.FileName;
+                 var service = new Editor.RoslynCompletionService(_completionWorkspace);
+                 (completions, isAfterNew, prefix, expectedType) = await service.GetCompletionsAsync(code, offset, _completionWorkspace, fileId);
+             }
+             else
+             {
+                 // Fallback: create fresh compilation
+                 var service = new Editor.RoslynCompletionService(_compiler.GetReferences());
+                 var otherFiles = GetOtherProjectFiles();
+                 (completions, isAfterNew, prefix, expectedType) = await service.GetCompletionsAsync(code, offset, otherFiles);
+             }
 
              if (completions.Count > 0)
              {
@@ -1397,10 +1416,10 @@ public partial class MainWindow : Window
 
                  // Add snippets (not when after 'new' or in member access context)
                  // Check if we're in member access (dot before the prefix)
-                 var isMemberAccess = offset > prefix.Length && 
-                     code.Length > offset - prefix.Length - 1 && 
+                 var isMemberAccess = offset > prefix.Length &&
+                     code.Length > offset - prefix.Length - 1 &&
                      code[offset - prefix.Length - 1] == '.';
-                     
+
                  if (!isAfterNew && !isMemberAccess)
                  {
                      foreach (var (trigger, description) in Editor.CodeSnippets.GetAll())
@@ -1410,7 +1429,19 @@ public partial class MainWindow : Window
                  }
 
                  ShowCompletionWindowWithSelection();
-                 _completionWindow.Closed += (s, args) => _completionWindow = null;
+                 _completionWindow.Closed += (s, args) =>
+                 {
+                     _completionWindow = null;
+                     _docSidecar?.Close();
+                 };
+
+                 // Track recently-used symbol when an item is committed
+                 _completionWindow.CompletionList.InsertionRequested += (s, args) =>
+                 {
+                     var selectedItem = _completionWindow?.CompletionList.SelectedItem;
+                     if (selectedItem != null)
+                         TrackRecentlyUsedSymbol(selectedItem.Text);
+                 };
              }
         }
         catch (Exception ex)
@@ -1420,17 +1451,43 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Sorts completions by match quality and context.
-    /// Expected type from left-hand side appears first.
-    /// Types appear first when after 'new' keyword.
-    /// Best prefix matches appear at the top.
+    /// Sorts completions using fuzzy matching, scope priority, and context awareness.
+    /// Uses FuzzyMatcher for subsequence scoring (Phase 2), scope classification (Phase 5),
+    /// and recently-used symbol boosting.
     /// </summary>
     private List<ICompletionData> SortCompletions(List<ICompletionData> completions, string prefix, bool isAfterNew, string? expectedType)
     {
-        var prefixLower = prefix.ToLowerInvariant();
         var expectedTypeLower = expectedType?.ToLowerInvariant();
 
-        return completions
+        // Score all items with fuzzy matcher and tag match positions
+        foreach (var c in completions)
+        {
+            if (c is Editor.CompletionData cd && !string.IsNullOrEmpty(prefix))
+            {
+                cd.MatchScore = Editor.FuzzyMatcher.Score(prefix, c.Text);
+                cd.MatchPositions = Editor.FuzzyMatcher.GetMatchPositions(prefix, c.Text);
+
+                // Recently-used boost
+                if (_recentlyUsedSymbols.Contains(c.Text))
+                    cd.MatchScore = (cd.MatchScore ?? 0) + 5;
+            }
+        }
+
+        // Filter: if prefix is non-empty, remove items that don't fuzzy-match
+        IEnumerable<ICompletionData> filtered = completions;
+        if (!string.IsNullOrEmpty(prefix))
+        {
+            filtered = completions.Where(c =>
+            {
+                if (c is Editor.CompletionData cd)
+                    return cd.MatchScore != null;
+                // SnippetCompletionData: use simple prefix check
+                return c.Text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
+                       c.Text.Contains(prefix, StringComparison.OrdinalIgnoreCase);
+            });
+        }
+
+        return filtered
             .OrderBy(c =>
             {
                 var textLower = c.Text.ToLowerInvariant();
@@ -1441,39 +1498,151 @@ public partial class MainWindow : Window
                 if (expectedTypeLower != null && textLower == expectedTypeLower)
                     return -1;
 
-                // Priority 0: Exact match with typed prefix (case-insensitive)
-                if (!string.IsNullOrEmpty(prefixLower) && textLower == prefixLower)
+                // Priority 0: High fuzzy score items (exact/prefix matches)
+                if (item?.MatchScore is > 30)
                     return 0;
 
-                // Priority 1: Starts with prefix (case-insensitive)
-                if (!string.IsNullOrEmpty(prefixLower) && textLower.StartsWith(prefixLower))
+                // Priority 1: Good fuzzy matches
+                if (item?.MatchScore is > 10)
                 {
-                    // If after 'new', prioritize types even more
-                    if (isAfterNew && isType)
-                        return 1;
+                    if (isAfterNew && isType) return 1;
                     return isType ? 2 : 3;
                 }
 
-                // Priority 2: Contains prefix
-                if (!string.IsNullOrEmpty(prefixLower) && textLower.Contains(prefixLower))
+                // Priority 2: Weaker fuzzy matches
+                if (item?.MatchScore != null)
                 {
-                    if (isAfterNew && isType)
-                        return 4;
+                    if (isAfterNew && isType) return 4;
                     return isType ? 5 : 6;
                 }
 
                 // Priority 3: No prefix typed - sort types first when after 'new'
-                if (isAfterNew && isType)
-                    return 7;
+                if (isAfterNew && isType) return 7;
                 return isType ? 8 : 9;
             })
-            .ThenBy(c => c.Text.Length) // Shorter names first for same priority
-            .ThenBy(c => c.Text) // Alphabetical for same length
+            .ThenBy(c => (c as Editor.CompletionData)?.Scope ?? Editor.SymbolScope.Global) // Local scope first (Phase 5)
+            .ThenByDescending(c => (c as Editor.CompletionData)?.MatchScore ?? 0) // Higher score first
+            .ThenBy(c => c.Text.Length) // Shorter names first
+            .ThenBy(c => c.Text) // Alphabetical
             .ToList();
     }
 
-    // Legacy methods removed
+    // ---- IntelliSense Infrastructure (Phases 1, 3, 5) ----
 
+    /// <summary>
+    /// Initializes (or re-initializes) the CachedCompilationWorkspace with all project files.
+    /// Called when a project is loaded or created.
+    /// </summary>
+    private void InitializeCompletionWorkspace()
+    {
+        try
+        {
+            _completionWorkspace = new Editor.CachedCompilationWorkspace(_compiler.GetReferences());
+            if (_currentProject != null)
+            {
+                foreach (var file in _currentProject.Files)
+                {
+                    _completionWorkspace.UpdateFile(file.FileName, file.Content);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Workspace init error: {ex.Message}");
+            _completionWorkspace = null;
+        }
+    }
+
+    /// <summary>
+    /// Tracks a recently-used symbol name for completion priority boosting.
+    /// Maintains a bounded list of the last 50 symbols used.
+    /// </summary>
+    private void TrackRecentlyUsedSymbol(string symbolName)
+    {
+        // Remove if already present (to move to front)
+        _recentlyUsedSymbols.Remove(symbolName);
+        _recentlyUsedSymbols.AddFirst(symbolName);
+
+        // Trim to max 50
+        while (_recentlyUsedSymbols.Count > 50)
+            _recentlyUsedSymbols.RemoveLast();
+    }
+
+    /// <summary>
+    /// Triggers completion for object initializer properties (Phase 3).
+    /// Called after typing '{' when in a 'new Type { }' context.
+    /// </summary>
+    private async void TriggerObjectInitializerCompletion()
+    {
+        try
+        {
+            var code = CodeEditor.Text;
+            var position = CodeEditor.CaretOffset;
+
+            // Quick text check: look back for pattern 'new TypeName {'
+            var textBefore = position > 30 ? code.Substring(position - 30, 30) : code.Substring(0, position);
+            if (!textBefore.Contains("new ")) return;
+
+            // Parse and check if we're in an initializer context
+            var syntaxTree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(code);
+            var root = await syntaxTree.GetRootAsync();
+
+            if (Editor.RoslynCompletionService.IsInObjectInitializer(root, position))
+            {
+                TriggerManualCompletion();
+            }
+        }
+        catch { /* ignore - best effort */ }
+    }
+
+    /// <summary>
+    /// Triggers completion for attribute names (Phase 3).
+    /// Called after typing '[' at the start of a line or after whitespace.
+    /// </summary>
+    private async void TriggerAttributeCompletion()
+    {
+        try
+        {
+            var code = CodeEditor.Text;
+            var position = CodeEditor.CaretOffset;
+
+            var syntaxTree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(code);
+            var root = await syntaxTree.GetRootAsync();
+
+            if (Editor.RoslynCompletionService.IsInAttributeContext(root, position))
+            {
+                TriggerManualCompletion();
+            }
+        }
+        catch { /* ignore */ }
+    }
+
+    /// <summary>
+    /// Triggers completion for generic type arguments (Phase 3).
+    /// Called after typing '&lt;' in a generic context like List&lt;|&gt;.
+    /// </summary>
+    private async void TriggerGenericTypeCompletion()
+    {
+        try
+        {
+            var code = CodeEditor.Text;
+            var position = CodeEditor.CaretOffset;
+
+            // Quick text check: the character before '<' should be a letter/digit (type name end)
+            if (position < 2) return;
+            var charBeforeAngle = code[position - 2]; // position-1 is '<', position-2 is char before
+            if (!char.IsLetterOrDigit(charBeforeAngle) && charBeforeAngle != '_') return;
+
+            var syntaxTree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(code);
+            var root = await syntaxTree.GetRootAsync();
+
+            if (Editor.RoslynCompletionService.IsInGenericTypeArgument(root, position))
+            {
+                TriggerManualCompletion();
+            }
+        }
+        catch { /* ignore */ }
+    }
 
     private bool HandleAutoIndentEnter()
     {
@@ -1590,11 +1759,17 @@ public partial class MainWindow : Window
         {
             // Auto-close curly brace
             AutoInsertClosingBracket('}');
+
+            // Trigger object initializer completion (Phase 3): new Type { | }
+            TriggerObjectInitializerCompletion();
         }
         else if (e.Text == "[")
         {
             // Auto-close square bracket
             AutoInsertClosingBracket(']');
+
+            // Trigger attribute completion (Phase 3): [|]
+            TriggerAttributeCompletion();
         }
         else if (e.Text == "<")
         {
@@ -1603,6 +1778,9 @@ public partial class MainWindow : Window
             {
                 AutoInsertClosingBracket('>');
             }
+
+            // Trigger generic type argument completion (Phase 3): List<|>
+            TriggerGenericTypeCompletion();
         }
         else if (e.Text == "\"")
         {
@@ -2394,7 +2572,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Shows the completion window with the first item selected.
+    /// Shows the completion window with the first item selected, and attaches the documentation sidecar.
     /// </summary>
     private void ShowCompletionWindowWithSelection()
     {
@@ -2420,15 +2598,46 @@ public partial class MainWindow : Window
         // Close window if it becomes empty after filtering
         _completionWindow.CompletionList.ListBox.Items.CurrentChanged += (s, e) =>
         {
-            if (_completionWindow != null && 
+            if (_completionWindow != null &&
                 _completionWindow.CompletionList.ListBox.Items.Count == 0)
             {
                 _completionWindow.Close();
             }
         };
 
+        // Documentation sidecar (Phase 4)
+        _docSidecar = new Editor.DocumentationSidecar();
+        _docSidecar.TrackCompletionWindow(_completionWindow);
+
+        // Show docs when selection changes
+        _completionWindow.CompletionList.ListBox.SelectionChanged += (s, e) =>
+        {
+            var selectedItem = _completionWindow?.CompletionList.SelectedItem as Editor.CompletionData;
+            if (selectedItem?.Symbol != null)
+            {
+                _docSidecar?.ShowForItem(selectedItem);
+            }
+            else
+            {
+                _docSidecar?.Hide();
+            }
+        };
+
+        // Show initial selection's docs after the window renders
+        _completionWindow.Loaded += (s, e) =>
+        {
+            _docSidecar?.UpdatePosition();
+            var initialItem = _completionWindow?.CompletionList.SelectedItem as Editor.CompletionData;
+            if (initialItem?.Symbol != null)
+                _docSidecar?.ShowForItem(initialItem);
+        };
+
         _completionWindow.Show();
-        _completionWindow.Closed += (s, e) => _completionWindow = null;
+        _completionWindow.Closed += (s, e) =>
+        {
+            _completionWindow = null;
+            _docSidecar?.Close();
+        };
     }
 
     private void StyleInsightWindow(OverloadInsightWindow window)
@@ -2496,6 +2705,9 @@ public partial class MainWindow : Window
 
             SetStatus($"Loaded project: {_currentProject.Files.Count} file(s)", isError: false);
             LoadSettingsToUI();
+
+            // Initialize cached compilation workspace for IntelliSense
+            InitializeCompletionWorkspace();
         }
         catch (Exception ex)
         {
@@ -2887,6 +3099,9 @@ public partial class MainWindow : Window
                 {
                     SelectFile(_currentProject.EntryPointFile);
                 }
+
+                // Initialize cached compilation workspace for IntelliSense
+                InitializeCompletionWorkspace();
             }
             catch (Exception ex)
             {
@@ -4435,10 +4650,20 @@ public partial class MainWindow : Window
 
         try
         {
-            var code = CodeEditor.Text;
-            var references = _compiler.GetReferences();
-
-            await _semanticHighlighter.UpdateTokensAsync(code, references);
+            if (_completionWorkspace != null && _activeFile != null)
+            {
+                // Use shared workspace — avoids duplicate compilation
+                var fileId = _activeFile.FileName;
+                _completionWorkspace.UpdateFile(fileId, CodeEditor.Text);
+                await _semanticHighlighter.UpdateTokensAsync(_completionWorkspace, fileId);
+            }
+            else
+            {
+                // Fallback: standalone compilation
+                var code = CodeEditor.Text;
+                var references = _compiler.GetReferences();
+                await _semanticHighlighter.UpdateTokensAsync(code, references);
+            }
 
             // Redraw on UI thread
             await Dispatcher.InvokeAsync(() =>
@@ -9674,6 +9899,10 @@ public class {typeName}
         CodeEditor.Text = newCode;
         _activeFile.Content = newCode;
 
+        // Save the modified original file to disk
+        if (!_activeFile.IsNew)
+            File.WriteAllText(_activeFile.FilePath, newCode);
+
         // Create new file
         var fileName = _activeFile.FileName ?? "";
         var ext = Path.GetExtension(fileName);
@@ -9702,18 +9931,26 @@ public class {typeName}
             newFileContent = $"{header}\n\n{typeCode}";
         }
 
-        // Create the file in project
+        // Create the file in the same directory as the source file and save immediately
+        var sourceDir = Path.GetDirectoryName(_activeFile.FilePath) ?? _currentProject.ProjectDirectory;
+        var newFilePath = Path.Combine(sourceDir, newFileName);
         var newFile = new VizCodeFile
         {
-            FilePath = Path.Combine(_currentProject.ProjectDirectory, newFileName),
+            FilePath = newFilePath,
             Content = newFileContent,
-            HasUnsavedChanges = true,
-            IsNew = true
+            HasUnsavedChanges = false,
+            IsNew = false
         };
+
+        // Save to disk immediately
+        File.WriteAllText(newFilePath, newFileContent);
 
         _currentProject.Files.Add(newFile);
         RefreshFileTabs();
         LoadProjectTree();
+
+        // Open the new file in the editor
+        SelectFile(newFile);
 
         SetStatus($"Moved '{typeName}' to {newFileName}", false);
     }

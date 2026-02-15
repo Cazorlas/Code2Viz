@@ -1,12 +1,26 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Documents;
 using System.Windows.Media;
 using ICSharpCode.AvalonEdit.CodeCompletion;
 using ICSharpCode.AvalonEdit.Document;
 using ICSharpCode.AvalonEdit.Editing;
+using Microsoft.CodeAnalysis;
 
 namespace Code2Viz.Editor;
+
+/// <summary>
+/// Scope classification for completion items, used for local-scope priority sorting.
+/// Lower numeric value = higher priority.
+/// </summary>
+public enum SymbolScope
+{
+    Local = 0,         // Local variables, parameters
+    ClassMember = 1,   // Members of the containing type
+    Imported = 2,      // Types/members from imported namespaces
+    Global = 3         // Everything else
+}
 
 public class CompletionData : ICompletionData
 {
@@ -28,6 +42,26 @@ public class CompletionData : ICompletionData
     public string Text => _text;
     public object Description => _description;
     public CompletionKind Kind { get; }
+
+    /// <summary>
+    /// Fuzzy match score (null = not matched / not scored yet).
+    /// </summary>
+    public int? MatchScore { get; set; }
+
+    /// <summary>
+    /// Character positions in Text that matched the fuzzy pattern (for highlighting).
+    /// </summary>
+    public List<int>? MatchPositions { get; set; }
+
+    /// <summary>
+    /// The Roslyn symbol backing this completion item (for deferred documentation loading).
+    /// </summary>
+    public ISymbol? Symbol { get; set; }
+
+    /// <summary>
+    /// Scope classification for sorting (local > class member > imported > global).
+    /// </summary>
+    public SymbolScope Scope { get; set; } = SymbolScope.Global;
 
     public ImageSource? Image => null;
 
@@ -66,7 +100,7 @@ public class CompletionData : ICompletionData
             };
 
             var panel = new StackPanel { Orientation = Orientation.Horizontal };
-            
+
             // Icon (fixed width for alignment)
             var iconBlock = new TextBlock
             {
@@ -76,13 +110,28 @@ public class CompletionData : ICompletionData
                 FontSize = 12
             };
             panel.Children.Add(iconBlock);
-            
-            // TextBlock for Name
-            var nameBlock = new TextBlock
+
+            // TextBlock for Name - with fuzzy match highlighting if available
+            var nameBlock = new TextBlock { FontWeight = FontWeights.SemiBold };
+            if (MatchPositions != null && MatchPositions.Count > 0)
             {
-                Text = _text,
-                FontWeight = FontWeights.SemiBold
-            };
+                // Render with bold/highlighted matched characters
+                var matchSet = new HashSet<int>(MatchPositions);
+                for (int i = 0; i < _text.Length; i++)
+                {
+                    var run = new Run(_text[i].ToString());
+                    if (matchSet.Contains(i))
+                    {
+                        run.FontWeight = FontWeights.ExtraBold;
+                        run.Foreground = nameColor;
+                    }
+                    nameBlock.Inlines.Add(run);
+                }
+            }
+            else
+            {
+                nameBlock.Text = _text;
+            }
             nameBlock.Style = CreateSelectionAwareStyle(nameColor);
             panel.Children.Add(nameBlock);
 

@@ -97,10 +97,43 @@ namespace Code2Viz.Editor
             }
         }
 
+        /// <summary>
+        /// Updates semantic tokens using a shared CachedCompilationWorkspace.
+        /// Avoids creating a duplicate compilation — reuses the one maintained for IntelliSense.
+        /// </summary>
+        public async Task UpdateTokensAsync(CachedCompilationWorkspace workspace, string fileId)
+        {
+            if (!_enabled) return;
+
+            _cts?.Cancel();
+            _cts = new CancellationTokenSource();
+            var ct = _cts.Token;
+
+            try
+            {
+                var compilation = workspace.GetCompilation();
+                var syntaxTree = workspace.GetSyntaxTree(fileId);
+                if (syntaxTree == null) return;
+
+                var semanticModel = compilation.GetSemanticModel(syntaxTree);
+                var root = syntaxTree.GetRoot(ct);
+
+                var newTokens = await Task.Run(() => AnalyzeFromModel(root, semanticModel, ct), ct);
+
+                if (!ct.IsCancellationRequested)
+                {
+                    _tokens = newTokens;
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SemanticHighlighter (workspace) error: {ex.Message}");
+            }
+        }
+
         private List<SemanticToken> AnalyzeCode(string code, IEnumerable<MetadataReference>? references, CancellationToken ct)
         {
-            var tokens = new List<SemanticToken>();
-
             try
             {
                 var syntaxTree = CSharpSyntaxTree.ParseText(code, cancellationToken: ct);
@@ -133,6 +166,25 @@ namespace Code2Viz.Editor
                 var semanticModel = compilation.GetSemanticModel(syntaxTree);
                 var root = syntaxTree.GetRoot(ct);
 
+                return AnalyzeFromModel(root, semanticModel, ct);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Code analysis error: {ex.Message}");
+                return new List<SemanticToken>();
+            }
+        }
+
+        /// <summary>
+        /// Core analysis logic that works from a pre-built SyntaxNode + SemanticModel.
+        /// Shared by both the standalone path and the workspace-backed path.
+        /// </summary>
+        private List<SemanticToken> AnalyzeFromModel(SyntaxNode root, SemanticModel semanticModel, CancellationToken ct)
+        {
+            var tokens = new List<SemanticToken>();
+
+            try
+            {
                 // Find all identifiers
                 var identifiers = root.DescendantNodes()
                     .OfType<IdentifierNameSyntax>()

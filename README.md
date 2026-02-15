@@ -1165,8 +1165,13 @@ All cursors are visually indicated with white caret lines, and selections are hi
 Code2Viz includes a full-featured code editor with VSCode-like intellisense powered by Roslyn.
 
 ### Autocomplete
-- **Automatic**: Triggered on typing `.` or `Ctrl+Space`
-- **Smart suggestions**: Context-aware completions for types, members, keywords
+- **Automatic**: Triggered on typing `.`, `(`, `<`, `{`, `[`, or `Ctrl+Space`
+- **Fuzzy matching**: Type partial names (e.g., "clr" matches "Color", "VPt" matches "VPoint") with intelligent scoring that rewards prefix matches, camelCase alignment, and consecutive character runs
+- **Context-aware**: Completions adapt to context -- object initializer properties, generic type arguments, attribute types, and more
+- **Scope-prioritized**: Local variables and parameters appear first, followed by class members, then imported types
+- **Documentation sidecar**: A documentation panel appears beside the completion list showing the signature, summary, parameters, and return type of the selected item
+- **Incremental compilation**: Uses a cached Roslyn workspace that incrementally updates only changed files, keeping completions responsive even in large projects
+- **Recently-used tracking**: Recently selected completions are boosted in future rankings
 - **Signature Help**: Parameter info displayed when typing method calls
 - **Snippets**: Code snippets for common patterns (if, for, foreach, etc.)
 

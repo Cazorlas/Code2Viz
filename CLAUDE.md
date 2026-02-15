@@ -34,7 +34,8 @@ Code2Viz/
 ├── Geometry/           # Shape classes (VPoint, VLine, VArc, VCircle, VRectangle, etc.)
 ├── Canvas/             # RenderCanvas (zoom/pan), CanvasRenderer, DrawingTool, SnapEngine
 ├── Console/            # VizConsole (output), ConsoleOutput (singleton collector)
-├── Editor/             # Code editor: IntelliSenseProvider, SemanticHighlighter, CodeLensProvider, Minimap
+├── Editor/             # Code editor: IntelliSenseProvider, SemanticHighlighter, CodeLensProvider, Minimap,
+│                       #   CachedCompilationWorkspace, FuzzyMatcher, DocumentationSidecar, RoslynCompletionService
 ├── Execution/          # ModuleCompiler (Roslyn CSharpCompilation)
 ├── Project/            # VizCodeFile, VizCodeProject, Templates
 ├── Animation/          # Animator, animation types (Draw, Move, Rotate, Fade, etc.)
@@ -70,6 +71,14 @@ Code2Viz/
 - Y-axis points UP (mathematical, not screen coordinates)
 - WorldToScreen/ScreenToWorld methods handle conversion
 - Animation loop uses `CompositionTarget.Rendering` for vsync-aligned frame updates
+
+### IntelliSense Engine (Editor/)
+The IntelliSense system uses incremental Roslyn compilation for responsive completions:
+- **CachedCompilationWorkspace** - Maintains a cached `CSharpCompilation` with incremental file updates (`UpdateFile`/`RemoveFile`). Avoids rebuilding the full compilation on every keystroke by using `ReplaceSyntaxTree`. Thread-safe.
+- **RoslynCompletionService** - Provides context-aware completions via Roslyn's `Recommender` API. Detects context (generic type arguments, object initializers, attributes) and classifies symbol scope (Local/ClassMember/Imported/Global) for priority sorting.
+- **FuzzyMatcher** - Subsequence fuzzy matching with scoring. Rewards prefix matches, word-boundary hits, camelCase alignment, and consecutive runs. Used to filter and rank completions as the user types.
+- **DocumentationSidecar** - WPF `Popup` that displays XML documentation (signature, summary, parameters, returns) beside the completion window. Tracks the completion window position and updates on selection change.
+- **CompletionData** - Extended with `SymbolScope`, `MatchScore`/`MatchPositions`, and `Symbol` properties. Renders match-highlight characters in bold within the completion list.
 
 ### Type Aliases (in RenderCanvas.cs)
 Due to naming conflicts with WPF types, use these aliases:
