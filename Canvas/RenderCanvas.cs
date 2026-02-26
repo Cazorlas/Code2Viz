@@ -2309,7 +2309,7 @@ public class RenderCanvas : FrameworkElement
                 ctx.LineTo(w2, true, false);
             }
             arrowHead.Freeze();
-            dc.DrawGeometry(brush, pen, arrowHead);
+            dc.DrawGeometry(brush, null, arrowHead);
         }
 
         // Draw start arrowhead if double-ended (only when fully drawn)
@@ -2326,7 +2326,7 @@ public class RenderCanvas : FrameworkElement
                 ctx.LineTo(sw2Screen, true, false);
             }
             startHead.Freeze();
-            dc.DrawGeometry(brush, pen, startHead);
+            dc.DrawGeometry(brush, null, startHead);
         }
 
         if (applyRotation) dc.Pop();
@@ -2409,7 +2409,7 @@ public class RenderCanvas : FrameworkElement
             ctx.LineTo(w2, true, false);
         }
         arrowHead.Freeze();
-        dc.DrawGeometry(brush, pen, arrowHead);
+        dc.DrawGeometry(brush, null, arrowHead);
     }
 
     private void DrawGroup(DrawingContext dc, VGroup group)
