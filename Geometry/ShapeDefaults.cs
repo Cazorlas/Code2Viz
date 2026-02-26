@@ -34,6 +34,16 @@ public static class ShapeDefaults
     /// </summary>
     public static double? GlobalLineTypeScale { get; set; } = null;
 
+    // Dimension style defaults
+    public static double? DimOffset { get; set; } = null;
+    public static double? DimArrowSize { get; set; } = null;
+    public static double? DimTextHeight { get; set; } = null;
+    public static int? DimDecimalPlaces { get; set; } = null;
+    public static double? DimExtendBeyondDimLines { get; set; } = null;
+    public static double? DimOffsetFromOrigin { get; set; } = null;
+    public static string? DimPrefix { get; set; } = null;
+    public static string? DimSuffix { get; set; } = null;
+
     /// <summary>
     /// Resets defaults to initial state (nulls).
     /// </summary>
@@ -44,5 +54,13 @@ public static class ShapeDefaults
         GlobalLineWeight = null;
         GlobalLineType = null;
         GlobalLineTypeScale = null;
+        DimOffset = null;
+        DimArrowSize = null;
+        DimTextHeight = null;
+        DimDecimalPlaces = null;
+        DimExtendBeyondDimLines = null;
+        DimOffsetFromOrigin = null;
+        DimPrefix = null;
+        DimSuffix = null;
     }
 }

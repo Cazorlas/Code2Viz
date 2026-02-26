@@ -222,14 +222,20 @@ new VDimension(point1, point2);
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| Offset | double | 20 | Dimension line offset |
+| Offset | double | 20 | Dimension line offset from points |
 | ExtensionLength | double | 10 | Extension line length |
 | ArrowSize | double | 8 | Arrowhead size |
 | CustomText | string? | null | Custom text (null = distance) |
 | DecimalPlaces | int | 2 | Distance decimal places |
 | TextHeight | double | 12 | Text height |
+| ExtendBeyondDimLines | double | 1.25 | Extension past dimension line |
+| OffsetFromOrigin | double | 0.625 | Gap from origin to extension start |
+| SuppressExtLine1 | bool | false | Hide first extension line |
+| SuppressExtLine2 | bool | false | Hide second extension line |
+| Prefix | string | "" | Text prefix (e.g. "L=") |
+| Suffix | string | "" | Text suffix (e.g. "mm") |
 | Distance | double | | Calculated distance (read-only) |
-| DisplayText | string | | Display text (read-only) |
+| DisplayText | string | | Display text with prefix/suffix (read-only) |
 
 ### VXLine (infinite construction line)
 ```csharp

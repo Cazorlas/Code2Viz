@@ -2341,6 +2341,7 @@ public class RenderCanvas : FrameworkElement
         if (applyOpacity) dc.PushOpacity(dim.Opacity);
 
         var pen = GetCachedPen(dim.Color, dim.LineWeight, dim.LineType, dim.LineTypeScale);
+        var brush = GetCachedBrush(dim.Color);
         var (dimStart, dimEnd, textPos, ext1Start, ext1End, ext2Start, ext2End) = dim.GetDimensionGeometry();
 
         // Draw dimension line
@@ -2348,12 +2349,17 @@ public class RenderCanvas : FrameworkElement
         var de = WorldToScreen(dimEnd.X, dimEnd.Y);
         dc.DrawLine(pen, ds, de);
 
-        // Draw extension lines
-        dc.DrawLine(pen, WorldToScreen(ext1Start.X, ext1Start.Y), WorldToScreen(ext1End.X, ext1End.Y));
-        dc.DrawLine(pen, WorldToScreen(ext2Start.X, ext2Start.Y), WorldToScreen(ext2End.X, ext2End.Y));
+        // Draw extension lines (respecting suppress flags)
+        if (!dim.SuppressExtLine1)
+            dc.DrawLine(pen, WorldToScreen(ext1Start.X, ext1Start.Y), WorldToScreen(ext1End.X, ext1End.Y));
+        if (!dim.SuppressExtLine2)
+            dc.DrawLine(pen, WorldToScreen(ext2Start.X, ext2Start.Y), WorldToScreen(ext2End.X, ext2End.Y));
+
+        // Draw arrowheads at both ends of dimension line
+        DrawDimensionArrowhead(dc, brush, pen, dimStart, dimEnd, dim.ArrowSize);
+        DrawDimensionArrowhead(dc, brush, pen, dimEnd, dimStart, dim.ArrowSize);
 
         // Draw text
-        var brush = GetCachedBrush(dim.Color);
         var fontSize = dim.TextHeight * _viewport.Scale;
         fontSize = Math.Max(fontSize, 8);
         var typeface = new Typeface("Segoe UI");
@@ -2370,6 +2376,40 @@ public class RenderCanvas : FrameworkElement
         dc.DrawText(formattedText, new Point(tp.X - formattedText.Width / 2, tp.Y - formattedText.Height / 2));
 
         if (applyOpacity) dc.Pop();
+    }
+
+    /// <summary>
+    /// Draws a filled triangular arrowhead at tipPoint, pointing from tailPoint toward tipPoint.
+    /// </summary>
+    private void DrawDimensionArrowhead(DrawingContext dc, Brush brush, Pen pen,
+        VPoint tipPoint, VPoint tailPoint, double arrowSize)
+    {
+        var dx = tipPoint.X - tailPoint.X;
+        var dy = tipPoint.Y - tailPoint.Y;
+        var length = Math.Sqrt(dx * dx + dy * dy);
+        if (length < 1e-10) return;
+
+        var dirX = dx / length;
+        var dirY = dy / length;
+        var perpX = -dirY;
+        var perpY = dirX;
+        var halfWidth = arrowSize / 6.0;
+
+        var tip = WorldToScreen(tipPoint.X, tipPoint.Y);
+        var w1 = WorldToScreen(tipPoint.X - dirX * arrowSize + perpX * halfWidth,
+                               tipPoint.Y - dirY * arrowSize + perpY * halfWidth);
+        var w2 = WorldToScreen(tipPoint.X - dirX * arrowSize - perpX * halfWidth,
+                               tipPoint.Y - dirY * arrowSize - perpY * halfWidth);
+
+        var arrowHead = new StreamGeometry();
+        using (var ctx = arrowHead.Open())
+        {
+            ctx.BeginFigure(tip, true, true);
+            ctx.LineTo(w1, true, false);
+            ctx.LineTo(w2, true, false);
+        }
+        arrowHead.Freeze();
+        dc.DrawGeometry(brush, pen, arrowHead);
     }
 
     private void DrawGroup(DrawingContext dc, VGroup group)

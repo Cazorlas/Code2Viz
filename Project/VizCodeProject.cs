@@ -63,6 +63,16 @@ public class VizCodeProject
         Geometry.ShapeDefaults.GlobalFillColor = ProjectFile.Settings.DefaultFillColor;
         Geometry.ShapeDefaults.GlobalLineWeight = ProjectFile.Settings.DefaultLineWeight;
         Geometry.ShapeDefaults.GlobalLineTypeScale = ProjectFile.Settings.DefaultLineTypeScale;
+
+        // Dimension style defaults
+        Geometry.ShapeDefaults.DimOffset = ProjectFile.Settings.DimOffset;
+        Geometry.ShapeDefaults.DimArrowSize = ProjectFile.Settings.DimArrowSize;
+        Geometry.ShapeDefaults.DimTextHeight = ProjectFile.Settings.DimTextHeight;
+        Geometry.ShapeDefaults.DimDecimalPlaces = ProjectFile.Settings.DimDecimalPlaces;
+        Geometry.ShapeDefaults.DimExtendBeyondDimLines = ProjectFile.Settings.DimExtendBeyondDimLines;
+        Geometry.ShapeDefaults.DimOffsetFromOrigin = ProjectFile.Settings.DimOffsetFromOrigin;
+        Geometry.ShapeDefaults.DimPrefix = ProjectFile.Settings.DimPrefix;
+        Geometry.ShapeDefaults.DimSuffix = ProjectFile.Settings.DimSuffix;
     }
 
     public static VizCodeProject CreateNew(string directory, string projectName, ProjectLanguage language)

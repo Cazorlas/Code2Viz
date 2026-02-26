@@ -58,7 +58,7 @@ namespace Code2Viz.Documentation
                 { "VGroup", "Represents a collection of shapes treated as a single unit. Supports multiple constructors (empty, params, IEnumerable, List), group transformations (Move, Rotate, Scale, Flip), style application (ApplyStyle, ApplyColor, ApplyFillColor), and utility methods (Flatten, ForEach, Where, GetShapesOfType). When drawn, the group is rendered and selected as a single entity on the canvas." },
                 { "VGrid", "Represents a rectangular grid of VPoints. Constructor: VGrid(location, xcount, ycount, xSpacing, ySpacing, centered). If centered=true, grid is centered at location; if false, location is bottom-left corner. Access points via Points property, indexers [index] or [col, row], or GetRow()/GetColumn() methods. Supports all Shape transformations (Move, Rotate, Scale, Flip) and ApplyStyle() to set colors on all points." },
                 { "VArrow", "Represents an arrow (line with arrowhead). Supports single or double-ended arrows with configurable head size and angle." },
-                { "VDimension", "Represents a dimension line showing the distance between two points with text annotation. Useful for technical drawings." },
+                { "VDimension", "Represents a dimension line showing the distance between two points with text annotation. AutoCAD-style properties: Offset, ArrowSize, TextHeight, DecimalPlaces, ExtendBeyondDimLines, OffsetFromOrigin, SuppressExtLine1/2, Prefix, Suffix. Renders arrowheads at both ends of the dimension line." },
 
                 // Legacy aliases (for backward compatibility)
                 { "Arc2D", "Represents a 2D arc defined by a center, radius, start angle, and end angle." },
@@ -441,6 +441,7 @@ namespace Code2Viz.Documentation
                 { "VSpline", "let pts = [| VPoint(0.0,0.0); VPoint(50.0,50.0); VPoint(100.0,0.0) |]\nlet s = VSpline(pts)\ns.Draw()" },
                 { "VText", "let t = VText(VPoint(50.0, 50.0), \"Hi\")\nt.Height <- 40.0\nt.Draw()" },
                 { "VArrow", "// From two points\nlet a = VArrow(VPoint(10.0, 10.0), VPoint(100.0, 10.0))\na.Draw()\n\n// From start point, direction, and length\nlet a2 = VArrow(VPoint(0.0, 0.0), VXYZ.BasisX, 50.0)\na2.Draw()" },
+                { "VDimension", "// Dimension between two points\nlet dim = VDimension(VPoint(0.0, 0.0), VPoint(100.0, 0.0))\ndim.Offset <- 20.0\ndim.Prefix <- \"L=\"\ndim.Suffix <- \"mm\"\ndim.Draw()" },
                 { "Region", "// Region bounded by lines and an arc\nlet p0 = VPoint.Internal(0.0, 0.0)\nlet p1 = VPoint.Internal(100.0, 0.0)\nlet p2 = VPoint.Internal(100.0, 80.0)\nlet p3 = VPoint.Internal(0.0, 80.0)\nlet curves = System.Collections.Generic.List<ICurve>()\ncurves.Add(VLine(p0, p1))\ncurves.Add(VLine(p1, p2))\ncurves.Add(VLine(p2, p3))\ncurves.Add(VLine(p3, p0))\nlet region = Region(curves)\nregion.Color <- \"Cyan\"\nregion.FillColor <- \"#4000FFFF\"" },
                 { "VGroup", @"// Create a group from shapes
 let circle = VCircle(VPoint(0.0, 0.0), 20.0)
@@ -560,14 +561,29 @@ let anim = Animator()
 anim.AddToAnimations(FadeOutAnimation(circle, 2.0))
 anim.Animate()" },
 
-                { "ValueAnimation", @"// Animates any numeric property on a shape
+                { "ValueAnimation", @"// Animates any numeric (double) property on a shape
+// Works with any property: Radius, Width, Height, X, Y, etc.
+
+// Example 1: Pulsing circle — animate radius
 let circle = VCircle(0.0, 0.0, 10.0)
 let anim = Animator()
-
-// Animate radius from 0 to 50 over 3 seconds
-anim.AddToAnimations(ValueAnimation<VCircle>(circle, (fun c -> c.Radius), 0.0, 50.0, 3.0))
+anim.AddToAnimations(ValueAnimation<VCircle>(circle, (fun c -> c.Radius), 10.0, 80.0, 2.0))
 anim.Repeat <- true
-anim.Animate()" },
+anim.Animate()
+
+// Example 2: Growing rectangle — animate width
+let rect = VRectangle(0.0, 0.0, 20.0, 50.0)
+let anim2 = Animator()
+anim2.AddToAnimations(ValueAnimation<VRectangle>(rect, (fun r -> r.Width), 20.0, 200.0, 3.0))
+anim2.Animate()
+
+// Example 3: With easing for smooth motion
+let circle2 = VCircle(100.0, 0.0, 5.0)
+let valAnim = ValueAnimation<VCircle>(circle2, (fun c -> c.Radius), 5.0, 60.0, 2.0)
+valAnim.EasingFunction <- EasingFunctions.EaseInOutCubic
+let anim3 = Animator()
+anim3.AddToAnimations(valAnim)
+anim3.Animate()" },
 
                 { "ObjectPropertyAnimation", @"// Animates any numeric property on an arbitrary object
 // Useful for animating user-defined classes, not just shapes
@@ -918,9 +934,13 @@ dim.DecimalPlaces = 1;    // Show 1 decimal place
 dim.TextHeight = 14;
 dim.Draw();
 
-// Custom text
+// AutoCAD-style extension lines
 var dim2 = new VDimension(0, 50, 80, 50);
-dim2.CustomText = ""80 mm"";
+dim2.ExtendBeyondDimLines = 2.0; // Extension past dimension line
+dim2.OffsetFromOrigin = 1.0;     // Gap from origin point
+dim2.Prefix = ""L="";
+dim2.Suffix = ""mm"";
+dim2.SuppressExtLine2 = true;    // Hide second extension line
 dim2.Draw();" },
 
                 { "VGroup", @"// Create a group from shapes
@@ -1229,14 +1249,29 @@ anim.AddToAnimations(new FadeOutAnimation(circle, 2.0));
 anim.AddToAnimations(new FadeOutAnimation(circle, 2.0, 0.3));  // Fade to 30% opacity
 anim.Animate();" },
 
-                { "ValueAnimation", @"// Animates any numeric property on a shape
+                { "ValueAnimation", @"// Animates any numeric (double) property on a shape
+// Works with any property: Radius, Width, Height, X, Y, etc.
+
+// Example 1: Pulsing circle — animate radius
 var circle = new VCircle(0, 0, 10);
 var anim = new Animator();
-
-// Animate radius from 0 to 50 over 3 seconds
-anim.AddToAnimations(new ValueAnimation<VCircle>(circle, c => c.Radius, 0, 50, 3.0));
+anim.AddToAnimations(new ValueAnimation<VCircle>(circle, c => c.Radius, 10, 80, 2.0));
 anim.Repeat = true;
-anim.Animate();" },
+anim.Animate();
+
+// Example 2: Growing rectangle — animate width
+var rect = new VRectangle(0, 0, 20, 50);
+var anim2 = new Animator();
+anim2.AddToAnimations(new ValueAnimation<VRectangle>(rect, r => r.Width, 20, 200, 3.0));
+anim2.Animate();
+
+// Example 3: With easing for smooth motion
+var circle2 = new VCircle(100, 0, 5);
+var valAnim = new ValueAnimation<VCircle>(circle2, c => c.Radius, 5, 60, 2.0);
+valAnim.EasingFunction = EasingFunctions.EaseInOutCubic;
+var anim3 = new Animator();
+anim3.AddToAnimations(valAnim);
+anim3.Animate();" },
 
                 { "ObjectPropertyAnimation", @"// Animates any numeric property on an arbitrary object
 // Useful for animating user-defined classes, not just shapes
@@ -1903,8 +1938,19 @@ var offset = BooleanOps.OffsetPolygon(poly, 10, JoinType.Miter, EndType.Polygon)
                 // VDimension Properties
                 { "VDimension.Point1", "Gets or sets the first measurement point." },
                 { "VDimension.Point2", "Gets or sets the second measurement point." },
-                { "VDimension.Offset", "Gets or sets the offset distance for the dimension line." },
+                { "VDimension.Offset", "Gets or sets the offset distance for the dimension line from the measured points." },
+                { "VDimension.ArrowSize", "Gets or sets the size of the arrowheads at both ends of the dimension line." },
                 { "VDimension.TextHeight", "Gets or sets the height of the dimension text." },
+                { "VDimension.DecimalPlaces", "Gets or sets the number of decimal places for distance display." },
+                { "VDimension.ExtendBeyondDimLines", "Gets or sets how far extension lines extend beyond the dimension line." },
+                { "VDimension.OffsetFromOrigin", "Gets or sets the gap between the origin point and the start of the extension line." },
+                { "VDimension.SuppressExtLine1", "If true, the first extension line (at Point1) is not drawn." },
+                { "VDimension.SuppressExtLine2", "If true, the second extension line (at Point2) is not drawn." },
+                { "VDimension.Prefix", "Gets or sets the text prefix prepended to the dimension value (e.g. \"L=\")." },
+                { "VDimension.Suffix", "Gets or sets the text suffix appended to the dimension value (e.g. \"mm\")." },
+                { "VDimension.CustomText", "Gets or sets custom text. If null, shows the calculated distance with Prefix/Suffix." },
+                { "VDimension.Distance", "Gets the calculated distance between Point1 and Point2 (read-only)." },
+                { "VDimension.DisplayText", "Gets the display text including Prefix and Suffix (read-only)." },
 
                 // VDimension Methods
                 { "VDimension.Draw", "Renders the dimension annotation to the canvas." },

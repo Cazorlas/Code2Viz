@@ -28,11 +28,30 @@ public class VDimension : Shape
     /// <summary>Text height</summary>
     public double TextHeight { get; set; } = 12;
 
+    /// <summary>How far extension lines extend beyond the dimension line</summary>
+    public double ExtendBeyondDimLines { get; set; } = 1.25;
+
+    /// <summary>Gap between the origin point and the start of the extension line</summary>
+    public double OffsetFromOrigin { get; set; } = 0.625;
+
+    /// <summary>If true, the first extension line is not drawn</summary>
+    public bool SuppressExtLine1 { get; set; }
+
+    /// <summary>If true, the second extension line is not drawn</summary>
+    public bool SuppressExtLine2 { get; set; }
+
+    /// <summary>Text prefix prepended to the dimension value</summary>
+    public string Prefix { get; set; } = "";
+
+    /// <summary>Text suffix appended to the dimension value</summary>
+    public string Suffix { get; set; } = "";
+
     public VDimension(VPoint point1, VPoint point2)
     {
         Point1 = point1;
         Point2 = point2;
         Color = ShapeDefaults.GlobalColor ?? "Yellow";
+        ApplyDimensionDefaults();
     }
 
     public VDimension(double x1, double y1, double x2, double y2)
@@ -40,6 +59,19 @@ public class VDimension : Shape
         Point1 = new VPoint(x1, y1);
         Point2 = new VPoint(x2, y2);
         Color = ShapeDefaults.GlobalColor ?? "Yellow";
+        ApplyDimensionDefaults();
+    }
+
+    private void ApplyDimensionDefaults()
+    {
+        if (ShapeDefaults.DimOffset.HasValue) Offset = ShapeDefaults.DimOffset.Value;
+        if (ShapeDefaults.DimArrowSize.HasValue) ArrowSize = ShapeDefaults.DimArrowSize.Value;
+        if (ShapeDefaults.DimTextHeight.HasValue) TextHeight = ShapeDefaults.DimTextHeight.Value;
+        if (ShapeDefaults.DimDecimalPlaces.HasValue) DecimalPlaces = ShapeDefaults.DimDecimalPlaces.Value;
+        if (ShapeDefaults.DimExtendBeyondDimLines.HasValue) ExtendBeyondDimLines = ShapeDefaults.DimExtendBeyondDimLines.Value;
+        if (ShapeDefaults.DimOffsetFromOrigin.HasValue) OffsetFromOrigin = ShapeDefaults.DimOffsetFromOrigin.Value;
+        if (ShapeDefaults.DimPrefix != null) Prefix = ShapeDefaults.DimPrefix;
+        if (ShapeDefaults.DimSuffix != null) Suffix = ShapeDefaults.DimSuffix;
     }
 
     /// <summary>
@@ -58,7 +90,7 @@ public class VDimension : Shape
     /// <summary>
     /// Gets the display text for the dimension.
     /// </summary>
-    public string DisplayText => CustomText ?? Distance.ToString($"F{DecimalPlaces}");
+    public string DisplayText => CustomText ?? $"{Prefix}{Distance.ToString($"F{DecimalPlaces}")}{Suffix}";
 
     /// <summary>
     /// Gets the geometry for rendering the dimension.
@@ -85,11 +117,11 @@ public class VDimension : Shape
         // Text position (center of dimension line)
         var textPos = new VPoint((dimStart.X + dimEnd.X) / 2, (dimStart.Y + dimEnd.Y) / 2);
 
-        // Extension lines
-        var ext1Start = new VPoint(Point1.X + perpX * (Offset - ExtensionLength), Point1.Y + perpY * (Offset - ExtensionLength));
-        var ext1End = new VPoint(Point1.X + perpX * (Offset + ExtensionLength), Point1.Y + perpY * (Offset + ExtensionLength));
-        var ext2Start = new VPoint(Point2.X + perpX * (Offset - ExtensionLength), Point2.Y + perpY * (Offset - ExtensionLength));
-        var ext2End = new VPoint(Point2.X + perpX * (Offset + ExtensionLength), Point2.Y + perpY * (Offset + ExtensionLength));
+        // Extension lines: from OffsetFromOrigin gap to Offset + ExtendBeyondDimLines
+        var ext1Start = new VPoint(Point1.X + perpX * OffsetFromOrigin, Point1.Y + perpY * OffsetFromOrigin);
+        var ext1End = new VPoint(Point1.X + perpX * (Offset + ExtendBeyondDimLines), Point1.Y + perpY * (Offset + ExtendBeyondDimLines));
+        var ext2Start = new VPoint(Point2.X + perpX * OffsetFromOrigin, Point2.Y + perpY * OffsetFromOrigin);
+        var ext2End = new VPoint(Point2.X + perpX * (Offset + ExtendBeyondDimLines), Point2.Y + perpY * (Offset + ExtendBeyondDimLines));
 
         return (dimStart, dimEnd, textPos, ext1Start, ext1End, ext2Start, ext2End);
     }
@@ -138,7 +170,13 @@ public class VDimension : Shape
             ArrowSize = ArrowSize,
             CustomText = CustomText,
             DecimalPlaces = DecimalPlaces,
-            TextHeight = TextHeight
+            TextHeight = TextHeight,
+            ExtendBeyondDimLines = ExtendBeyondDimLines,
+            OffsetFromOrigin = OffsetFromOrigin,
+            SuppressExtLine1 = SuppressExtLine1,
+            SuppressExtLine2 = SuppressExtLine2,
+            Prefix = Prefix,
+            Suffix = Suffix
         };
         CopyStyleTo(clone);
         return clone;
@@ -169,6 +207,9 @@ public class VDimension : Shape
         Offset *= Math.Abs(factor);
         ExtensionLength *= Math.Abs(factor);
         TextHeight *= Math.Abs(factor);
+        ArrowSize *= Math.Abs(factor);
+        ExtendBeyondDimLines *= Math.Abs(factor);
+        OffsetFromOrigin *= Math.Abs(factor);
     }
 
     public override BoundingBox GetBounds()

@@ -1720,6 +1720,90 @@
                                         </StackPanel>
                                     </Border>
 
+                                    <!--  DIMENSION STYLE SECTION  -->
+                                    <Border
+                                        Padding="20"
+                                        Background="{StaticResource TertiaryBackgroundBrush}"
+                                        BorderBrush="{StaticResource AccentBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8">
+                                        <StackPanel>
+                                            <StackPanel Margin="0,0,0,8" Orientation="Horizontal">
+                                                <TextBlock
+                                                    FontSize="20"
+                                                    FontWeight="Bold"
+                                                    Foreground="#CCCCCC"
+                                                    Text="Dimension Style" />
+                                                <Border
+                                                    Margin="12,0,0,0"
+                                                    Padding="8,2"
+                                                    VerticalAlignment="Center"
+                                                    Background="#2D3A4A"
+                                                    CornerRadius="4">
+                                                    <TextBlock
+                                                        FontSize="11"
+                                                        Foreground="#47B3FF"
+                                                        Text="Saved per project" />
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock
+                                                Margin="0,0,0,16"
+                                                FontSize="12"
+                                                Foreground="Gray"
+                                                Text="Default dimension appearance for new VDimension shapes. Leave empty to use built-in defaults."
+                                                TextWrapping="Wrap" />
+
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="200" />
+                                                    <ColumnDefinition Width="300" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <!--  Offset  -->
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,0,0,12" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" Text="Offset:" />
+                                                <TextBox x:Name="DimStyleOffsetBox" Grid.Row="0" Grid.Column="1" Margin="0,0,0,12" Padding="6" Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" Foreground="{StaticResource ForegroundBrush}" />
+
+                                                <!--  Arrow Size  -->
+                                                <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,0,0,12" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" Text="Arrow Size:" />
+                                                <TextBox x:Name="DimStyleArrowSizeBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,12" Padding="6" Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" Foreground="{StaticResource ForegroundBrush}" />
+
+                                                <!--  Text Height  -->
+                                                <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,0,0,12" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" Text="Text Height:" />
+                                                <TextBox x:Name="DimStyleTextHeightBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,12" Padding="6" Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" Foreground="{StaticResource ForegroundBrush}" />
+
+                                                <!--  Decimal Places  -->
+                                                <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,0,0,12" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" Text="Decimal Places:" />
+                                                <TextBox x:Name="DimStyleDecimalPlacesBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,12" Padding="6" Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" Foreground="{StaticResource ForegroundBrush}" />
+
+                                                <!--  Extend Beyond Dim Lines  -->
+                                                <TextBlock Grid.Row="4" Grid.Column="0" Margin="0,0,0,12" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" Text="Extend Beyond Dim Lines:" />
+                                                <TextBox x:Name="DimStyleExtendBeyondBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,12" Padding="6" Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" Foreground="{StaticResource ForegroundBrush}" />
+
+                                                <!--  Offset From Origin  -->
+                                                <TextBlock Grid.Row="5" Grid.Column="0" Margin="0,0,0,12" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" Text="Offset From Origin:" />
+                                                <TextBox x:Name="DimStyleOffsetFromOriginBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,12" Padding="6" Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" Foreground="{StaticResource ForegroundBrush}" />
+
+                                                <!--  Prefix  -->
+                                                <TextBlock Grid.Row="6" Grid.Column="0" Margin="0,0,0,12" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" Text="Prefix:" />
+                                                <TextBox x:Name="DimStylePrefixBox" Grid.Row="6" Grid.Column="1" Margin="0,0,0,12" Padding="6" Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" Foreground="{StaticResource ForegroundBrush}" />
+
+                                                <!--  Suffix  -->
+                                                <TextBlock Grid.Row="7" Grid.Column="0" Margin="0,0,0,16" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" Text="Suffix:" />
+                                                <TextBox x:Name="DimStyleSuffixBox" Grid.Row="7" Grid.Column="1" Margin="0,0,0,16" Padding="6" Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" Foreground="{StaticResource ForegroundBrush}" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
                                     <!--  APPLICATION SETTINGS SECTION  -->
                                     <Border
                                         Padding="20"

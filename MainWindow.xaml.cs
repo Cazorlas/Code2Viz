@@ -3277,7 +3277,17 @@ public partial class MainWindow : Window
         SettingsLineTypeScaleBox.Text = settings.DefaultLineTypeScale.HasValue
             ? settings.DefaultLineTypeScale.Value.ToString()
             : "";
-            
+
+        // Dimension Style
+        DimStyleOffsetBox.Text = settings.DimOffset.HasValue ? settings.DimOffset.Value.ToString() : "";
+        DimStyleArrowSizeBox.Text = settings.DimArrowSize.HasValue ? settings.DimArrowSize.Value.ToString() : "";
+        DimStyleTextHeightBox.Text = settings.DimTextHeight.HasValue ? settings.DimTextHeight.Value.ToString() : "";
+        DimStyleDecimalPlacesBox.Text = settings.DimDecimalPlaces.HasValue ? settings.DimDecimalPlaces.Value.ToString() : "";
+        DimStyleExtendBeyondBox.Text = settings.DimExtendBeyondDimLines.HasValue ? settings.DimExtendBeyondDimLines.Value.ToString() : "";
+        DimStyleOffsetFromOriginBox.Text = settings.DimOffsetFromOrigin.HasValue ? settings.DimOffsetFromOrigin.Value.ToString() : "";
+        DimStylePrefixBox.Text = settings.DimPrefix ?? "";
+        DimStyleSuffixBox.Text = settings.DimSuffix ?? "";
+
         // Apply Canvas Background immediately on load (Fix for Issue 1)
         if (!string.IsNullOrEmpty(settings.DefaultCanvasBackgroundColor))
         {
@@ -3488,12 +3498,38 @@ public partial class MainWindow : Window
                 lineTypeScale = lts;
             }
 
+            // Parse Dimension Style values
+            double? dimOffset = null;
+            if (double.TryParse(DimStyleOffsetBox.Text.Trim(), out double doff)) dimOffset = doff;
+            double? dimArrowSize = null;
+            if (double.TryParse(DimStyleArrowSizeBox.Text.Trim(), out double das)) dimArrowSize = das;
+            double? dimTextHeight = null;
+            if (double.TryParse(DimStyleTextHeightBox.Text.Trim(), out double dth)) dimTextHeight = dth;
+            int? dimDecimalPlaces = null;
+            if (int.TryParse(DimStyleDecimalPlacesBox.Text.Trim(), out int ddp)) dimDecimalPlaces = ddp;
+            double? dimExtendBeyond = null;
+            if (double.TryParse(DimStyleExtendBeyondBox.Text.Trim(), out double deb)) dimExtendBeyond = deb;
+            double? dimOffsetFromOrigin = null;
+            if (double.TryParse(DimStyleOffsetFromOriginBox.Text.Trim(), out double dofo)) dimOffsetFromOrigin = dofo;
+            string? dimPrefix = DimStylePrefixBox.Text;
+            if (string.IsNullOrEmpty(dimPrefix)) dimPrefix = null;
+            string? dimSuffix = DimStyleSuffixBox.Text;
+            if (string.IsNullOrEmpty(dimSuffix)) dimSuffix = null;
+
             var settings = _currentProject.ProjectFile.Settings;
             settings.DefaultColor = Color;
             settings.DefaultFillColor = fillColor;
             settings.DefaultCanvasBackgroundColor = canvasColor;
             settings.DefaultLineWeight = thickness;
             settings.DefaultLineTypeScale = lineTypeScale;
+            settings.DimOffset = dimOffset;
+            settings.DimArrowSize = dimArrowSize;
+            settings.DimTextHeight = dimTextHeight;
+            settings.DimDecimalPlaces = dimDecimalPlaces;
+            settings.DimExtendBeyondDimLines = dimExtendBeyond;
+            settings.DimOffsetFromOrigin = dimOffsetFromOrigin;
+            settings.DimPrefix = dimPrefix;
+            settings.DimSuffix = dimSuffix;
 
             _currentProject.ApplySettings();
             

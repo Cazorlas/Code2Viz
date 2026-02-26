@@ -213,6 +213,13 @@ public partial class PropertiesPanel : UserControl
                 props.Add(("P2 X", F(dim.Point2.X), v => { if (double.TryParse(v, out var d)) { dim.Point2.X = d; RaisePropertyChanged(shape); } }));
                 props.Add(("P2 Y", F(dim.Point2.Y), v => { if (double.TryParse(v, out var d)) { dim.Point2.Y = d; RaisePropertyChanged(shape); } }));
                 props.Add(("Offset", F(dim.Offset), v => { if (double.TryParse(v, out var d)) { dim.Offset = d; RaisePropertyChanged(shape); } }));
+                props.Add(("Arrow Size", F(dim.ArrowSize), v => { if (double.TryParse(v, out var d) && d > 0) { dim.ArrowSize = d; RaisePropertyChanged(shape); } }));
+                props.Add(("Text Height", F(dim.TextHeight), v => { if (double.TryParse(v, out var d) && d > 0) { dim.TextHeight = d; RaisePropertyChanged(shape); } }));
+                props.Add(("Decimal Places", dim.DecimalPlaces.ToString(), v => { if (int.TryParse(v, out var i) && i >= 0) { dim.DecimalPlaces = i; RaisePropertyChanged(shape); } }));
+                props.Add(("Extend Beyond", F(dim.ExtendBeyondDimLines), v => { if (double.TryParse(v, out var d)) { dim.ExtendBeyondDimLines = d; RaisePropertyChanged(shape); } }));
+                props.Add(("Offset From Origin", F(dim.OffsetFromOrigin), v => { if (double.TryParse(v, out var d)) { dim.OffsetFromOrigin = d; RaisePropertyChanged(shape); } }));
+                props.Add(("Prefix", dim.Prefix, v => { dim.Prefix = v; RaisePropertyChanged(shape); }));
+                props.Add(("Suffix", dim.Suffix, v => { dim.Suffix = v; RaisePropertyChanged(shape); }));
                 break;
 
             case VPolygon poly:

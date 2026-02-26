@@ -149,11 +149,37 @@ public static class SvgExporter
     {
         var (ds, de, tp, e1s, e1e, e2s, e2e) = dim.GetDimensionGeometry();
         var sb = new StringBuilder();
+        // Dimension line
         sb.Append($"<line x1=\"{F(ds.X)}\" y1=\"{F(ds.Y)}\" x2=\"{F(de.X)}\" y2=\"{F(de.Y)}\" stroke=\"{dim.Color}\" stroke-width=\"{F(dim.LineWeight)}\" />");
-        sb.Append($"<line x1=\"{F(e1s.X)}\" y1=\"{F(e1s.Y)}\" x2=\"{F(e1e.X)}\" y2=\"{F(e1e.Y)}\" stroke=\"{dim.Color}\" stroke-width=\"{F(dim.LineWeight)}\" />");
-        sb.Append($"<line x1=\"{F(e2s.X)}\" y1=\"{F(e2s.Y)}\" x2=\"{F(e2e.X)}\" y2=\"{F(e2e.Y)}\" stroke=\"{dim.Color}\" stroke-width=\"{F(dim.LineWeight)}\" />");
+        // Extension lines (respecting suppress flags)
+        if (!dim.SuppressExtLine1)
+            sb.Append($"<line x1=\"{F(e1s.X)}\" y1=\"{F(e1s.Y)}\" x2=\"{F(e1e.X)}\" y2=\"{F(e1e.Y)}\" stroke=\"{dim.Color}\" stroke-width=\"{F(dim.LineWeight)}\" />");
+        if (!dim.SuppressExtLine2)
+            sb.Append($"<line x1=\"{F(e2s.X)}\" y1=\"{F(e2s.Y)}\" x2=\"{F(e2e.X)}\" y2=\"{F(e2e.Y)}\" stroke=\"{dim.Color}\" stroke-width=\"{F(dim.LineWeight)}\" />");
+        // Arrowheads
+        sb.Append(DimensionArrowheadSvg(ds, de, dim.ArrowSize, dim.Color, dim.LineWeight));
+        sb.Append(DimensionArrowheadSvg(de, ds, dim.ArrowSize, dim.Color, dim.LineWeight));
+        // Text
         sb.Append($"<text x=\"{F(tp.X)}\" y=\"{F(tp.Y)}\" fill=\"{dim.Color}\" font-size=\"{F(dim.TextHeight)}\" text-anchor=\"middle\" transform=\"scale(1,-1)\">{dim.DisplayText}</text>");
         return $"<g>{sb}</g>";
+    }
+
+    private static string DimensionArrowheadSvg(VPoint tip, VPoint tail, double arrowSize, string color, double lineWeight)
+    {
+        var dx = tip.X - tail.X;
+        var dy = tip.Y - tail.Y;
+        var length = Math.Sqrt(dx * dx + dy * dy);
+        if (length < 1e-10) return "";
+        var dirX = dx / length;
+        var dirY = dy / length;
+        var perpX = -dirY;
+        var perpY = dirX;
+        var halfWidth = arrowSize / 6.0;
+        var w1X = tip.X - dirX * arrowSize + perpX * halfWidth;
+        var w1Y = tip.Y - dirY * arrowSize + perpY * halfWidth;
+        var w2X = tip.X - dirX * arrowSize - perpX * halfWidth;
+        var w2Y = tip.Y - dirY * arrowSize - perpY * halfWidth;
+        return $"<polygon points=\"{F(tip.X)},{F(tip.Y)} {F(w1X)},{F(w1Y)} {F(w2X)},{F(w2Y)}\" fill=\"{color}\" stroke=\"{color}\" stroke-width=\"{F(lineWeight)}\" />";
     }
 
     private static string GroupToSvg(VGroup group)

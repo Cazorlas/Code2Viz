@@ -181,7 +181,8 @@ public class ApiReferenceResource
         ```csharp
         new VDimension(x1, y1, x2, y2);
         // Properties: Offset (20), ExtensionLength (10), ArrowSize (8), CustomText, DecimalPlaces (2), TextHeight (12)
-        // Read-only: Distance, DisplayText
+        // AutoCAD-style: ExtendBeyondDimLines (1.25), OffsetFromOrigin (0.625), SuppressExtLine1/2 (false), Prefix (""), Suffix ("")
+        // Read-only: Distance, DisplayText (includes Prefix/Suffix)
         ```
 
         ### VXLine (infinite construction line)

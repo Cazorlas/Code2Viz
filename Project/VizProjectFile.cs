@@ -66,4 +66,14 @@ public class ProjectSettings
     public string? DefaultExportBackground { get; set; } // "Transparent", "Canvas", "White", "Black", "Light"
     public double? DefaultLineWeight { get; set; }
     public double? DefaultLineTypeScale { get; set; }
+
+    // Dimension style defaults
+    public double? DimOffset { get; set; }
+    public double? DimArrowSize { get; set; }
+    public double? DimTextHeight { get; set; }
+    public int? DimDecimalPlaces { get; set; }
+    public double? DimExtendBeyondDimLines { get; set; }
+    public double? DimOffsetFromOrigin { get; set; }
+    public string? DimPrefix { get; set; }
+    public string? DimSuffix { get; set; }
 }

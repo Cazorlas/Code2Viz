@@ -81,10 +81,85 @@ With **Auto-update Canvas** enabled (default), the canvas updates automatically 
 | **VSpline** | Smooth spline curve | `new VSpline(p1, p2, p3, ...)` |
 | **VText** | Text at a position | `new VText(position, "text")` or `new VText(x, y, "text", height)` |
 | **VArrow** | Arrow with head | `new VArrow(start, end)` |
-| **VDimension** | Dimension annotation | `new VDimension(p1, p2)` |
+| **VDimension** | Dimension annotation with arrowheads | `new VDimension(p1, p2)` or `new VDimension(x1, y1, x2, y2)` |
 | **VGroup** | Group of shapes | `new VGroup(shape1, shape2, ...)` or `new VGroup(shapeList)` |
 | **VGrid** | Grid of points | `new VGrid(location, xcount, ycount, spacing, centered)` |
 | **Region** | Curve-bounded region | `new Region(curves)` or `new Region(outerCurves, holes)` |
+
+---
+
+## Dimensions (VDimension)
+
+VDimension creates AutoCAD-style dimension annotations with arrowheads, extension lines, and distance text.
+
+### Basic Dimension
+
+```csharp
+// Dimension between two points
+var dim = new VDimension(new VPoint(0, 0), new VPoint(100, 0));
+dim.Offset = 20;          // Distance of dimension line from the measured points
+dim.TextHeight = 14;
+dim.Draw();
+
+// Shorthand constructor
+var dim2 = new VDimension(0, 50, 80, 50);
+dim2.Draw();
+```
+
+### Extension Line Control
+
+```csharp
+var dim = new VDimension(0, 0, 100, 0);
+dim.Offset = 25;
+dim.ExtendBeyondDimLines = 2.0; // How far extensions go past the dimension line
+dim.OffsetFromOrigin = 1.0;     // Gap between the point and extension line start
+dim.Draw();
+
+// Suppress individual extension lines
+var dim2 = new VDimension(0, -40, 100, -40);
+dim2.Offset = 20;
+dim2.SuppressExtLine1 = true;   // Hide first extension line
+dim2.Draw();
+```
+
+### Text Formatting
+
+```csharp
+var dim = new VDimension(0, 0, 100, 0);
+dim.Offset = 20;
+dim.DecimalPlaces = 1;    // Show 1 decimal place
+dim.Prefix = "L=";        // Text before the value
+dim.Suffix = "mm";        // Text after the value
+dim.Draw();               // Shows "L=100.0mm"
+
+// Custom text overrides the calculated distance
+var dim2 = new VDimension(0, -40, 80, -40);
+dim2.Offset = 20;
+dim2.CustomText = "TYP.";
+dim2.Draw();
+```
+
+### Dimension Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `Offset` | double | 20 | Distance of dimension line from measured points |
+| `ArrowSize` | double | 8 | Size of arrowheads |
+| `TextHeight` | double | 12 | Height of dimension text |
+| `DecimalPlaces` | int | 2 | Decimal places for distance display |
+| `ExtendBeyondDimLines` | double | 1.25 | How far extension lines extend past the dimension line |
+| `OffsetFromOrigin` | double | 0.625 | Gap between origin point and extension line start |
+| `SuppressExtLine1` | bool | false | Hide the first extension line (at Point1) |
+| `SuppressExtLine2` | bool | false | Hide the second extension line (at Point2) |
+| `Prefix` | string | "" | Text prepended to the dimension value |
+| `Suffix` | string | "" | Text appended to the dimension value |
+| `CustomText` | string? | null | Custom text (overrides calculated distance) |
+| `Distance` | double | — | Calculated distance between points (read-only) |
+| `DisplayText` | string | — | Final display text with prefix/suffix (read-only) |
+
+### Dimension Style Defaults
+
+Dimension defaults can be configured per-project in the **Settings** tab under **Dimension Style**. When set, all new `VDimension` shapes created in code will use these values instead of the built-in defaults.
 
 ---
 
@@ -544,6 +619,33 @@ anim.Animate();
 | **FadeOutAnimation** | Fade from opaque to transparent | `new FadeOutAnimation(shape, duration, targetOpacity)` |
 | **ValueAnimation\<T\>** | Animate any numeric property on a shape | `new ValueAnimation<VCircle>(circle, c => c.Radius, 0, 50, 3.0)` |
 | **ObjectPropertyAnimation\<T\>** | Animate any numeric property on any object | `new ObjectPropertyAnimation<Wheel>(wheel, w => w.Rotation, 0, 360, 1.0)` |
+
+### ValueAnimation Example
+
+`ValueAnimation<T>` animates any numeric (`double`) property on a shape between a start and end value. The property is specified with a lambda expression:
+
+```csharp
+// Pulsing circle — animate radius from 10 to 80
+var circle = new VCircle(0, 0, 10);
+var anim = new Animator();
+anim.AddToAnimations(new ValueAnimation<VCircle>(circle, c => c.Radius, 10, 80, 2.0));
+anim.Repeat = true;
+anim.Animate();
+
+// Growing rectangle — animate width
+var rect = new VRectangle(0, 0, 20, 50);
+var anim2 = new Animator();
+anim2.AddToAnimations(new ValueAnimation<VRectangle>(rect, r => r.Width, 20, 200, 3.0));
+anim2.Animate();
+
+// With easing for smooth motion
+var circle2 = new VCircle(100, 0, 5);
+var valAnim = new ValueAnimation<VCircle>(circle2, c => c.Radius, 5, 60, 2.0);
+valAnim.EasingFunction = EasingFunctions.EaseInOutCubic;
+var anim3 = new Animator();
+anim3.AddToAnimations(valAnim);
+anim3.Animate();
+```
 
 ### ObjectPropertyAnimation Example
 
