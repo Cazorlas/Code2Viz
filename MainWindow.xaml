@@ -582,11 +582,16 @@
                         x:Name="ProjectTreeView"
                         Grid.Row="1"
                         Padding="0,5"
+                        AllowDrop="True"
                         Background="Transparent"
                         BorderThickness="0"
                         SelectedItemChanged="ProjectTreeView_SelectedItemChanged"
                         MouseDoubleClick="ProjectTreeView_MouseDoubleClick"
-                        PreviewMouseRightButtonDown="ProjectTreeView_PreviewMouseRightButtonDown">
+                        PreviewMouseRightButtonDown="ProjectTreeView_PreviewMouseRightButtonDown"
+                        PreviewMouseLeftButtonDown="ProjectTreeView_PreviewMouseLeftButtonDown"
+                        PreviewMouseMove="ProjectTreeView_PreviewMouseMove"
+                        DragOver="ProjectTreeView_DragOver"
+                        Drop="ProjectTreeView_Drop">
                         <TreeView.Resources>
                             <!--  Expander Toggle Button Style  -->
                             <Style x:Key="ExpandCollapseToggleStyle" TargetType="{x:Type ToggleButton}">

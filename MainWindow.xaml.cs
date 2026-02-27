@@ -86,6 +86,10 @@ public partial class MainWindow : Window
     private MultiSelectionRenderer? _multiSelectionRenderer;
     private SelectionHighlightRenderer? _selectionHighlightRenderer;
 
+    // Drag-and-drop state for project tree
+    private System.Windows.Point _dragStartPoint;
+    private bool _isDragging;
+
     // Real-time error checking
     private DispatcherTimer? _syntaxCheckTimer;
     private bool _textChangedSinceLastCheck;
@@ -7691,6 +7695,32 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ContextMenu_GoToLocation_Click(object sender, RoutedEventArgs e)
+    {
+        var item = GetContextMenuTargetItem(sender);
+        if (item == null) return;
+
+        try
+        {
+            if (item.IsReferencesNode) return;
+
+            if (item.IsDirectory)
+            {
+                // Open the folder itself in Explorer
+                System.Diagnostics.Process.Start("explorer.exe", item.FullPath);
+            }
+            else if (!string.IsNullOrEmpty(item.FullPath) && (File.Exists(item.FullPath) || item.IsReferenceItem))
+            {
+                // Open Explorer and select the file
+                System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{item.FullPath}\"");
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Error opening location: {ex.Message}", true);
+        }
+    }
+
     private void ProjectTreeView_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
         // Select the TreeViewItem under the mouse
@@ -7705,6 +7735,153 @@ public partial class MainWindow : Window
             contextMenu.PlacementTarget = treeViewItem;
             contextMenu.IsOpen = true;
             e.Handled = true;
+        }
+    }
+
+    private void ProjectTreeView_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _dragStartPoint = e.GetPosition(ProjectTreeView);
+        _isDragging = false;
+    }
+
+    private void ProjectTreeView_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed) return;
+
+        var currentPos = e.GetPosition(ProjectTreeView);
+        var diff = currentPos - _dragStartPoint;
+
+        if (Math.Abs(diff.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(diff.Y) < SystemParameters.MinimumVerticalDragDistance)
+            return;
+
+        if (_isDragging) return;
+
+        var treeViewItem = FindAncestor<TreeViewItem>((DependencyObject)e.OriginalSource);
+        if (treeViewItem == null) return;
+
+        var item = treeViewItem.DataContext as ProjectTreeItem;
+        if (item == null || item.IsReferencesNode || item.IsReferenceItem) return;
+
+        // Don't allow dragging the root project node
+        if (_currentProject != null && item.FullPath == _currentProject.ProjectDirectory) return;
+
+        // Don't allow dragging entry point file
+        if (!item.IsDirectory && IsEntryPointFile(item.FullPath)) return;
+
+        _isDragging = true;
+        var data = new DataObject("ProjectTreeItem", item);
+        DragDrop.DoDragDrop(treeViewItem, data, DragDropEffects.Move);
+        _isDragging = false;
+    }
+
+    private void ProjectTreeView_DragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = DragDropEffects.None;
+
+        if (!e.Data.GetDataPresent("ProjectTreeItem")) return;
+
+        var targetTreeViewItem = FindAncestor<TreeViewItem>((DependencyObject)e.OriginalSource);
+        if (targetTreeViewItem == null) return;
+
+        var targetItem = targetTreeViewItem.DataContext as ProjectTreeItem;
+        var draggedItem = e.Data.GetData("ProjectTreeItem") as ProjectTreeItem;
+        if (targetItem == null || draggedItem == null) return;
+
+        // Determine target directory
+        string targetDir;
+        if (targetItem.IsDirectory)
+            targetDir = targetItem.FullPath;
+        else if (!string.IsNullOrEmpty(targetItem.FullPath))
+            targetDir = Path.GetDirectoryName(targetItem.FullPath) ?? "";
+        else
+            return;
+
+        // Don't allow dropping onto itself or its own parent directory
+        var sourceDir = Path.GetDirectoryName(draggedItem.FullPath) ?? "";
+        if (string.Equals(targetDir, sourceDir, StringComparison.OrdinalIgnoreCase)) return;
+
+        // Don't allow dropping a folder into itself or its own subtree
+        if (draggedItem.IsDirectory && targetDir.StartsWith(draggedItem.FullPath, StringComparison.OrdinalIgnoreCase)) return;
+
+        // Don't allow dropping onto references
+        if (targetItem.IsReferencesNode || targetItem.IsReferenceItem) return;
+
+        e.Effects = DragDropEffects.Move;
+        e.Handled = true;
+    }
+
+    private void ProjectTreeView_Drop(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent("ProjectTreeItem")) return;
+        if (_currentProject == null) return;
+
+        var targetTreeViewItem = FindAncestor<TreeViewItem>((DependencyObject)e.OriginalSource);
+        if (targetTreeViewItem == null) return;
+
+        var targetItem = targetTreeViewItem.DataContext as ProjectTreeItem;
+        var draggedItem = e.Data.GetData("ProjectTreeItem") as ProjectTreeItem;
+        if (targetItem == null || draggedItem == null) return;
+
+        // Determine target directory
+        string targetDir;
+        if (targetItem.IsDirectory)
+            targetDir = targetItem.FullPath;
+        else if (!string.IsNullOrEmpty(targetItem.FullPath))
+            targetDir = Path.GetDirectoryName(targetItem.FullPath) ?? "";
+        else
+            return;
+
+        var sourceDir = Path.GetDirectoryName(draggedItem.FullPath) ?? "";
+        if (string.Equals(targetDir, sourceDir, StringComparison.OrdinalIgnoreCase)) return;
+        if (draggedItem.IsDirectory && targetDir.StartsWith(draggedItem.FullPath, StringComparison.OrdinalIgnoreCase)) return;
+
+        var newPath = Path.Combine(targetDir, draggedItem.Name);
+
+        try
+        {
+            if (draggedItem.IsDirectory)
+            {
+                if (Directory.Exists(newPath))
+                {
+                    MessageBox.Show($"Folder '{draggedItem.Name}' already exists in the target location.", "Cannot Move", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                Directory.Move(draggedItem.FullPath, newPath);
+
+                // Update any open files that were in this directory
+                foreach (var file in _currentProject.Files)
+                {
+                    if (file.FilePath.StartsWith(draggedItem.FullPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        file.FilePath = file.FilePath.Replace(draggedItem.FullPath, newPath);
+                    }
+                }
+            }
+            else
+            {
+                if (File.Exists(newPath))
+                {
+                    MessageBox.Show($"File '{draggedItem.Name}' already exists in the target location.", "Cannot Move", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                File.Move(draggedItem.FullPath, newPath);
+
+                // Update open file reference
+                var openFile = _currentProject.Files.FirstOrDefault(f => f.FilePath.Equals(draggedItem.FullPath, StringComparison.OrdinalIgnoreCase));
+                if (openFile != null)
+                {
+                    openFile.FilePath = newPath;
+                }
+            }
+
+            LoadProjectTree();
+            RefreshFileTabs();
+            SetStatus($"Moved '{draggedItem.Name}' to {Path.GetFileName(targetDir)}", isError: false);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error moving: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -7736,6 +7913,12 @@ public partial class MainWindow : Window
         var deleteItem = new MenuItem { Header = "Delete", Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E74C3C")) };
         deleteItem.Click += ContextMenu_Delete_Click;
         menu.Items.Add(deleteItem);
+
+        menu.Items.Add(new Separator { Background = (SolidColorBrush)FindResource("BorderBrush") });
+
+        var goToLocationItem = new MenuItem { Header = "Go to Location" };
+        goToLocationItem.Click += ContextMenu_GoToLocation_Click;
+        menu.Items.Add(goToLocationItem);
 
         return menu;
     }
