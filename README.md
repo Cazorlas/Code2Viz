@@ -220,7 +220,7 @@ Apply styles to all shapes at once:
 var group = new VGroup(shape1, shape2, shape3);
 group.Color = "Cyan";
 group.FillColor = "#4000FFFF";
-group.StrokeThickness = 2;
+group.LineWeight = 2;
 
 // Apply group style to all children
 group.ApplyStyle();
@@ -228,7 +228,7 @@ group.ApplyStyle();
 // Or apply individual properties
 group.ApplyColor();
 group.ApplyFillColor();
-group.ApplyStrokeThickness();
+group.ApplyLineWeight();
 
 // Set opacity for all shapes
 group.SetOpacity(0.5);
@@ -455,7 +455,7 @@ All shapes support customizable styling through these properties:
 var circle = new VCircle(0, 0, 50);
 circle.Color = "Cyan";           // Outline color
 circle.FillColor = "#4000FFFF";        // Fill color (with transparency)
-circle.StrokeThickness = 2.5;          // Border thickness
+circle.LineWeight = 2.5;               // Border thickness
 circle.StrokeStyle = StrokeStyle.Dashed;  // Line pattern
 circle.Draw();
 ```
@@ -524,7 +524,7 @@ Set default styling for all new shapes:
 ```csharp
 ShapeDefaults.GlobalColor = "Cyan";
 ShapeDefaults.GlobalFillColor = "Transparent";
-ShapeDefaults.GlobalStrokeThickness = 2.0;
+ShapeDefaults.GlobalLineWeight = 2.0;
 ShapeDefaults.GlobalStrokeStyle = StrokeStyle.Continuous;
 
 // All shapes created after this use these defaults
@@ -1593,7 +1593,7 @@ namespace StartViz
         {
             // Set global styling
             ShapeDefaults.GlobalColor = "Cyan";
-            ShapeDefaults.GlobalStrokeThickness = 2;
+            ShapeDefaults.GlobalLineWeight = 2;
 
             // Draw coordinate axes
             new VArrow(-150, 0, 150, 0).Draw();  // X-axis

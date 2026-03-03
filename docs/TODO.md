@@ -41,7 +41,9 @@
 
 ---
 
-## High Priority (P0) - Animation UI
+## High Priority (P0) - Animation UI Enhancements
+
+Core timeline playback is implemented; items below are advanced timeline UX polish.
 
 ### Timeline Panel
 - [ ] **Timeline UI** - Visual timeline at bottom of window
@@ -63,10 +65,10 @@
 
 ---
 
-## High Priority (P0) - Export
+## High Priority (P0) - Export Enhancements
 
 ### DXF Export
-- [ ] **DXF file format** - AutoCAD DXF R12/R14 format
+- [x] **DXF file format** - AutoCAD DXF R12/R14 format
 - [ ] **Layer mapping** - Map shape types to DXF layers
 - [ ] **Color mapping** - Map colors to DXF color indices
 - [ ] **Line type support** - Solid, dashed, dotted
@@ -74,10 +76,10 @@
 - [ ] **Scale/units** - Configurable export units
 
 ### PDF Export
-- [ ] **Vector PDF** - PDF/A format for archiving
-- [ ] **Page size options** - A4, Letter, Custom
-- [ ] **Margins** - Configurable page margins
-- [ ] **Fit to page** - Auto-scale to fit
+- [x] **Vector PDF** - PDF/A format for archiving
+- [x] **Page size options** - A4, Letter, Custom
+- [x] **Margins** - Configurable page margins
+- [x] **Fit to page** - Auto-scale to fit
 - [ ] **Multi-page** - Split large drawings across pages
 - [ ] **Metadata** - Title, author, date
 
@@ -172,12 +174,12 @@
 
 ### Code Quality
 - [ ] Add XML documentation comments to all public APIs
-- [ ] Add unit tests for geometry calculations
+- [x] Add unit tests for geometry calculations
 - [ ] Add integration tests for script execution
 - [ ] Implement proper MVVM pattern
 
 ### Architecture
-- [ ] Consider separating geometry library for reuse
+- [x] Separate geometry library for reuse (C2VGeometry)
 - [ ] Add dependency injection for testability
 - [ ] Implement plugin system for custom shapes
 

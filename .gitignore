@@ -12,8 +12,10 @@
 *.userprefs
 
 # Build results
+[Bb]in/
 [Dd]ebug/
 [Dd]ebugPublic/
+[Rr]elease/
 x64/
 x86/
 [Aa][Rr][Mm]/
@@ -44,3 +46,19 @@ $RECYCLE.BIN/
 # VS Code directory for project
 .agent/
 nul
+
+# Test output
+TestResults/
+Tests/TestResults/
+*.trx
+
+# Build/test logs and transient scratch files
+build*.log
+build*.err
+build*.out
+build_output*.txt
+build_error*.txt
+cleanup_errors*.txt
+msbuild.log
+test_failure*.txt
+tmpclaude-*-cwd

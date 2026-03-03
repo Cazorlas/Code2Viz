@@ -306,7 +306,7 @@
       <Word>Empty</Word>
       <Word>FillColor</Word>
       <Word>Color</Word>
-      <Word>StrokeThickness</Word>
+      <Word>LineWeight</Word>
       <Word>Color</Word>
       <Word>Height</Word>
       <Word>Width</Word>

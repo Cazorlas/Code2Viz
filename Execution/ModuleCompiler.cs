@@ -524,7 +524,7 @@ internal class AnimationNameRewriter : CSharpSyntaxRewriter
     {
         "VPoint", "VLine", "VCircle", "VArc", "VRectangle", "VEllipse",
         "VPolygon", "VPolyline", "VBezier", "VSpline", "VArrow", "VText",
-        "VGrid", "VGroup", "VDimension"
+        "VGrid", "VGroup", "VDimension", "Region", "VXLine", "VRay"
     };
 
     public override SyntaxNode? VisitLocalDeclarationStatement(LocalDeclarationStatementSyntax node)

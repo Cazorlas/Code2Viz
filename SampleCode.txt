@@ -24,7 +24,7 @@ namespace StartViz
             VizConsole.Log("Creating VLine...");
             var line1 = new VLine(0, 0, 100, 100);
             line1.Color = "Lime";
-            line1.StrokeThickness = 2;
+            line1.LineWeight = 2;
             line1.Draw();
 
             // Line from points
@@ -37,7 +37,7 @@ namespace StartViz
             var circle1 = new VCircle(150, 100, 40);
             circle1.Color = "Magenta";
             circle1.FillColor = "Transparent";
-            circle1.StrokeThickness = 3;
+            circle1.LineWeight = 3;
             circle1.Draw();
 
             // Filled circle
@@ -50,7 +50,7 @@ namespace StartViz
             VizConsole.Log("Creating VArc...");
             var arc1 = new VArc(-150, 100, 50, 0, 180);
             arc1.Color = "Orange";
-            arc1.StrokeThickness = 3;
+            arc1.LineWeight = 3;
             arc1.Draw();
 
             var arc2 = new VArc(-150, 100, 30, 45, 315);
@@ -67,7 +67,7 @@ namespace StartViz
             var rect2 = new VRectangle(-90, -40, 60, 20);
             rect2.Color = "White";
             rect2.FillColor = "Transparent";
-            rect2.StrokeThickness = 1;
+            rect2.LineWeight = 1;
             rect2.Draw();
 
             // ===== VEllipse =====
@@ -119,7 +119,7 @@ namespace StartViz
                 new VPoint(-130, 50)
             );
             polyline.Color = "Aqua";
-            polyline.StrokeThickness = 2;
+            polyline.LineWeight = 2;
             polyline.Draw();
 
             // ===== VBezier =====
@@ -131,7 +131,7 @@ namespace StartViz
                 new VPoint(-50, -150)
             );
             bezier.Color = "Violet";
-            bezier.StrokeThickness = 3;
+            bezier.LineWeight = 3;
             bezier.Draw();
 
             // Show control points
@@ -152,7 +152,7 @@ namespace StartViz
             };
             var spline = new VSpline(splinePoints);
             spline.Color = "Turquoise";
-            spline.StrokeThickness = 3;
+            spline.LineWeight = 3;
             spline.Draw();
 
             // Mark spline points
@@ -173,7 +173,7 @@ namespace StartViz
 
             var arrow2 = new VArrow(100, 120, 100, 180);
             arrow2.Color = "LimeGreen";
-            arrow2.StrokeThickness = 2;
+            arrow2.LineWeight = 2;
             arrow2.Draw();
 
             // Diagonal arrow
@@ -228,7 +228,7 @@ namespace StartViz
 
             var smile = new VArc(0, 45, 15, 200, 340);
             smile.Color = "Black";
-            smile.StrokeThickness = 2;
+            smile.LineWeight = 2;
 
             var faceGroup = new VGroup(faceCircle, leftEye, rightEye, smile);
             faceGroup.Draw();
@@ -289,7 +289,7 @@ namespace StartViz
             VizConsole.Log("  - VText: Text label");
             VizConsole.Log("  - VGroup: Group of shapes");
             VizConsole.Log("-----------------------------------");
-            VizConsole.Log("Shape properties: Color, FillColor, StrokeThickness");
+            VizConsole.Log("Shape properties: Color, FillColor, LineWeight");
             VizConsole.Log("Call Draw() to render shapes on canvas");
         }
     }
