@@ -63,7 +63,7 @@ public class VRectangle : VPolygon
     }
 
     public VRectangle(double x, double y, double width, double height)
-        : this(new VPoint(x, y), width, height)
+        : this(VPoint.Internal(x, y), width, height)
     {
     }
 

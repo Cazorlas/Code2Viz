@@ -74,6 +74,10 @@ public class VizCodeProject
         Geometry.ShapeDefaults.DimPrefix = ProjectFile.Settings.DimPrefix;
         Geometry.ShapeDefaults.DimSuffix = ProjectFile.Settings.DimSuffix;
         Geometry.ShapeDefaults.DimTextBgOpaque = ProjectFile.Settings.DimTextBgOpaque;
+        Geometry.ShapeDefaults.DimExtensionLineColor = ProjectFile.Settings.DimExtensionLineColor;
+        Geometry.ShapeDefaults.DimDimensionLineColor = ProjectFile.Settings.DimDimensionLineColor;
+        Geometry.ShapeDefaults.DimTextColor = ProjectFile.Settings.DimTextColor;
+        Geometry.ShapeDefaults.DimSuppressDimensionLine = ProjectFile.Settings.DimSuppressDimensionLine;
     }
 
     public static VizCodeProject CreateNew(string directory, string projectName, ProjectLanguage language)

@@ -59,19 +59,19 @@ public class VXLine : Shape, ICurve
     /// Creates an infinite line passing through two points specified by coordinates.
     /// </summary>
     public VXLine(double x1, double y1, double x2, double y2)
-        : this(new VPoint(x1, y1), new VPoint(x2, y2))
+        : this(VPoint.Internal(x1, y1), VPoint.Internal(x2, y2))
     {
     }
 
     /// <summary>
     /// Creates a horizontal infinite line at the specified Y coordinate.
     /// </summary>
-    public static VXLine Horizontal(double y) => new VXLine(new VPoint(0, y), VXYZ.BasisX);
+    public static VXLine Horizontal(double y) => new VXLine(VPoint.Internal(0, y), VXYZ.BasisX);
 
     /// <summary>
     /// Creates a vertical infinite line at the specified X coordinate.
     /// </summary>
-    public static VXLine Vertical(double x) => new VXLine(new VPoint(x, 0), VXYZ.BasisY);
+    public static VXLine Vertical(double x) => new VXLine(VPoint.Internal(x, 0), VXYZ.BasisY);
 
     /// <summary>
     /// Gets a point on the line at the specified parameter.

@@ -53,8 +53,8 @@ public class VDimension : Shape
 
     public VDimension(double x1, double y1, double x2, double y2)
     {
-        Point1 = new VPoint(x1, y1);
-        Point2 = new VPoint(x2, y2);
+        Point1 = VPoint.Internal(x1, y1);
+        Point2 = VPoint.Internal(x2, y2);
         Color = "Yellow";
     }
 
@@ -95,17 +95,17 @@ public class VDimension : Shape
         double perpY = dx / length;
 
         // Dimension line endpoints
-        var dimStart = new VPoint(Point1.X + perpX * Offset, Point1.Y + perpY * Offset);
-        var dimEnd = new VPoint(Point2.X + perpX * Offset, Point2.Y + perpY * Offset);
+        var dimStart = VPoint.Internal(Point1.X + perpX * Offset, Point1.Y + perpY * Offset);
+        var dimEnd = VPoint.Internal(Point2.X + perpX * Offset, Point2.Y + perpY * Offset);
 
         // Text position (center of dimension line)
-        var textPos = new VPoint((dimStart.X + dimEnd.X) / 2, (dimStart.Y + dimEnd.Y) / 2);
+        var textPos = VPoint.Internal((dimStart.X + dimEnd.X) / 2, (dimStart.Y + dimEnd.Y) / 2);
 
         // Extension lines: from OffsetFromOrigin gap to Offset + ExtendBeyondDimLines
-        var ext1Start = new VPoint(Point1.X + perpX * OffsetFromOrigin, Point1.Y + perpY * OffsetFromOrigin);
-        var ext1End = new VPoint(Point1.X + perpX * (Offset + ExtendBeyondDimLines), Point1.Y + perpY * (Offset + ExtendBeyondDimLines));
-        var ext2Start = new VPoint(Point2.X + perpX * OffsetFromOrigin, Point2.Y + perpY * OffsetFromOrigin);
-        var ext2End = new VPoint(Point2.X + perpX * (Offset + ExtendBeyondDimLines), Point2.Y + perpY * (Offset + ExtendBeyondDimLines));
+        var ext1Start = VPoint.Internal(Point1.X + perpX * OffsetFromOrigin, Point1.Y + perpY * OffsetFromOrigin);
+        var ext1End = VPoint.Internal(Point1.X + perpX * (Offset + ExtendBeyondDimLines), Point1.Y + perpY * (Offset + ExtendBeyondDimLines));
+        var ext2Start = VPoint.Internal(Point2.X + perpX * OffsetFromOrigin, Point2.Y + perpY * OffsetFromOrigin);
+        var ext2End = VPoint.Internal(Point2.X + perpX * (Offset + ExtendBeyondDimLines), Point2.Y + perpY * (Offset + ExtendBeyondDimLines));
 
         return (dimStart, dimEnd, textPos, ext1Start, ext1End, ext2Start, ext2End);
     }

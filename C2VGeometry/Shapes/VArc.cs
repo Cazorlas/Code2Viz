@@ -103,7 +103,7 @@ public class VArc : Shape, ICurve
         double radius = center.DistanceTo(start);
         double startAngle = Math.Atan2(start.Y - center.Y, start.X - center.X) * 180.0 / Math.PI;
         double endAngle = Math.Atan2(end.Y - center.Y, end.X - center.X) * 180.0 / Math.PI;
-        return new VArc(new VPoint(center.X, center.Y), radius, startAngle, endAngle);
+        return new VArc(VPoint.Internal(center.X, center.Y), radius, startAngle, endAngle);
     }
 
     /// <summary>
@@ -123,7 +123,7 @@ public class VArc : Shape, ICurve
         double radius = center.DistanceTo(start);
         double startAngle = Math.Atan2(start.Y - center.Y, start.X - center.X) * 180.0 / Math.PI;
         double endAngle = startAngle + sweepAngleDegrees;
-        return new VArc(new VPoint(center.X, center.Y), radius, startAngle, endAngle);
+        return new VArc(VPoint.Internal(center.X, center.Y), radius, startAngle, endAngle);
     }
 
     /// <summary>
@@ -184,7 +184,7 @@ public class VArc : Shape, ICurve
 
         // Choose center based on largeArc flag
         // For simplicity, use center1 for small arc, center2 for large arc
-        VPoint center = largeArc ? new VPoint(cx2, cy2) : new VPoint(cx1, cy1);
+        VPoint center = largeArc ? VPoint.Internal(cx2, cy2) : VPoint.Internal(cx1, cy1);
 
         double startAngle = Math.Atan2(start.Y - center.Y, start.X - center.X) * 180.0 / Math.PI;
         double endAngle = Math.Atan2(end.Y - center.Y, end.X - center.X) * 180.0 / Math.PI;
@@ -217,7 +217,7 @@ public class VArc : Shape, ICurve
 
         // Create arc with arbitrary radius, adjusted by arc length
         double radius = arcLength / Math.PI; // Semicircle as default
-        var center = new VPoint(start.X - direction.X * radius, start.Y - direction.Y * radius);
+        var center = VPoint.Internal(start.X - direction.X * radius, start.Y - direction.Y * radius);
 
         return FromStartCenterLength(start, center, arcLength);
     }
@@ -365,7 +365,7 @@ public class VArc : Shape, ICurve
     {
         double newRadius = Radius + distance;
         if (newRadius < 0) newRadius = 0; // Or flip?
-        return new VArc(new VPoint(Center.X, Center.Y), newRadius, StartAngle, EndAngle);
+        return new VArc(VPoint.Internal(Center.X, Center.Y), newRadius, StartAngle, EndAngle);
     }
 
     public List<ICurve> Offset(List<double> distances)

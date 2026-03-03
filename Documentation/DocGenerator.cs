@@ -58,7 +58,7 @@ namespace Code2Viz.Documentation
                 { "VGroup", "Represents a collection of shapes treated as a single unit. Supports multiple constructors (empty, params, IEnumerable, List), group transformations (Move, Rotate, Scale, Flip), style application (ApplyStyle, ApplyColor, ApplyFillColor), and utility methods (Flatten, ForEach, Where, GetShapesOfType). When drawn, the group is rendered and selected as a single entity on the canvas." },
                 { "VGrid", "Represents a rectangular grid of VPoints. Constructor: VGrid(location, xcount, ycount, xSpacing, ySpacing, centered). If centered=true, grid is centered at location; if false, location is bottom-left corner. Access points via Points property, indexers [index] or [col, row], or GetRow()/GetColumn() methods. Supports all Shape transformations (Move, Rotate, Scale, Flip) and ApplyStyle() to set colors on all points." },
                 { "VArrow", "Represents an arrow (line with arrowhead). Supports single or double-ended arrows with configurable head size and angle." },
-                { "VDimension", "Represents a dimension line showing the distance between two points with text annotation. AutoCAD-style properties: Offset, ArrowSize, TextHeight, DecimalPlaces, ExtendBeyondDimLines, OffsetFromOrigin, SuppressExtLine1/2, Prefix, Suffix, TextBackgroundOpaque. The dimension line is always split around the text for readability. Renders arrowheads at both ends of the dimension line." },
+                { "VDimension", "Represents a dimension line showing the distance between two points with text annotation. AutoCAD-style properties: Offset, ArrowSize, TextHeight, DecimalPlaces, ExtendBeyondDimLines, OffsetFromOrigin, SuppressExtLine1/2, SuppressDimensionLine, Prefix, Suffix, TextBackgroundOpaque. Per-element colors: ExtensionLineColor, DimensionLineColor, TextColor (null = use base Color). The dimension line is always split around the text for readability. Renders arrowheads at both ends of the dimension line." },
 
                 // Legacy aliases (for backward compatibility)
                 { "Arc2D", "Represents a 2D arc defined by a center, radius, start angle, and end angle." },
@@ -441,7 +441,7 @@ namespace Code2Viz.Documentation
                 { "VSpline", "let pts = [| VPoint(0.0,0.0); VPoint(50.0,50.0); VPoint(100.0,0.0) |]\nlet s = VSpline(pts)\ns.Draw()" },
                 { "VText", "let t = VText(VPoint(50.0, 50.0), \"Hi\")\nt.Height <- 40.0\nt.Draw()" },
                 { "VArrow", "// From two points\nlet a = VArrow(VPoint(10.0, 10.0), VPoint(100.0, 10.0))\na.Draw()\n\n// From start point, direction, and length\nlet a2 = VArrow(VPoint(0.0, 0.0), VXYZ.BasisX, 50.0)\na2.Draw()" },
-                { "VDimension", "// Dimension between two points\nlet dim = VDimension(VPoint(0.0, 0.0), VPoint(100.0, 0.0))\ndim.Offset <- 20.0\ndim.Prefix <- \"L=\"\ndim.Suffix <- \"mm\"\ndim.Draw()" },
+                { "VDimension", "// Dimension between two points\nlet dim = VDimension(VPoint(0.0, 0.0), VPoint(100.0, 0.0))\ndim.Offset <- 20.0\ndim.Prefix <- \"L=\"\ndim.Suffix <- \"mm\"\ndim.Draw()\n\n// Per-element colors\nlet dim2 = VDimension(0.0, 50.0, 100.0, 50.0)\ndim2.ExtensionLineColor <- \"Green\"\ndim2.DimensionLineColor <- \"Red\"\ndim2.TextColor <- \"Cyan\"\ndim2.Draw()" },
                 { "Region", "// Region bounded by lines and an arc\nlet p0 = VPoint.Internal(0.0, 0.0)\nlet p1 = VPoint.Internal(100.0, 0.0)\nlet p2 = VPoint.Internal(100.0, 80.0)\nlet p3 = VPoint.Internal(0.0, 80.0)\nlet curves = System.Collections.Generic.List<ICurve>()\ncurves.Add(VLine(p0, p1))\ncurves.Add(VLine(p1, p2))\ncurves.Add(VLine(p2, p3))\ncurves.Add(VLine(p3, p0))\nlet region = Region(curves)\nregion.Color <- \"Cyan\"\nregion.FillColor <- \"#4000FFFF\"" },
                 { "VGroup", @"// Create a group from shapes
 let circle = VCircle(VPoint(0.0, 0.0), 20.0)
@@ -942,7 +942,16 @@ dim2.Prefix = ""L="";
 dim2.Suffix = ""mm"";
 dim2.SuppressExtLine2 = true;    // Hide second extension line
 dim2.TextBackgroundOpaque = true; // Opaque background behind text
-dim2.Draw();" },
+dim2.Draw();
+
+// Per-element colors (each defaults to Color when null)
+var dim3 = new VDimension(0, 100, 100, 100);
+dim3.Offset = 20;
+dim3.ExtensionLineColor = ""Green"";   // Extension lines in green
+dim3.DimensionLineColor = ""Red"";     // Dim line + arrowheads in red
+dim3.TextColor = ""Cyan"";             // Text in cyan
+dim3.SuppressDimensionLine = true;     // Hide dim line + arrowheads
+dim3.Draw();" },
 
                 { "VGroup", @"// Create a group from shapes
 var group = new VGroup(
@@ -1953,6 +1962,10 @@ var offset = BooleanOps.OffsetPolygon(poly, 10, JoinType.Miter, EndType.Polygon)
                 { "VDimension.Distance", "Gets the calculated distance between Point1 and Point2 (read-only)." },
                 { "VDimension.TextBackgroundOpaque", "If true, an opaque background is drawn behind the dimension text using the canvas background color." },
                 { "VDimension.DisplayText", "Gets the display text including Prefix and Suffix (read-only)." },
+                { "VDimension.ExtensionLineColor", "Gets or sets the color for extension lines. When null (default), uses the base Color property." },
+                { "VDimension.DimensionLineColor", "Gets or sets the color for the dimension line and arrowheads. When null (default), uses the base Color property." },
+                { "VDimension.TextColor", "Gets or sets the color for the dimension text. When null (default), uses the base Color property." },
+                { "VDimension.SuppressDimensionLine", "If true, the dimension line and arrowheads are not drawn. Extension lines and text are still rendered." },
 
                 // VDimension Methods
                 { "VDimension.Draw", "Renders the dimension annotation to the canvas." },

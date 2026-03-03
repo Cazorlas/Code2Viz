@@ -10,11 +10,11 @@ none
 false
 TRACE;DEBUG;NET;NET9_0;NETCOREAPP;WINDOWS;WINDOWS7_0;NET5_0_OR_GREATER;NET6_0_OR_GREATER;NET7_0_OR_GREATER;NET8_0_OR_GREATER;NET9_0_OR_GREATER;NETCOREAPP3_0_OR_GREATER;NETCOREAPP3_1_OR_GREATER;WINDOWS7_0_OR_GREATER
 C:\Work\Nicety\Projects\Code2Viz\App.xaml
-1934913980
+20-2135224541
 
-131-2007764415
+1321725667958
 238-1658705456
-AddReferenceWindow.xaml;ColorPickerDialog.xaml;Editor\Minimap\MinimapControl.xaml;ExportOptionsWindow.xaml;GifExportOptionsWindow.xaml;HelpWindow.xaml;MainWindow.xaml;NewProjectDialog.xaml;NuGetPackageManagerWindow.xaml;ProgressDialog.xaml;PropertiesPanel.xaml;PropertiesWindow.xaml;RenameDialog.xaml;Search\FindReplaceDialog.xaml;Search\FindResultsPanel.xaml;TimelinePanel.xaml;VideoExportOptionsWindow.xaml;WelcomeWindow.xaml;ZoomToShapeDialog.xaml;
+AddReferenceWindow.xaml;ColorPickerDialog.xaml;Editor\Minimap\MinimapControl.xaml;ExportOptionsWindow.xaml;GifExportOptionsWindow.xaml;HelpWindow.xaml;MainWindow.xaml;NewProjectDialog.xaml;NuGetPackageManagerWindow.xaml;PdfExportOptionsWindow.xaml;ProgressDialog.xaml;PropertiesPanel.xaml;PropertiesWindow.xaml;RenameDialog.xaml;Search\FindReplaceDialog.xaml;Search\FindResultsPanel.xaml;TimelinePanel.xaml;VideoExportOptionsWindow.xaml;WelcomeWindow.xaml;ZoomToShapeDialog.xaml;
 
 False
 

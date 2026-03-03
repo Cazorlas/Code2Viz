@@ -183,6 +183,8 @@ public class ApiReferenceResource
         // Properties: Offset (20), ExtensionLength (10), ArrowSize (8), CustomText, DecimalPlaces (2), TextHeight (12)
         // AutoCAD-style: ExtendBeyondDimLines (1.25), OffsetFromOrigin (0.625), SuppressExtLine1/2 (false), Prefix (""), Suffix ("")
         // TextBackgroundOpaque (false) - opaque background behind text; dimension line always splits around text
+        // SuppressDimensionLine (false) - hide dimension line and arrowheads
+        // Per-element colors (null = use base Color): ExtensionLineColor, DimensionLineColor, TextColor
         // Read-only: Distance, DisplayText (includes Prefix/Suffix)
         ```
 
@@ -325,6 +327,10 @@ public class ApiReferenceResource
         ShapeDefaults.DimPrefix = "L=";
         ShapeDefaults.DimSuffix = "mm";
         ShapeDefaults.DimTextBgOpaque = true;
+        ShapeDefaults.DimExtensionLineColor = "Green";   // extension line color
+        ShapeDefaults.DimDimensionLineColor = "Red";     // dimension line & arrowhead color
+        ShapeDefaults.DimTextColor = "Blue";             // text color
+        ShapeDefaults.DimSuppressDimensionLine = true;   // hide dimension line & arrowheads
 
         ShapeDefaults.Reset();  // reset all to defaults
         ```

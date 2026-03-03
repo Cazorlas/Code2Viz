@@ -87,7 +87,7 @@ public class VCircle : Shape, ICurve
     {
         var center = VPoint.Internal((p1.X + p2.X) / 2.0, (p1.Y + p2.Y) / 2.0);
         double radius = p1.DistanceTo(p2) / 2.0;
-        return new VCircle(new VPoint(center.X, center.Y), radius);
+        return new VCircle(VPoint.Internal(center.X, center.Y), radius);
     }
 
 

@@ -59,7 +59,7 @@ public class VRay : Shape, ICurve
     /// Creates a ray using coordinates.
     /// </summary>
     public VRay(double originX, double originY, double throughX, double throughY)
-        : this(new VPoint(originX, originY), new VPoint(throughX, throughY))
+        : this(VPoint.Internal(originX, originY), VPoint.Internal(throughX, throughY))
     {
     }
 

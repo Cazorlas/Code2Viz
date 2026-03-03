@@ -7,6 +7,9 @@ public partial class ExportOptionsWindow : Window
 {
     public Brush SelectedBackground { get; private set; } = Brushes.Transparent;
     public bool IncludeGrid { get; private set; } = true;
+    public bool UseCustomSize { get; private set; }
+    public int CustomWidth { get; private set; }
+    public int CustomHeight { get; private set; }
 
     public ExportOptionsWindow()
     {
@@ -31,6 +34,14 @@ public partial class ExportOptionsWindow : Window
         CheckShowGrid.IsChecked = include;
     }
 
+    private void RadioCustomSize_Changed(object sender, RoutedEventArgs e)
+    {
+        if (CustomSizePanel == null) return;
+        bool isCustom = RadioCustomSize.IsChecked == true;
+        CustomSizePanel.IsEnabled = isCustom;
+        CustomSizePanel.Opacity = isCustom ? 1.0 : 0.5;
+    }
+
     private void Export_Click(object sender, RoutedEventArgs e)
     {
         if (RadioTransparent.IsChecked == true)
@@ -43,8 +54,22 @@ public partial class ExportOptionsWindow : Window
             SelectedBackground = Brushes.Black;
         else if (RadioLight.IsChecked == true)
             SelectedBackground = Brushes.WhiteSmoke;
-            
+
         IncludeGrid = CheckShowGrid.IsChecked == true;
+
+        UseCustomSize = RadioCustomSize.IsChecked == true;
+        if (UseCustomSize)
+        {
+            if (!int.TryParse(TextWidth.Text, out int w) || w <= 0 ||
+                !int.TryParse(TextHeight.Text, out int h) || h <= 0)
+            {
+                MessageBox.Show("Please enter valid positive integers for width and height.",
+                    "Invalid Size", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            CustomWidth = w;
+            CustomHeight = h;
+        }
 
         DialogResult = true;
         Close();

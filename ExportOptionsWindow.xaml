@@ -25,6 +25,24 @@
             <RadioButton x:Name="RadioLight" Content="Light (White smoke)" GroupName="Bg" Foreground="{StaticResource ForegroundBrush}" Margin="0,0,0,12"/>
             
             <CheckBox x:Name="CheckShowGrid" Content="Inlcude Grid &amp; Axes" IsChecked="True" Foreground="{StaticResource ForegroundBrush}"/>
+
+            <TextBlock Text="Size:" Foreground="{StaticResource ForegroundBrush}" Margin="0,15,0,10"/>
+
+            <RadioButton x:Name="RadioCanvasSize" Content="Canvas Size" GroupName="Size" Foreground="{StaticResource ForegroundBrush}" Margin="0,0,0,8" IsChecked="True"/>
+            <RadioButton x:Name="RadioCustomSize" Content="Custom Size" GroupName="Size" Foreground="{StaticResource ForegroundBrush}" Margin="0,0,0,8" Checked="RadioCustomSize_Changed" Unchecked="RadioCustomSize_Changed"/>
+
+            <StackPanel x:Name="CustomSizePanel" Orientation="Horizontal" Margin="20,0,0,0" IsEnabled="False" Opacity="0.5">
+                <TextBlock Text="W:" Foreground="{StaticResource ForegroundBrush}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBox x:Name="TextWidth" Width="70" Text="1920"
+                         Background="{StaticResource SecondaryBackgroundBrush}" Foreground="{StaticResource ForegroundBrush}"
+                         BorderBrush="{StaticResource BorderBrush}" Padding="4,3" VerticalAlignment="Center"/>
+                <TextBlock Text="px" Foreground="{StaticResource MutedForegroundBrush}" VerticalAlignment="Center" Margin="3,0,12,0"/>
+                <TextBlock Text="H:" Foreground="{StaticResource ForegroundBrush}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBox x:Name="TextHeight" Width="70" Text="1080"
+                         Background="{StaticResource SecondaryBackgroundBrush}" Foreground="{StaticResource ForegroundBrush}"
+                         BorderBrush="{StaticResource BorderBrush}" Padding="4,3" VerticalAlignment="Center"/>
+                <TextBlock Text="px" Foreground="{StaticResource MutedForegroundBrush}" VerticalAlignment="Center" Margin="3,0,0,0"/>
+            </StackPanel>
         </StackPanel>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">

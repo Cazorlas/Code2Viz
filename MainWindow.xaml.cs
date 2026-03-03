@@ -3292,6 +3292,10 @@ public partial class MainWindow : Window
         DimStylePrefixBox.Text = settings.DimPrefix ?? "";
         DimStyleSuffixBox.Text = settings.DimSuffix ?? "";
         DimStyleTextBgOpaqueCheck.IsChecked = settings.DimTextBgOpaque == true;
+        DimStyleExtLineColorBox.Text = settings.DimExtensionLineColor ?? "";
+        DimStyleDimLineColorBox.Text = settings.DimDimensionLineColor ?? "";
+        DimStyleTextColorBox.Text = settings.DimTextColor ?? "";
+        DimStyleSuppressDimLineCheck.IsChecked = settings.DimSuppressDimensionLine == true;
 
         // Apply Canvas Background immediately on load (Fix for Issue 1)
         if (!string.IsNullOrEmpty(settings.DefaultCanvasBackgroundColor))
@@ -3521,6 +3525,13 @@ public partial class MainWindow : Window
             string? dimSuffix = DimStyleSuffixBox.Text;
             if (string.IsNullOrEmpty(dimSuffix)) dimSuffix = null;
             bool? dimTextBgOpaque = DimStyleTextBgOpaqueCheck.IsChecked == true ? true : null;
+            string? dimExtLineColor = DimStyleExtLineColorBox.Text.Trim();
+            if (string.IsNullOrEmpty(dimExtLineColor)) dimExtLineColor = null;
+            string? dimDimLineColor = DimStyleDimLineColorBox.Text.Trim();
+            if (string.IsNullOrEmpty(dimDimLineColor)) dimDimLineColor = null;
+            string? dimTextColor = DimStyleTextColorBox.Text.Trim();
+            if (string.IsNullOrEmpty(dimTextColor)) dimTextColor = null;
+            bool? dimSuppressDimLine = DimStyleSuppressDimLineCheck.IsChecked == true ? true : null;
 
             var settings = _currentProject.ProjectFile.Settings;
             settings.DefaultColor = Color;
@@ -3537,6 +3548,10 @@ public partial class MainWindow : Window
             settings.DimPrefix = dimPrefix;
             settings.DimSuffix = dimSuffix;
             settings.DimTextBgOpaque = dimTextBgOpaque;
+            settings.DimExtensionLineColor = dimExtLineColor;
+            settings.DimDimensionLineColor = dimDimLineColor;
+            settings.DimTextColor = dimTextColor;
+            settings.DimSuppressDimensionLine = dimSuppressDimLine;
 
             _currentProject.ApplySettings();
             
@@ -4252,7 +4267,9 @@ public partial class MainWindow : Window
         {
             try
             {
-                ExportCanvasToPng(dialog.FileName, optionsDialog.SelectedBackground, optionsDialog.IncludeGrid);
+                int customWidth = optionsDialog.UseCustomSize ? optionsDialog.CustomWidth : 0;
+                int customHeight = optionsDialog.UseCustomSize ? optionsDialog.CustomHeight : 0;
+                ExportCanvasToPng(dialog.FileName, optionsDialog.SelectedBackground, optionsDialog.IncludeGrid, customWidth, customHeight);
                 SetStatus($"Exported: {Path.GetFileName(dialog.FileName)}", isError: false);
             }
             catch (Exception ex)
@@ -4262,7 +4279,8 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ExportCanvasToPng(string filePath, Brush? overrideBackground = null, bool includeGrid = true)
+    private void ExportCanvasToPng(string filePath, Brush? overrideBackground = null, bool includeGrid = true,
+        int customWidth = 0, int customHeight = 0)
     {
         // Save current state
         bool wasGridShown = RenderCanvas.ShowGrid;
@@ -4282,14 +4300,53 @@ public partial class MainWindow : Window
             // Allow visual to update
             RenderCanvas.UpdateLayout();
 
-            var width = (int)RenderCanvas.ActualWidth;
-            var height = (int)RenderCanvas.ActualHeight;
+            var canvasWidth = (int)RenderCanvas.ActualWidth;
+            var canvasHeight = (int)RenderCanvas.ActualHeight;
 
-            if (width <= 0 || height <= 0)
-                throw new InvalidOperationException($"Invalid Canvas Dimensions: {width}x{height}");
+            if (canvasWidth <= 0 || canvasHeight <= 0)
+                throw new InvalidOperationException($"Invalid Canvas Dimensions: {canvasWidth}x{canvasHeight}");
 
-            var rtb = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-            rtb.Render(RenderCanvas);
+            bool useCustom = customWidth > 0 && customHeight > 0;
+            int outputWidth = useCustom ? customWidth : canvasWidth;
+            int outputHeight = useCustom ? customHeight : canvasHeight;
+
+            RenderTargetBitmap rtb;
+
+            if (useCustom)
+            {
+                // Render canvas at its actual size first
+                var canvasRtb = new RenderTargetBitmap(canvasWidth, canvasHeight, 96, 96, PixelFormats.Pbgra32);
+                canvasRtb.Render(RenderCanvas);
+
+                // Scale uniformly to fit within custom size, preserving aspect ratio
+                double scaleX = (double)outputWidth / canvasWidth;
+                double scaleY = (double)outputHeight / canvasHeight;
+                double uniformScale = Math.Min(scaleX, scaleY);
+
+                double scaledW = canvasWidth * uniformScale;
+                double scaledH = canvasHeight * uniformScale;
+                double offsetX = (outputWidth - scaledW) / 2;
+                double offsetY = (outputHeight - scaledH) / 2;
+
+                var dv = new DrawingVisual();
+                using (var dc = dv.RenderOpen())
+                {
+                    // Fill background for letterbox bars
+                    if (overrideBackground != null)
+                        dc.DrawRectangle(overrideBackground, null, new Rect(0, 0, outputWidth, outputHeight));
+                    else
+                        dc.DrawRectangle(originalBackground, null, new Rect(0, 0, outputWidth, outputHeight));
+
+                    dc.DrawImage(canvasRtb, new Rect(offsetX, offsetY, scaledW, scaledH));
+                }
+                rtb = new RenderTargetBitmap(outputWidth, outputHeight, 96, 96, PixelFormats.Pbgra32);
+                rtb.Render(dv);
+            }
+            else
+            {
+                rtb = new RenderTargetBitmap(outputWidth, outputHeight, 96, 96, PixelFormats.Pbgra32);
+                rtb.Render(RenderCanvas);
+            }
 
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(rtb));
@@ -4354,6 +4411,27 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Calculate content bounding box
+        double minX = double.MaxValue, minY = double.MaxValue;
+        double maxX = double.MinValue, maxY = double.MinValue;
+        foreach (var drawable in shapes)
+        {
+            if (drawable is Geometry.Shape shape)
+            {
+                var bounds = shape.GetBounds();
+                minX = Math.Min(minX, bounds.Min.X);
+                minY = Math.Min(minY, bounds.Min.Y);
+                maxX = Math.Max(maxX, bounds.Max.X);
+                maxY = Math.Max(maxY, bounds.Max.Y);
+            }
+        }
+        double contentW = minX == double.MaxValue ? 100 : maxX - minX;
+        double contentH = minY == double.MaxValue ? 100 : maxY - minY;
+
+        // Show page setup dialog
+        var options = new PdfExportOptionsWindow(contentW, contentH) { Owner = this };
+        if (options.ShowDialog() != true) return;
+
         var dialog = new SaveFileDialog
         {
             Filter = "PDF Document (*.pdf)|*.pdf",
@@ -4366,7 +4444,9 @@ public partial class MainWindow : Window
             try
             {
                 var exporter = new PdfExporter();
-                exporter.Export(shapes, dialog.FileName);
+                exporter.Export(shapes, dialog.FileName,
+                    options.PageWidthMm, options.PageHeightMm,
+                    options.ScaleMmPerUnit, options.MarginMm);
                 SetStatus($"Exported: {Path.GetFileName(dialog.FileName)}", isError: false);
             }
             catch (Exception ex)

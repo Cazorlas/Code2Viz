@@ -1769,6 +1769,10 @@
                                                     <RowDefinition Height="Auto" />
                                                     <RowDefinition Height="Auto" />
                                                     <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
                                                 </Grid.RowDefinitions>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="200" />
@@ -1808,8 +1812,24 @@
                                                 <TextBox x:Name="DimStyleSuffixBox" Grid.Row="7" Grid.Column="1" Margin="0,0,0,12" Padding="6" Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" Foreground="{StaticResource ForegroundBrush}" />
 
                                                 <!--  Text Background Opaque  -->
-                                                <TextBlock Grid.Row="8" Grid.Column="0" Margin="0,0,0,16" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" Text="Text Background Opaque:" />
-                                                <CheckBox x:Name="DimStyleTextBgOpaqueCheck" Grid.Row="8" Grid.Column="1" Margin="0,0,0,16" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" />
+                                                <TextBlock Grid.Row="8" Grid.Column="0" Margin="0,0,0,12" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" Text="Text Background Opaque:" />
+                                                <CheckBox x:Name="DimStyleTextBgOpaqueCheck" Grid.Row="8" Grid.Column="1" Margin="0,0,0,12" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" />
+
+                                                <!--  Extension Line Color  -->
+                                                <TextBlock Grid.Row="9" Grid.Column="0" Margin="0,0,0,12" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" Text="Extension Line Color:" />
+                                                <TextBox x:Name="DimStyleExtLineColorBox" Grid.Row="9" Grid.Column="1" Margin="0,0,0,12" Padding="6" Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" Foreground="{StaticResource ForegroundBrush}" />
+
+                                                <!--  Dimension Line Color  -->
+                                                <TextBlock Grid.Row="10" Grid.Column="0" Margin="0,0,0,12" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" Text="Dimension Line Color:" />
+                                                <TextBox x:Name="DimStyleDimLineColorBox" Grid.Row="10" Grid.Column="1" Margin="0,0,0,12" Padding="6" Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" Foreground="{StaticResource ForegroundBrush}" />
+
+                                                <!--  Text Color  -->
+                                                <TextBlock Grid.Row="11" Grid.Column="0" Margin="0,0,0,12" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" Text="Text Color:" />
+                                                <TextBox x:Name="DimStyleTextColorBox" Grid.Row="11" Grid.Column="1" Margin="0,0,0,12" Padding="6" Background="{StaticResource BackgroundBrush}" BorderBrush="{StaticResource BorderBrush}" Foreground="{StaticResource ForegroundBrush}" />
+
+                                                <!--  Suppress Dimension Line  -->
+                                                <TextBlock Grid.Row="12" Grid.Column="0" Margin="0,0,0,16" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" Text="Suppress Dimension Line:" />
+                                                <CheckBox x:Name="DimStyleSuppressDimLineCheck" Grid.Row="12" Grid.Column="1" Margin="0,0,0,16" VerticalAlignment="Center" Foreground="{StaticResource ForegroundBrush}" />
                                             </Grid>
                                         </StackPanel>
                                     </Border>

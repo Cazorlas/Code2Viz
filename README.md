@@ -151,9 +151,13 @@ dim2.Draw();
 | `OffsetFromOrigin` | double | 0.625 | Gap between origin point and extension line start |
 | `SuppressExtLine1` | bool | false | Hide the first extension line (at Point1) |
 | `SuppressExtLine2` | bool | false | Hide the second extension line (at Point2) |
+| `SuppressDimensionLine` | bool | false | Hide the dimension line and arrowheads |
 | `Prefix` | string | "" | Text prepended to the dimension value |
 | `Suffix` | string | "" | Text appended to the dimension value |
 | `TextBackgroundOpaque` | bool | false | Draw an opaque background behind dimension text |
+| `ExtensionLineColor` | string? | null | Color for extension lines (null = use Color) |
+| `DimensionLineColor` | string? | null | Color for dimension line & arrowheads (null = use Color) |
+| `TextColor` | string? | null | Color for dimension text (null = use Color) |
 | `CustomText` | string? | null | Custom text (overrides calculated distance) |
 | `Distance` | double | — | Calculated distance between points (read-only) |
 | `DisplayText` | string | — | Final display text with prefix/suffix (read-only) |

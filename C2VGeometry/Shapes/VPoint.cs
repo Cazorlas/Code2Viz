@@ -11,7 +11,7 @@ public class VPoint : Shape
     public double X { get; set; }
     public double Y { get; set; }
 
-    public VPoint(double x, double y)
+    public VPoint(double x, double y) : base(false)
     {
         X = x;
         Y = y;

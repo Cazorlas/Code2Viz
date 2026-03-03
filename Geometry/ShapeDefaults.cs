@@ -44,6 +44,10 @@ public static class ShapeDefaults
     public static string? DimPrefix { get; set; } = null;
     public static string? DimSuffix { get; set; } = null;
     public static bool? DimTextBgOpaque { get; set; } = null;
+    public static string? DimExtensionLineColor { get; set; } = null;
+    public static string? DimDimensionLineColor { get; set; } = null;
+    public static string? DimTextColor { get; set; } = null;
+    public static bool? DimSuppressDimensionLine { get; set; } = null;
 
     /// <summary>
     /// Resets defaults to initial state (nulls).
@@ -64,5 +68,9 @@ public static class ShapeDefaults
         DimPrefix = null;
         DimSuffix = null;
         DimTextBgOpaque = null;
+        DimExtensionLineColor = null;
+        DimDimensionLineColor = null;
+        DimTextColor = null;
+        DimSuppressDimensionLine = null;
     }
 }

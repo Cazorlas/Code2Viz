@@ -49,6 +49,18 @@ public class VDimension : Shape
     /// <summary>If true, an opaque background is drawn behind the dimension text</summary>
     public bool TextBackgroundOpaque { get; set; } = false;
 
+    /// <summary>Color for extension lines. If null, uses the base Color property.</summary>
+    public string? ExtensionLineColor { get; set; }
+
+    /// <summary>Color for the dimension line and arrowheads. If null, uses the base Color property.</summary>
+    public string? DimensionLineColor { get; set; }
+
+    /// <summary>Color for the dimension text. If null, uses the base Color property.</summary>
+    public string? TextColor { get; set; }
+
+    /// <summary>If true, the dimension line and arrowheads are not drawn</summary>
+    public bool SuppressDimensionLine { get; set; }
+
     public VDimension(VPoint point1, VPoint point2)
     {
         Point1 = point1;
@@ -76,6 +88,10 @@ public class VDimension : Shape
         if (ShapeDefaults.DimPrefix != null) Prefix = ShapeDefaults.DimPrefix;
         if (ShapeDefaults.DimSuffix != null) Suffix = ShapeDefaults.DimSuffix;
         if (ShapeDefaults.DimTextBgOpaque.HasValue) TextBackgroundOpaque = ShapeDefaults.DimTextBgOpaque.Value;
+        if (ShapeDefaults.DimExtensionLineColor != null) ExtensionLineColor = ShapeDefaults.DimExtensionLineColor;
+        if (ShapeDefaults.DimDimensionLineColor != null) DimensionLineColor = ShapeDefaults.DimDimensionLineColor;
+        if (ShapeDefaults.DimTextColor != null) TextColor = ShapeDefaults.DimTextColor;
+        if (ShapeDefaults.DimSuppressDimensionLine.HasValue) SuppressDimensionLine = ShapeDefaults.DimSuppressDimensionLine.Value;
     }
 
     /// <summary>
@@ -181,7 +197,11 @@ public class VDimension : Shape
             SuppressExtLine2 = SuppressExtLine2,
             Prefix = Prefix,
             Suffix = Suffix,
-            TextBackgroundOpaque = TextBackgroundOpaque
+            TextBackgroundOpaque = TextBackgroundOpaque,
+            ExtensionLineColor = ExtensionLineColor,
+            DimensionLineColor = DimensionLineColor,
+            TextColor = TextColor,
+            SuppressDimensionLine = SuppressDimensionLine
         };
         CopyStyleTo(clone);
         return clone;

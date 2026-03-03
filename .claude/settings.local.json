@@ -35,7 +35,11 @@
       "Bash(del \"C:\\\\Work\\\\Nicety\\\\Projects\\\\Code2Viz\\\\CSharp-SampleProject\\\\LayoutMaker.cs\")",
       "Bash(dotnet publish:*)",
       "Bash(git log:*)",
-      "Bash(dotnet run:*)"
+      "Bash(dotnet run:*)",
+      "Bash(dotnet package:*)",
+      "Bash(dotnet:*)",
+      "Bash(python3:*)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

@@ -232,9 +232,13 @@ new VDimension(point1, point2);
 | OffsetFromOrigin | double | 0.625 | Gap from origin to extension start |
 | SuppressExtLine1 | bool | false | Hide first extension line |
 | SuppressExtLine2 | bool | false | Hide second extension line |
+| SuppressDimensionLine | bool | false | Hide dimension line and arrowheads |
 | Prefix | string | "" | Text prefix (e.g. "L=") |
 | Suffix | string | "" | Text suffix (e.g. "mm") |
 | TextBackgroundOpaque | bool | false | Opaque background behind dimension text |
+| ExtensionLineColor | string? | null | Color for extension lines (null = use Color) |
+| DimensionLineColor | string? | null | Color for dimension line & arrowheads (null = use Color) |
+| TextColor | string? | null | Color for dimension text (null = use Color) |
 | Distance | double | | Calculated distance (read-only) |
 | DisplayText | string | | Display text with prefix/suffix (read-only) |
 
@@ -611,6 +615,10 @@ ShapeDefaults.DimOffsetFromOrigin = 1.0;
 ShapeDefaults.DimPrefix = "L=";
 ShapeDefaults.DimSuffix = "mm";
 ShapeDefaults.DimTextBgOpaque = true;
+ShapeDefaults.DimExtensionLineColor = "Green";   // extension line color
+ShapeDefaults.DimDimensionLineColor = "Red";     // dimension line & arrowhead color
+ShapeDefaults.DimTextColor = "Blue";             // text color
+ShapeDefaults.DimSuppressDimensionLine = true;   // hide dimension line & arrowheads
 
 ShapeDefaults.Reset();                       // reset all to defaults
 ```

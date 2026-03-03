@@ -77,4 +77,8 @@ public class ProjectSettings
     public string? DimPrefix { get; set; }
     public string? DimSuffix { get; set; }
     public bool? DimTextBgOpaque { get; set; }
+    public string? DimExtensionLineColor { get; set; }
+    public string? DimDimensionLineColor { get; set; }
+    public string? DimTextColor { get; set; }
+    public bool? DimSuppressDimensionLine { get; set; }
 }
