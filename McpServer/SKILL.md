@@ -672,12 +672,14 @@ animator.Stop();     // Stop all playback
 |------|-------------|-------------|
 | DrawAnimation | `(Shape target, double duration)` | Progressively draws shape (0% to 100%) |
 | MoveAnimation | `(Shape target, VXYZ displacement, double duration)` | Translates by displacement vector |
+| PathAnimation | `(Shape target, ICurve path, double duration)` | Moves shape along any ICurve path |
 | RotateAnimation | `(Shape target, VPoint pivot, double angleDeg, double duration)` | Rotates around pivot |
 | FlipAnimation | `(Shape target, VLine mirrorAxis, double duration)` | Flips across mirror axis |
 | FadeInAnimation | `(Shape target, double duration)` | Fades from transparent to opaque |
 | FadeOutAnimation | `(Shape target, double duration)` | Fades from opaque to transparent |
 | FadeOutAnimation | `(Shape target, double duration, double targetOpacity)` | Fades to target opacity |
 | ValueAnimation\<T\> | `(T target, Expression<Func<T, double>> prop, double start, double end, double duration)` | Animate any numeric property on a Shape (T : Shape) |
+| ValueAnimation\<T\> | `(T target, Expression<Func<T, double>> prop, List<double> values, double duration)` | Animate through a sequence of values evenly spaced over the duration |
 | ObjectPropertyAnimation\<T\> | `(T target, Expression<Func<T, double>> prop, double start, double end, double duration)` | Animate any numeric property on any object (T : class) |
 
 ### ObjectPropertyAnimation Example

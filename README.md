@@ -618,16 +618,18 @@ anim.Animate();
 |-----------|-------------|-------------|
 | **DrawAnimation** | Progressive drawing (0% to 100%) | `new DrawAnimation(shape, duration)` |
 | **MoveAnimation** | Move by displacement vector | `new MoveAnimation(shape, displacement, duration)` |
+| **PathAnimation** | Move along any ICurve path | `new PathAnimation(shape, path, duration)` |
 | **RotateAnimation** | Rotate around a pivot point | `new RotateAnimation(shape, pivot, angleDegrees, duration)` |
 | **FlipAnimation** | Mirror across an axis line | `new FlipAnimation(shape, mirrorAxis, duration)` |
 | **FadeInAnimation** | Fade from transparent to opaque | `new FadeInAnimation(shape, duration)` |
 | **FadeOutAnimation** | Fade from opaque to transparent | `new FadeOutAnimation(shape, duration, targetOpacity)` |
 | **ValueAnimation\<T\>** | Animate any numeric property on a shape | `new ValueAnimation<VCircle>(circle, c => c.Radius, 0, 50, 3.0)` |
+| **ValueAnimation\<T\>** | Animate through a sequence of values | `new ValueAnimation<VCircle>(circle, c => c.Radius, new List<double> { 10, 50, 20, 80 }, 3.0)` |
 | **ObjectPropertyAnimation\<T\>** | Animate any numeric property on any object | `new ObjectPropertyAnimation<Wheel>(wheel, w => w.Rotation, 0, 360, 1.0)` |
 
 ### ValueAnimation Example
 
-`ValueAnimation<T>` animates any numeric (`double`) property on a shape between a start and end value. The property is specified with a lambda expression:
+`ValueAnimation<T>` animates any numeric (`double`) property on a shape. The property is specified with a lambda expression. You can animate between two values, or through a sequence of values:
 
 ```csharp
 // Pulsing circle — animate radius from 10 to 80
@@ -650,6 +652,13 @@ valAnim.EasingFunction = EasingFunctions.EaseInOutCubic;
 var anim3 = new Animator();
 anim3.AddToAnimations(valAnim);
 anim3.Animate();
+
+// Animate through multiple values — radius goes 10 → 50 → 20 → 80
+var circle3 = new VCircle(-100, 0, 10);
+var anim4 = new Animator();
+anim4.AddToAnimations(new ValueAnimation<VCircle>(
+    circle3, c => c.Radius, new List<double> { 10, 50, 20, 80 }, 3.0));
+anim4.Animate();
 ```
 
 ### ObjectPropertyAnimation Example
@@ -679,6 +688,20 @@ public class Wheel
 var wheel = new Wheel();
 var anim = new Animator();
 anim.AddToAnimations(new ObjectPropertyAnimation<Wheel>(wheel, w => w.Rotation, 0.0, 359.0, 1));
+anim.Repeat = true;
+anim.Animate();
+```
+
+### PathAnimation Example
+
+`PathAnimation` moves a shape along any `ICurve` path (bezier, arc, spline, polyline, etc.):
+
+```csharp
+var dot = new VCircle(0, 0, 5) { Color = "Yellow" };
+var path = new VBezier(0, 0, 50, 100, 150, 100, 200, 0) { Color = "Gray" };
+
+var anim = new Animator();
+anim.AddToAnimations(new PathAnimation(dot, path, 3.0));
 anim.Repeat = true;
 anim.Animate();
 ```

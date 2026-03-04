@@ -92,11 +92,12 @@ namespace Code2Viz.Documentation
                 { "Animation", "Abstract base class for all animations. Defines Target shape, Duration, and EasingFunction. Subclasses implement the Apply() method. StartTime is set automatically by Animator." },
                 { "DrawAnimation", "Animates the DrawFactor property to progressively draw a shape from 0% to 100%. Constructor: new DrawAnimation(shape, duration)." },
                 { "MoveAnimation", "Animates moving a shape by a displacement vector. Constructor: new MoveAnimation(shape, displacement, duration)." },
+                { "PathAnimation", "Animates a shape along any ICurve path (arc, bezier, spline, polyline, etc.). The shape follows the curve from start to end. Constructor: new PathAnimation(shape, path, duration)." },
                 { "RotateAnimation", "Animates rotating a shape around a pivot point. Constructor: new RotateAnimation(shape, pivot, angleDegrees, duration)." },
                 { "FlipAnimation", "Animates flipping (mirroring) a shape across an axis line. Constructor: new FlipAnimation(shape, mirrorAxis, duration)." },
                 { "FadeInAnimation", "Animates fading in a shape from transparent to opaque. Constructor: new FadeInAnimation(shape, duration)." },
                 { "FadeOutAnimation", "Animates fading out a shape from opaque to transparent. Constructor: new FadeOutAnimation(shape, duration, targetOpacity)." },
-                { "ValueAnimation", "Animates any numeric (double) property on a shape between a start and end value. Constructor: new ValueAnimation<T>(shape, c => c.Property, startValue, endValue, duration)." },
+                { "ValueAnimation", "Animates any numeric (double) property on a shape. Supports two constructors: new ValueAnimation<T>(shape, c => c.Property, startValue, endValue, duration) for start/end interpolation, or new ValueAnimation<T>(shape, c => c.Property, new List<double> { v1, v2, v3, ... }, duration) to animate through a sequence of values evenly spaced over the duration." },
                 { "ObjectPropertyAnimation", "Animates any numeric (double) property on an arbitrary object (not limited to shapes). Constructor: new ObjectPropertyAnimation<T>(obj, o => o.Property, startValue, endValue, duration)." },
                 { "EasingFunctions", "Static class providing common easing functions for smooth animations: Linear, EaseInQuad, EaseOutQuad, EaseInOutQuad, EaseInCubic, EaseOutCubic, EaseInOutCubic." },
 
@@ -527,6 +528,15 @@ let anim = Animator()
 anim.AddToAnimations(MoveAnimation(circle, VXYZ(100.0, 50.0, 0.0), 3.0))
 anim.Animate()" },
 
+                { "PathAnimation", @"// Animates a shape along a curved path
+let dot = VCircle(0.0, 0.0, 5.0, Color = ""Yellow"")
+let path = VBezier(0.0, 0.0, 50.0, 100.0, 150.0, 100.0, 200.0, 0.0)
+let anim = Animator()
+
+// Move dot along the bezier curve over 3 seconds
+anim.AddToAnimations(PathAnimation(dot, path :> ICurve, 3.0))
+anim.Animate()" },
+
                 { "RotateAnimation", @"// Animates rotating a shape around a pivot
 let rect = VRectangle(0.0, 0.0, 50.0, 30.0)
 let pivot = VPoint(25.0, 15.0)
@@ -583,7 +593,14 @@ let valAnim = ValueAnimation<VCircle>(circle2, (fun c -> c.Radius), 5.0, 60.0, 2
 valAnim.EasingFunction <- EasingFunctions.EaseInOutCubic
 let anim3 = Animator()
 anim3.AddToAnimations(valAnim)
-anim3.Animate()" },
+anim3.Animate()
+
+// Example 4: Animate through multiple values — radius goes 10 → 50 → 20 → 80
+let circle3 = VCircle(-100.0, 0.0, 10.0)
+let anim4 = Animator()
+let values = System.Collections.Generic.List<double>([| 10.0; 50.0; 20.0; 80.0 |])
+anim4.AddToAnimations(ValueAnimation<VCircle>(circle3, (fun c -> c.Radius), values, 3.0))
+anim4.Animate()" },
 
                 { "ObjectPropertyAnimation", @"// Animates any numeric property on an arbitrary object
 // Useful for animating user-defined classes, not just shapes
@@ -1222,6 +1239,15 @@ var anim = new Animator();
 anim.AddToAnimations(new MoveAnimation(circle, new VXYZ(100, 50, 0), 3.0));
 anim.Animate();" },
 
+                { "PathAnimation", @"// Animates a shape along a curved path
+var dot = new VCircle(0, 0, 5) { Color = ""Yellow"" };
+var path = new VBezier(0, 0, 50, 100, 150, 100, 200, 0);
+var anim = new Animator();
+
+// Move dot along the bezier curve over 3 seconds
+anim.AddToAnimations(new PathAnimation(dot, path, 3.0));
+anim.Animate();" },
+
                 { "RotateAnimation", @"// Animates rotating a shape around a pivot
 var rect = new VRectangle(0, 0, 50, 30);
 var pivot = new VPoint(25, 15); // center of rectangle
@@ -1281,7 +1307,14 @@ var valAnim = new ValueAnimation<VCircle>(circle2, c => c.Radius, 5, 60, 2.0);
 valAnim.EasingFunction = EasingFunctions.EaseInOutCubic;
 var anim3 = new Animator();
 anim3.AddToAnimations(valAnim);
-anim3.Animate();" },
+anim3.Animate();
+
+// Example 4: Animate through multiple values — radius goes 10 → 50 → 20 → 80
+var circle3 = new VCircle(-100, 0, 10);
+var anim4 = new Animator();
+anim4.AddToAnimations(new ValueAnimation<VCircle>(
+    circle3, c => c.Radius, new List<double> { 10, 50, 20, 80 }, 3.0));
+anim4.Animate();" },
 
                 { "ObjectPropertyAnimation", @"// Animates any numeric property on an arbitrary object
 // Useful for animating user-defined classes, not just shapes
@@ -2086,6 +2119,11 @@ var offset = BooleanOps.OffsetPolygon(poly, 10, JoinType.Miter, EndType.Polygon)
                 { "MoveAnimation.Duration", "Gets how long the movement takes (in seconds)." },
                 { "MoveAnimation.EasingFunction", "Gets or sets the easing function for smooth movement." },
 
+                // PathAnimation
+                { "PathAnimation.Target", "Gets the shape to move along the path." },
+                { "PathAnimation.Duration", "Gets how long the path animation takes (in seconds)." },
+                { "PathAnimation.EasingFunction", "Gets or sets the easing function for the path animation." },
+
                 // RotateAnimation
                 { "RotateAnimation.Target", "Gets the shape to rotate." },
                 { "RotateAnimation.Duration", "Gets how long the rotation takes (in seconds)." },
@@ -2112,7 +2150,7 @@ var offset = BooleanOps.OffsetPolygon(poly, 10, JoinType.Miter, EndType.Polygon)
                 { "ValueAnimation.Target", "Gets the shape whose property is being animated." },
                 { "ValueAnimation.Duration", "Gets how long the value animation takes (in seconds)." },
                 { "ValueAnimation.EasingFunction", "Gets or sets the easing function for smooth value interpolation." },
-                { "ValueAnimation.Apply", "Applies the value animation, interpolating the property between start and end values." },
+                { "ValueAnimation.Apply", "Applies the value animation, interpolating the property between start and end values (or through the sequence of values)." },
 
                 // ObjectPropertyAnimation
                 { "ObjectPropertyAnimation.Duration", "Gets how long the object property animation takes (in seconds)." },

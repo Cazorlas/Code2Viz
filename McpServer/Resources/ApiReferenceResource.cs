@@ -344,9 +344,11 @@ public class ApiReferenceResource
         // Sequential: animator.AddToAnimations(new DrawAnimation(shape, duration));
         // Parallel: animator.AddToAnimations(new List<Animation> { anim1, anim2 });
         animator.Pause(1.5);  // insert time gap before next animation
-        // Types: DrawAnimation, MoveAnimation(target, VXYZ, dur), RotateAnimation(target, pivot, deg, dur),
+        // Types: DrawAnimation, MoveAnimation(target, VXYZ, dur), PathAnimation(target, ICurve path, dur),
+        //        RotateAnimation(target, pivot, deg, dur),
         //        FadeInAnimation, FadeOutAnimation, FlipAnimation(target, mirrorAxis, dur),
         //        ValueAnimation<T>(shape, s => s.Prop, start, end, dur) — animate numeric property on Shape,
+        //        ValueAnimation<T>(shape, s => s.Prop, new List<double> { v1, v2, ... }, dur) — animate through multiple values,
         //        ObjectPropertyAnimation<T>(obj, o => o.Prop, start, end, dur) — animate numeric property on any object
         // Easing: anim.EasingFunction = EasingFunctions.EaseInOutCubic;
         animator.Animate();  // start playback

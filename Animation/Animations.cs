@@ -105,6 +105,46 @@ namespace Code2Viz.Animation
     }
 
     /// <summary>
+    /// Animates a shape along any ICurve path (arc, bezier, spline, polyline, etc.).
+    /// The shape's center is positioned at the path point for each time step,
+    /// so it follows the exact curve from start to end over the duration.
+    /// </summary>
+    public class PathAnimation : Animation
+    {
+        private readonly ICurve _path;
+        private double _shapeCenterX;
+        private double _shapeCenterY;
+        private bool _hasStarted;
+
+        public PathAnimation(Shape target, ICurve path, double duration)
+            : base(target, duration)
+        {
+            _path = path;
+        }
+
+        public override void Apply(double t)
+        {
+            // Only capture shape center when animation actually starts (t >= 0 for first time)
+            if (!_hasStarted && t >= 0)
+            {
+                var bounds = Target.GetBounds();
+                _shapeCenterX = bounds.Center.X;
+                _shapeCenterY = bounds.Center.Y;
+                _hasStarted = true;
+            }
+
+            // Don't apply anything if we haven't started yet
+            if (!_hasStarted)
+                return;
+
+            double easedT = EasingFunction(Math.Clamp(t, 0, 1));
+            VPoint pathPoint = _path.PointAtParameter(easedT);
+            Target.OffsetX = pathPoint.X - _shapeCenterX;
+            Target.OffsetY = pathPoint.Y - _shapeCenterY;
+        }
+    }
+
+    /// <summary>
     /// Animates rotating a shape around a pivot point by a specified angle.
     /// </summary>
     public class RotateAnimation : Animation
@@ -252,8 +292,7 @@ namespace Code2Viz.Animation
     public class ValueAnimation<T> : Animation where T : Shape
     {
         private readonly PropertyInfo _property;
-        private readonly double _startValue;
-        private readonly double _endValue;
+        private readonly double[] _values;
 
         /// <summary>
         /// Creates a value animation that interpolates a property between start and end values.
@@ -264,10 +303,25 @@ namespace Code2Viz.Animation
         /// <param name="endValue">The value at the end of the animation.</param>
         /// <param name="duration">Duration in seconds.</param>
         public ValueAnimation(T target, Expression<Func<T, double>> propertySelector, double startValue, double endValue, double duration)
+            : this(target, propertySelector, new List<double> { startValue, endValue }, duration)
+        {
+        }
+
+        /// <summary>
+        /// Creates a value animation that interpolates a property through a sequence of values.
+        /// The values are evenly spaced across the duration.
+        /// </summary>
+        /// <param name="target">The shape whose property to animate.</param>
+        /// <param name="propertySelector">Expression selecting the property, e.g. c => c.Radius.</param>
+        /// <param name="values">The sequence of values to animate through. Must contain at least 2 values.</param>
+        /// <param name="duration">Duration in seconds.</param>
+        public ValueAnimation(T target, Expression<Func<T, double>> propertySelector, List<double> values, double duration)
             : base(target, duration)
         {
-            _startValue = startValue;
-            _endValue = endValue;
+            if (values == null || values.Count < 2)
+                throw new ArgumentException("values must contain at least 2 elements.", nameof(values));
+
+            _values = values.ToArray();
 
             // Extract PropertyInfo from the expression
             if (propertySelector.Body is MemberExpression memberExpr &&
@@ -281,13 +335,17 @@ namespace Code2Viz.Animation
             }
 
             // Set the initial value
-            _property.SetValue(target, _startValue);
+            _property.SetValue(target, _values[0]);
         }
 
         public override void Apply(double t)
         {
             double easedT = EasingFunction(t);
-            double value = _startValue + (_endValue - _startValue) * easedT;
+            int segments = _values.Length - 1;
+            double scaled = easedT * segments;
+            int index = Math.Clamp((int)scaled, 0, segments - 1);
+            double localT = scaled - index;
+            double value = _values[index] + (_values[index + 1] - _values[index]) * localT;
             _property.SetValue(Target, value);
         }
     }
