@@ -15,10 +15,16 @@ namespace Code2Viz.Export;
 public class PdfExporter
 {
     private double _margin = 20;
+    private const double DipToPoint = 72.0 / 96.0;
 
-    // Compensates font sizes and point radii for the ScaleTransform
-    // so text and markers don't get inflated. Pens scale with geometry.
-    private double _sizeScale = 1.0;
+    // Compensates UI-sized elements (text, point markers, stroke widths)
+    // for the ScaleTransform so they stay visually consistent with canvas rendering.
+    private double _uiSizeScale = 1.0;
+
+    /// <summary>
+    /// Multiplier applied to exported stroke weights (1.0 = unchanged).
+    /// </summary>
+    public double LineWeightScaleFactor { get; set; } = 0.75;
 
     /// <summary>
     /// Exports shapes to a PDF file with auto-sized page.
@@ -30,7 +36,7 @@ public class PdfExporter
         // Snapshot to avoid "collection was modified" during enumeration
         shapes = shapes.ToList();
 
-        _sizeScale = 1.0;
+        _uiSizeScale = 1.0;
 
         // Calculate bounds
         var (minPt, maxPt) = GetBounds(shapes);
@@ -113,9 +119,8 @@ public class PdfExporter
         double marginPt = marginMm * mmToPoints;
         double scalePtPerUnit = scaleMmPerUnit * mmToPoints;
 
-        // Compensate pen widths for the scale transform so line weights
-        // stay at their original point size rather than being inflated.
-        _sizeScale = 1.0 / scalePtPerUnit;
+        // Keep text/point marker sizes visually consistent even when geometry is scaled.
+        _uiSizeScale = 1.0 / scalePtPerUnit;
 
         // Create PDF document
         var document = new PdfDocument();
@@ -193,7 +198,10 @@ public class PdfExporter
                 DrawDimension(gfx, dim);
                 break;
             case VPoint point:
-                DrawPoint(gfx, point, pen);
+                if (ShouldExportPoint(point))
+                {
+                    DrawPoint(gfx, point, pen, brush);
+                }
                 break;
             case VLine line:
                 DrawLine(gfx, line, pen);
@@ -234,13 +242,15 @@ public class PdfExporter
     private XPen CreatePen(Shape shape)
     {
         var color = ParseColor(shape.Color);
-        return new XPen(color, shape.LineWeight * _sizeScale);
+        var lineWeightScale = LineWeightScaleFactor > 0 ? LineWeightScaleFactor : 1.0;
+        return new XPen(color, shape.LineWeight * DipToPoint * _uiSizeScale * lineWeightScale);
     }
 
     private XPen CreatePen(string colorName, double lineWeight)
     {
         var color = ParseColor(colorName);
-        return new XPen(color, lineWeight * _sizeScale);
+        var lineWeightScale = LineWeightScaleFactor > 0 ? LineWeightScaleFactor : 1.0;
+        return new XPen(color, lineWeight * DipToPoint * _uiSizeScale * lineWeightScale);
     }
 
     private XBrush? CreateBrush(Shape shape)
@@ -263,20 +273,11 @@ public class PdfExporter
         if (string.IsNullOrEmpty(colorName))
             return XColors.Black;
 
-        // Use WPF's ColorConverter — same parser the canvas uses —
+        // Use WPF's ColorConverter (same parser the canvas uses),
         // so named colors and hex values resolve identically.
         try
         {
             var wpfColor = (Color)ColorConverter.ConvertFromString(colorName);
-
-            // Adapt light grayscale colors (like White, LightGray) for the white PDF background
-            // by inverting them. Since we only check for grayscale (R == G == B),
-            // pastel colors like LightYellow or Pink aren't affected.
-            if (wpfColor.R == wpfColor.G && wpfColor.G == wpfColor.B && wpfColor.R > 200)
-            {
-                return XColor.FromArgb(wpfColor.A, 255 - wpfColor.R, 255 - wpfColor.G, 255 - wpfColor.B);
-            }
-
             return XColor.FromArgb(wpfColor.A, wpfColor.R, wpfColor.G, wpfColor.B);
         }
         catch
@@ -287,9 +288,13 @@ public class PdfExporter
         }
     }
 
-    private void DrawPoint(XGraphics gfx, VPoint point, XPen pen)
+    private void DrawPoint(XGraphics gfx, VPoint point, XPen pen, XBrush? brush)
     {
-        double r = 2 * _sizeScale;
+        double r = 2 * _uiSizeScale;
+        if (brush != null)
+        {
+            gfx.DrawEllipse(brush, point.X - r, point.Y - r, r * 2, r * 2);
+        }
         gfx.DrawEllipse(pen, point.X - r, point.Y - r, r * 2, r * 2);
     }
 
@@ -426,7 +431,7 @@ public class PdfExporter
     {
         var color = ParseColor(text.Color);
         var brush = new XSolidBrush(color);
-        var font = new XFont("Arial", Math.Max(text.Height * _sizeScale, 0.1), XFontStyleEx.Regular);
+        var font = new XFont("Arial", Math.Max(text.Height, 0.1), XFontStyleEx.Regular);
 
         // Text drawing with Y-flip correction
         gfx.Save();
@@ -439,6 +444,7 @@ public class PdfExporter
     private void DrawDimension(XGraphics gfx, VDimension dim)
     {
         var geom = dim.GetDimensionGeometry();
+        var scalePtPerUnit = _uiSizeScale > 0 ? 1.0 / _uiSizeScale : 1.0;
 
         string extColor = dim.ExtensionLineColor ?? dim.Color;
         string dimLineColor = dim.DimensionLineColor ?? dim.Color;
@@ -446,6 +452,8 @@ public class PdfExporter
 
         var extPen = CreatePen(extColor, dim.LineWeight);
         var dimPen = CreatePen(dimLineColor, dim.LineWeight);
+        var dimBrush = new XSolidBrush(ParseColor(dimLineColor));
+        string displayText = dim.DisplayText;
 
         // Extension lines
         if (!dim.SuppressExtLine1)
@@ -456,41 +464,49 @@ public class PdfExporter
         // Dimension line and arrowheads
         if (!dim.SuppressDimensionLine)
         {
-            gfx.DrawLine(dimPen, geom.dimStart.X, geom.dimStart.Y, geom.dimEnd.X, geom.dimEnd.Y);
-
-            // Arrowheads
-            double dx = geom.dimEnd.X - geom.dimStart.X;
-            double dy = geom.dimEnd.Y - geom.dimStart.Y;
-            double len = Math.Sqrt(dx * dx + dy * dy);
-            if (len > 0)
+            // Mirror canvas behavior: split the dimension line around the text gap.
+            var dimDx = geom.dimEnd.X - geom.dimStart.X;
+            var dimDy = geom.dimEnd.Y - geom.dimStart.Y;
+            var dimLength = Math.Sqrt(dimDx * dimDx + dimDy * dimDy);
+            if (dimLength > 1e-10)
             {
-                double angle = Math.Atan2(dy, dx);
-                double arrowAngle = 15 * Math.PI / 180;
-                double arrowLen = dim.ArrowSize;
+                var gapFont = new XFont("Arial", Math.Max(dim.TextHeight, 0.1), XFontStyleEx.Regular);
+                var textSizeForGap = gfx.MeasureString(displayText, gapFont);
+                var textWorldWidth = textSizeForGap.Width;
+                var padding = textWorldWidth * 0.15;
+                var halfGap = textWorldWidth / 2 + padding;
 
-                // Start arrowhead (pointing toward dimStart)
-                double ax1 = geom.dimStart.X + arrowLen * Math.Cos(angle - arrowAngle);
-                double ay1 = geom.dimStart.Y + arrowLen * Math.Sin(angle - arrowAngle);
-                double ax2 = geom.dimStart.X + arrowLen * Math.Cos(angle + arrowAngle);
-                double ay2 = geom.dimStart.Y + arrowLen * Math.Sin(angle + arrowAngle);
-                gfx.DrawLine(dimPen, geom.dimStart.X, geom.dimStart.Y, ax1, ay1);
-                gfx.DrawLine(dimPen, geom.dimStart.X, geom.dimStart.Y, ax2, ay2);
+                var dirX = dimDx / dimLength;
+                var dirY = dimDy / dimLength;
+                var midX = (geom.dimStart.X + geom.dimEnd.X) / 2;
+                var midY = (geom.dimStart.Y + geom.dimEnd.Y) / 2;
 
-                // End arrowhead (pointing toward dimEnd)
-                double bx1 = geom.dimEnd.X - arrowLen * Math.Cos(angle - arrowAngle);
-                double by1 = geom.dimEnd.Y - arrowLen * Math.Sin(angle - arrowAngle);
-                double bx2 = geom.dimEnd.X - arrowLen * Math.Cos(angle + arrowAngle);
-                double by2 = geom.dimEnd.Y - arrowLen * Math.Sin(angle + arrowAngle);
-                gfx.DrawLine(dimPen, geom.dimEnd.X, geom.dimEnd.Y, bx1, by1);
-                gfx.DrawLine(dimPen, geom.dimEnd.X, geom.dimEnd.Y, bx2, by2);
+                var gapStartX = midX - dirX * halfGap;
+                var gapStartY = midY - dirY * halfGap;
+                var gapEndX = midX + dirX * halfGap;
+                var gapEndY = midY + dirY * halfGap;
+
+                gfx.DrawLine(dimPen, geom.dimStart.X, geom.dimStart.Y, gapStartX, gapStartY);
+                gfx.DrawLine(dimPen, gapEndX, gapEndY, geom.dimEnd.X, geom.dimEnd.Y);
             }
+            else
+            {
+                gfx.DrawLine(dimPen, geom.dimStart.X, geom.dimStart.Y, geom.dimEnd.X, geom.dimEnd.Y);
+            }
+
+            // Filled arrowheads (match canvas look/proportion).
+            var minArrowSizeWorld = (4 * DipToPoint) / scalePtPerUnit;
+            var arrowSize = Math.Max(dim.ArrowSize, minArrowSizeWorld);
+            DrawDimensionArrowhead(gfx, dimBrush, geom.dimStart, geom.dimEnd, arrowSize);
+            DrawDimensionArrowhead(gfx, dimBrush, geom.dimEnd, geom.dimStart, arrowSize);
         }
 
-        // Text
+        // Text – font size in drawing units; the global ScaleTransform scales it to paper size.
         var textColor = ParseColor(textColorName);
         var textBrush = new XSolidBrush(textColor);
-        var font = new XFont("Arial", Math.Max(dim.TextHeight * _sizeScale, 0.1), XFontStyleEx.Regular);
-        string displayText = dim.DisplayText;
+        var fontSize = dim.TextHeight;
+        var font = new XFont("Arial", Math.Max(fontSize, 0.1), XFontStyleEx.Regular);
+        var textSize = gfx.MeasureString(displayText, font);
 
         gfx.Save();
         gfx.TranslateTransform(geom.textPos.X, geom.textPos.Y);
@@ -498,13 +514,56 @@ public class PdfExporter
 
         if (dim.TextBackgroundOpaque)
         {
-            var textSize = gfx.MeasureString(displayText, font);
             gfx.DrawRectangle(XBrushes.White,
-                -textSize.Width / 2, -textSize.Height, textSize.Width, textSize.Height);
+                -textSize.Width / 2, -textSize.Height / 2, textSize.Width, textSize.Height);
         }
 
-        gfx.DrawString(displayText, font, textBrush, 0, 0,
+        gfx.DrawString(displayText, font, textBrush, 0, -textSize.Height / 2,
             XStringFormats.TopCenter);
         gfx.Restore();
     }
+
+    private static void DrawDimensionArrowhead(XGraphics gfx, XBrush brush, VPoint tipPoint, VPoint tailPoint, double arrowSize)
+    {
+        var dx = tipPoint.X - tailPoint.X;
+        var dy = tipPoint.Y - tailPoint.Y;
+        var length = Math.Sqrt(dx * dx + dy * dy);
+        if (length < 1e-10) return;
+
+        var dirX = dx / length;
+        var dirY = dy / length;
+        var perpX = -dirY;
+        var perpY = dirX;
+        var halfWidth = arrowSize / 6.0;
+
+        var tip = new XPoint(tipPoint.X, tipPoint.Y);
+        var wing1 = new XPoint(
+            tipPoint.X - dirX * arrowSize + perpX * halfWidth,
+            tipPoint.Y - dirY * arrowSize + perpY * halfWidth);
+        var wing2 = new XPoint(
+            tipPoint.X - dirX * arrowSize - perpX * halfWidth,
+            tipPoint.Y - dirY * arrowSize - perpY * halfWidth);
+
+        gfx.DrawPolygon(brush, [tip, wing1, wing2], XFillMode.Winding);
+    }
+
+    private static bool ShouldExportPoint(VPoint point)
+    {
+        // Most leaked helper points are auto-registered with default point styling.
+        // Keep explicit points, and keep any styled points likely intended by the user.
+        if (point.IsExplicitlyDrawn)
+            return true;
+
+        string defaultPointColor = ShapeDefaults.GlobalColor ?? "White";
+        string defaultPointFill = ShapeDefaults.GlobalFillColor ?? "LimeGreen";
+        double defaultPointWeight = ShapeDefaults.GlobalLineWeight ?? 2.0;
+
+        bool hasDefaultAppearance =
+            string.Equals(point.Color, defaultPointColor, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(point.FillColor, defaultPointFill, StringComparison.OrdinalIgnoreCase) &&
+            Math.Abs(point.LineWeight - defaultPointWeight) < 1e-9;
+
+        return !hasDefaultAppearance;
+    }
 }
+
