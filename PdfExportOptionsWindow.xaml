@@ -66,6 +66,7 @@
                              TextChanged="Setting_Changed"/>
                     <TextBlock Text=" mm" Foreground="{StaticResource MutedForegroundBrush}" VerticalAlignment="Center"/>
                 </StackPanel>
+
             </StackPanel>
 
             <!-- Right column: Preview -->

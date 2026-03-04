@@ -71,8 +71,9 @@ public class VDimension : Shape
 
     public VDimension(double x1, double y1, double x2, double y2)
     {
-        Point1 = new VPoint(x1, y1);
-        Point2 = new VPoint(x2, y2);
+        // Dimension endpoints are internal references, not standalone point markers.
+        Point1 = VPoint.Internal(x1, y1);
+        Point2 = VPoint.Internal(x2, y2);
         Color = ShapeDefaults.GlobalColor ?? "Yellow";
         ApplyDimensionDefaults();
     }
@@ -131,17 +132,17 @@ public class VDimension : Shape
         double perpY = dx / length;
 
         // Dimension line endpoints
-        var dimStart = new VPoint(Point1.X + perpX * Offset, Point1.Y + perpY * Offset);
-        var dimEnd = new VPoint(Point2.X + perpX * Offset, Point2.Y + perpY * Offset);
+        var dimStart = VPoint.Internal(Point1.X + perpX * Offset, Point1.Y + perpY * Offset);
+        var dimEnd = VPoint.Internal(Point2.X + perpX * Offset, Point2.Y + perpY * Offset);
 
         // Text position (center of dimension line)
-        var textPos = new VPoint((dimStart.X + dimEnd.X) / 2, (dimStart.Y + dimEnd.Y) / 2);
+        var textPos = VPoint.Internal((dimStart.X + dimEnd.X) / 2, (dimStart.Y + dimEnd.Y) / 2);
 
         // Extension lines: from OffsetFromOrigin gap to Offset + ExtendBeyondDimLines
-        var ext1Start = new VPoint(Point1.X + perpX * OffsetFromOrigin, Point1.Y + perpY * OffsetFromOrigin);
-        var ext1End = new VPoint(Point1.X + perpX * (Offset + ExtendBeyondDimLines), Point1.Y + perpY * (Offset + ExtendBeyondDimLines));
-        var ext2Start = new VPoint(Point2.X + perpX * OffsetFromOrigin, Point2.Y + perpY * OffsetFromOrigin);
-        var ext2End = new VPoint(Point2.X + perpX * (Offset + ExtendBeyondDimLines), Point2.Y + perpY * (Offset + ExtendBeyondDimLines));
+        var ext1Start = VPoint.Internal(Point1.X + perpX * OffsetFromOrigin, Point1.Y + perpY * OffsetFromOrigin);
+        var ext1End = VPoint.Internal(Point1.X + perpX * (Offset + ExtendBeyondDimLines), Point1.Y + perpY * (Offset + ExtendBeyondDimLines));
+        var ext2Start = VPoint.Internal(Point2.X + perpX * OffsetFromOrigin, Point2.Y + perpY * OffsetFromOrigin);
+        var ext2End = VPoint.Internal(Point2.X + perpX * (Offset + ExtendBeyondDimLines), Point2.Y + perpY * (Offset + ExtendBeyondDimLines));
 
         return (dimStart, dimEnd, textPos, ext1Start, ext1End, ext2Start, ext2End);
     }
@@ -239,10 +240,19 @@ public class VDimension : Shape
 
     public override BoundingBox GetBounds()
     {
-        return new BoundingBox(
-            VPoint.Internal(Math.Min(Point1.X, Point2.X), Math.Min(Point1.Y, Point2.Y)),
-            VPoint.Internal(Math.Max(Point1.X, Point2.X), Math.Max(Point1.Y, Point2.Y))
-        );
+        var geom = GetDimensionGeometry();
+
+        // Include all geometry: base points, dimension line endpoints, extension line endpoints, and text position.
+        double minX = Math.Min(Math.Min(Math.Min(Point1.X, Point2.X), Math.Min(geom.dimStart.X, geom.dimEnd.X)),
+                       Math.Min(Math.Min(geom.ext1Start.X, geom.ext1End.X), Math.Min(geom.ext2Start.X, geom.ext2End.X)));
+        double minY = Math.Min(Math.Min(Math.Min(Point1.Y, Point2.Y), Math.Min(geom.dimStart.Y, geom.dimEnd.Y)),
+                       Math.Min(Math.Min(geom.ext1Start.Y, geom.ext1End.Y), Math.Min(geom.ext2Start.Y, geom.ext2End.Y)));
+        double maxX = Math.Max(Math.Max(Math.Max(Point1.X, Point2.X), Math.Max(geom.dimStart.X, geom.dimEnd.X)),
+                       Math.Max(Math.Max(geom.ext1Start.X, geom.ext1End.X), Math.Max(geom.ext2Start.X, geom.ext2End.X)));
+        double maxY = Math.Max(Math.Max(Math.Max(Point1.Y, Point2.Y), Math.Max(geom.dimStart.Y, geom.dimEnd.Y)),
+                       Math.Max(Math.Max(geom.ext1Start.Y, geom.ext1End.Y), Math.Max(geom.ext2Start.Y, geom.ext2End.Y)));
+
+        return new BoundingBox(VPoint.Internal(minX, minY), VPoint.Internal(maxX, maxY));
     }
 
     public override string ToString() => $"VDimension({Point1} -> {Point2}, {DisplayText})";

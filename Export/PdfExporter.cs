@@ -17,14 +17,9 @@ public class PdfExporter
     private double _margin = 20;
     private const double DipToPoint = 72.0 / 96.0;
 
-    // Compensates UI-sized elements (text, point markers, stroke widths)
-    // for the ScaleTransform so they stay visually consistent with canvas rendering.
+    // Compensates display-unit elements (line weights, point markers) for
+    // the ScaleTransform so they stay at their intended physical size.
     private double _uiSizeScale = 1.0;
-
-    /// <summary>
-    /// Multiplier applied to exported stroke weights (1.0 = unchanged).
-    /// </summary>
-    public double LineWeightScaleFactor { get; set; } = 0.75;
 
     /// <summary>
     /// Exports shapes to a PDF file with auto-sized page.
@@ -242,15 +237,16 @@ public class PdfExporter
     private XPen CreatePen(Shape shape)
     {
         var color = ParseColor(shape.Color);
-        var lineWeightScale = LineWeightScaleFactor > 0 ? LineWeightScaleFactor : 1.0;
-        return new XPen(color, shape.LineWeight * DipToPoint * _uiSizeScale * lineWeightScale);
+        // LineWeight is in WPF DIPs (display pixels); convert to points and
+        // compensate for the geometry ScaleTransform so strokes stay a fixed
+        // physical width on paper.
+        return new XPen(color, Math.Max(shape.LineWeight * DipToPoint * _uiSizeScale, 0.001));
     }
 
     private XPen CreatePen(string colorName, double lineWeight)
     {
         var color = ParseColor(colorName);
-        var lineWeightScale = LineWeightScaleFactor > 0 ? LineWeightScaleFactor : 1.0;
-        return new XPen(color, lineWeight * DipToPoint * _uiSizeScale * lineWeightScale);
+        return new XPen(color, Math.Max(lineWeight * DipToPoint * _uiSizeScale, 0.001));
     }
 
     private XBrush? CreateBrush(Shape shape)
@@ -444,7 +440,6 @@ public class PdfExporter
     private void DrawDimension(XGraphics gfx, VDimension dim)
     {
         var geom = dim.GetDimensionGeometry();
-        var scalePtPerUnit = _uiSizeScale > 0 ? 1.0 / _uiSizeScale : 1.0;
 
         string extColor = dim.ExtensionLineColor ?? dim.Color;
         string dimLineColor = dim.DimensionLineColor ?? dim.Color;
@@ -494,11 +489,10 @@ public class PdfExporter
                 gfx.DrawLine(dimPen, geom.dimStart.X, geom.dimStart.Y, geom.dimEnd.X, geom.dimEnd.Y);
             }
 
-            // Filled arrowheads (match canvas look/proportion).
-            var minArrowSizeWorld = (4 * DipToPoint) / scalePtPerUnit;
-            var arrowSize = Math.Max(dim.ArrowSize, minArrowSizeWorld);
-            DrawDimensionArrowhead(gfx, dimBrush, geom.dimStart, geom.dimEnd, arrowSize);
-            DrawDimensionArrowhead(gfx, dimBrush, geom.dimEnd, geom.dimStart, arrowSize);
+            // Filled arrowheads — in drawing units, scale with geometry
+            // (matches canvas WorldToScreen behavior).
+            DrawDimensionArrowhead(gfx, dimBrush, geom.dimStart, geom.dimEnd, dim.ArrowSize);
+            DrawDimensionArrowhead(gfx, dimBrush, geom.dimEnd, geom.dimStart, dim.ArrowSize);
         }
 
         // Text – font size in drawing units; the global ScaleTransform scales it to paper size.
@@ -544,7 +538,10 @@ public class PdfExporter
             tipPoint.X - dirX * arrowSize - perpX * halfWidth,
             tipPoint.Y - dirY * arrowSize - perpY * halfWidth);
 
-        gfx.DrawPolygon(brush, [tip, wing1, wing2], XFillMode.Winding);
+        // Use XGraphicsPath for reliable filled rendering under Y-flipped transforms.
+        var path = new XGraphicsPath();
+        path.AddPolygon([tip, wing1, wing2]);
+        gfx.DrawPath(brush, path);
     }
 
     private static bool ShouldExportPoint(VPoint point)
