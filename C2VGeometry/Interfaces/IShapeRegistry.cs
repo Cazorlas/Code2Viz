@@ -17,4 +17,14 @@ public interface IShapeRegistry
     /// </summary>
     /// <param name="shape">The shape to unregister.</param>
     void Unregister(Shape shape);
+
+    /// <summary>
+    /// Moves a shape so it renders above (after) another shape in the draw order.
+    /// </summary>
+    void MoveAbove(Shape shape, Shape referenceShape);
+
+    /// <summary>
+    /// Moves a shape so it renders behind (before) another shape in the draw order.
+    /// </summary>
+    void MoveBehind(Shape shape, Shape referenceShape);
 }

@@ -189,6 +189,9 @@ public class PdfExporter
 
         switch (shape)
         {
+            case VRadialDimension radDim:
+                DrawRadialDimension(gfx, radDim);
+                break;
             case VDimension dim:
                 DrawDimension(gfx, dim);
                 break;
@@ -231,6 +234,21 @@ public class PdfExporter
             case VText text:
                 DrawText(gfx, text);
                 break;
+            case VHatch hatch:
+                DrawHatch(gfx, hatch, pen);
+                break;
+        }
+    }
+
+    private void DrawHatch(XGraphics gfx, VHatch hatch, XPen pen)
+    {
+        if (hatch.Boundary.Count < 3) return;
+        var lines = hatch.GenerateLines();
+        foreach (var (start, end) in lines)
+        {
+            gfx.DrawLine(pen,
+                new XPoint(start.X, -start.Y),
+                new XPoint(end.X, -end.Y));
         }
     }
 
@@ -427,13 +445,91 @@ public class PdfExporter
     {
         var color = ParseColor(text.Color);
         var brush = new XSolidBrush(color);
-        var font = new XFont("Arial", Math.Max(text.Height, 0.1), XFontStyleEx.Regular);
+        var fontFamily = text.Font switch
+        {
+            VFont.TimesNewRoman => "Times New Roman",
+            VFont.CourierNew => "Courier New",
+            VFont.Consolas => "Consolas",
+            _ => "Arial"
+        };
+        var fontStyle = text.FontWeight == VFontWeight.Bold ? XFontStyleEx.Bold : XFontStyleEx.Regular;
+        var font = new XFont(fontFamily, Math.Max(text.Height, 0.1), fontStyle);
+
+        // Measure text for anchor offset
+        var measuredWidth = gfx.MeasureString(text.Content ?? "", font).Width;
+        var measuredHeight = text.Height;
+        var (anchorOffsetX, anchorOffsetY) = text.GetAnchorOffset(measuredWidth, measuredHeight);
 
         // Text drawing with Y-flip correction
         gfx.Save();
-        gfx.TranslateTransform(text.Location.X, text.Location.Y);
+        gfx.TranslateTransform(text.Location.X + anchorOffsetX, text.Location.Y + anchorOffsetY);
         gfx.ScaleTransform(1, -1); // Un-flip for text
         gfx.DrawString(text.Content ?? "", font, brush, 0, 0);
+        gfx.Restore();
+    }
+
+    private void DrawRadialDimension(XGraphics gfx, VRadialDimension dim)
+    {
+        var (leaderStart, leaderEnd, textPos) = dim.GetDimensionGeometry();
+
+        string dimLineColor = dim.DimensionLineColor ?? dim.Color;
+        string textColorName = dim.TextColor ?? dim.Color;
+
+        var dimPen = CreatePen(dimLineColor, dim.LineWeight);
+        var dimBrush = new XSolidBrush(ParseColor(dimLineColor));
+        string displayText = dim.DisplayText;
+
+        // Leader line with text gap
+        var dimDx = leaderEnd.X - leaderStart.X;
+        var dimDy = leaderEnd.Y - leaderStart.Y;
+        var dimLength = Math.Sqrt(dimDx * dimDx + dimDy * dimDy);
+        if (dimLength > 1e-10)
+        {
+            var gapFont = new XFont("Arial", Math.Max(dim.TextHeight, 0.1), XFontStyleEx.Regular);
+            var textSizeForGap = gfx.MeasureString(displayText, gapFont);
+            var textWorldWidth = textSizeForGap.Width;
+            var padding = textWorldWidth * 0.15;
+            var halfGap = textWorldWidth / 2 + padding;
+
+            var dirX = dimDx / dimLength;
+            var dirY = dimDy / dimLength;
+            var midX = (leaderStart.X + leaderEnd.X) / 2;
+            var midY = (leaderStart.Y + leaderEnd.Y) / 2;
+
+            gfx.DrawLine(dimPen, leaderStart.X, leaderStart.Y,
+                midX - dirX * halfGap, midY - dirY * halfGap);
+            gfx.DrawLine(dimPen, midX + dirX * halfGap, midY + dirY * halfGap,
+                leaderEnd.X, leaderEnd.Y);
+        }
+        else
+        {
+            gfx.DrawLine(dimPen, leaderStart.X, leaderStart.Y, leaderEnd.X, leaderEnd.Y);
+        }
+
+        // Arrowhead at circumference
+        DrawDimensionArrowhead(gfx, dimBrush, leaderEnd, leaderStart, dim.ArrowSize);
+        if (dim.ShowDiameter)
+            DrawDimensionArrowhead(gfx, dimBrush, leaderStart, leaderEnd, dim.ArrowSize);
+
+        // Text
+        var textColor = ParseColor(textColorName);
+        var textBrush = new XSolidBrush(textColor);
+        var fontSize = dim.TextHeight;
+        var font = new XFont("Arial", Math.Max(fontSize, 0.1), XFontStyleEx.Regular);
+        var textSize = gfx.MeasureString(displayText, font);
+
+        gfx.Save();
+        gfx.TranslateTransform(textPos.X, textPos.Y);
+        gfx.ScaleTransform(1, -1);
+
+        if (dim.TextBackgroundOpaque)
+        {
+            gfx.DrawRectangle(XBrushes.White,
+                -textSize.Width / 2, -textSize.Height / 2, textSize.Width, textSize.Height);
+        }
+
+        gfx.DrawString(displayText, font, textBrush, 0, -textSize.Height / 2,
+            XStringFormats.TopCenter);
         gfx.Restore();
     }
 

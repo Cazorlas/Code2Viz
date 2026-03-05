@@ -15,7 +15,7 @@ Code2Viz is a visual programming environment that lets you write C# or F# code t
 - **Live Preview**: Canvas updates automatically as you type (debounced auto-run)
 - **No Draw() Required**: Shapes appear automatically when created
 - **Multi-language Support**: Write code in C# or F# with full syntax highlighting
-- **Rich Shape Library**: Points, lines, circles, rectangles, ellipses, arcs, polygons, polylines, Bezier curves, splines, regions (curve-bounded areas), text, arrows, and dimension annotations
+- **Rich Shape Library**: Points, lines, circles, rectangles, ellipses, arcs, polygons, polylines, Bezier curves, splines, regions (curve-bounded areas), hatches (pattern fills), text, arrows, and dimension annotations
 - **Shape Editing**: Select shapes and drag shape-specific control points (vertices, radius handles, curve controls) with live code sync
 - **Properties Panel**: Floating or dockable panel to edit geometry and style properties (color, fill, weight, opacity, visibility, name) with full code sync — changes persist as code lines
 - **Animation System**: Create timeline-based animations with draw, move, rotate, flip, and fade effects
@@ -82,9 +82,11 @@ With **Auto-update Canvas** enabled (default), the canvas updates automatically 
 | **VText** | Text at a position | `new VText(position, "text")` or `new VText(x, y, "text", height)` |
 | **VArrow** | Arrow with head | `new VArrow(start, end)` |
 | **VDimension** | Dimension annotation with arrowheads | `new VDimension(p1, p2)` or `new VDimension(x1, y1, x2, y2)` |
+| **VRadialDimension** | Radial/diameter dimension | `new VRadialDimension(circle)` or `new VRadialDimension(arc)` |
 | **VGroup** | Group of shapes | `new VGroup(shape1, shape2, ...)` or `new VGroup(shapeList)` |
 | **VGrid** | Grid of points | `new VGrid(location, xcount, ycount, spacing, centered)` |
 | **Region** | Curve-bounded region | `new Region(curves)` or `new Region(outerCurves, holes)` |
+| **VHatch** | Pattern fill within boundary | `new VHatch(polygon, BuiltInHatch.ANSI31, scale)` |
 
 ---
 
@@ -165,6 +167,133 @@ dim2.Draw();
 ### Dimension Style Defaults
 
 Dimension defaults can be configured per-project in the **Settings** tab under **Dimension Style**. When set, all new `VDimension` shapes created in code will use these values instead of the built-in defaults.
+
+---
+
+## Radial Dimensions (VRadialDimension)
+
+VRadialDimension annotates the radius or diameter of circles and arcs with a leader line, arrowhead, and text.
+
+### Basic Radial Dimension
+
+```csharp
+// Radius dimension for a circle
+var circle = new VCircle(0, 0, 50);
+var dim = new VRadialDimension(circle);
+dim.LeaderAngle = 45;   // Angle of the leader line (degrees)
+
+// Radius dimension for an arc
+var arc = new VArc(0, 0, 80, 30, 150);
+var dimArc = new VRadialDimension(arc);
+```
+
+### Diameter Mode
+
+```csharp
+var circle = new VCircle(0, 0, 50);
+var dim = new VRadialDimension(circle);
+dim.ShowDiameter = true;   // Shows diameter line through center
+dim.LeaderAngle = 30;
+// Displays: "⌀100.00"
+```
+
+### Text Formatting
+
+```csharp
+var circle = new VCircle(0, 0, 50);
+var dim = new VRadialDimension(circle);
+dim.DecimalPlaces = 1;
+dim.Prefix = "";
+dim.Suffix = "mm";
+// Displays: "R50.0mm"
+
+// Custom text overrides automatic label
+var dim2 = new VRadialDimension(circle);
+dim2.CustomText = "TYP.";
+dim2.LeaderAngle = -45;
+```
+
+### VRadialDimension Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `Center` | VPoint | — | Center of the circle/arc |
+| `Radius` | double | — | Radius of the circle/arc |
+| `LeaderAngle` | double | 45 | Angle (degrees) of the leader line direction |
+| `ShowDiameter` | bool | false | Show diameter instead of radius |
+| `ArrowSize` | double | 8 | Size of the arrowhead |
+| `TextHeight` | double | 12 | Height of the dimension text |
+| `DecimalPlaces` | int | 2 | Decimal places for the value |
+| `Prefix` | string | "" | Text prepended to the dimension value |
+| `Suffix` | string | "" | Text appended to the dimension value |
+| `TextBackgroundOpaque` | bool | false | Draw opaque background behind text |
+| `DimensionLineColor` | string? | null | Color for leader line & arrowhead (null = use Color) |
+| `TextColor` | string? | null | Color for dimension text (null = use Color) |
+| `CustomText` | string? | null | Custom text (overrides calculated value) |
+| `Value` | double | — | Calculated radius or diameter (read-only) |
+| `DisplayText` | string | — | Final display text (read-only) |
+
+---
+
+## Text (VText)
+
+VText renders text at a specified position on the canvas.
+
+### Basic Text
+
+```csharp
+// Simple text
+var label = new VText(new VPoint(0, 0), "Hello World");
+
+// With font height
+var title = new VText(0, 50, "Title", 32);
+title.Color = "Cyan";
+
+// Font and weight
+var bold = new VText(0, -50, "Bold Consolas", 20);
+bold.Font = VFont.Consolas;
+bold.FontWeight = VFontWeight.Bold;
+```
+
+### Text Anchor (Alignment)
+
+The `Anchor` property controls which point of the text bounding box is placed at the text's `Location`. Default is `BottomLeft`.
+
+```csharp
+// Center text on a point
+var centered = new VText(0, 0, "Centered", 20);
+centered.Anchor = VTextAnchor.MiddleCenter;
+
+// Right-align text
+var right = new VText(100, 0, "Right-aligned", 16);
+right.Anchor = VTextAnchor.MiddleRight;
+
+// Top-center (text hangs below the point)
+var header = new VText(0, 100, "Header", 24);
+header.Anchor = VTextAnchor.TopCenter;
+```
+
+**All 9 anchor values:**
+
+| | Left | Center | Right |
+|---|---|---|---|
+| **Top** | `TopLeft` | `TopCenter` | `TopRight` |
+| **Middle** | `MiddleLeft` | `MiddleCenter` | `MiddleRight` |
+| **Bottom** | `BottomLeft` (default) | `BottomCenter` | `BottomRight` |
+
+### VText Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `Location` | VPoint | — | Position of the text anchor point |
+| `Content` | string | — | Text content to display |
+| `Height` | double | 12 | Font height in world units |
+| `Width` | double | 0 | Text width (0 = auto-measured) |
+| `Font` | VFont | Arial | Font family enum |
+| `FontWeight` | VFontWeight | Normal | Normal or Bold |
+| `Anchor` | VTextAnchor | BottomLeft | Which point of the text is placed at Location |
+
+**VFont values**: Arial, TimesNewRoman, CourierNew, Verdana, Georgia, Tahoma, TrebuchetMS, Consolas, Calibri, Cambria, SegoeUI, ComicSansMS, Impact, LucidaConsole
 
 ---
 
@@ -444,6 +573,76 @@ var results = RegionBooleanOps.DifferenceWithHoles(regionA, regionB);
 ```
 
 > **Note**: Use `RegionBooleanOps.Intersect(a, b)` instead of `a.Intersect(b)` to avoid collision with `Shape.Intersect`.
+
+---
+
+## Hatch Patterns (VHatch)
+
+VHatch fills a closed polygon boundary with a repeating line pattern. It supports 73 built-in AutoCAD-standard patterns and custom patterns defined using the `.pat` format.
+
+### Built-in Patterns
+
+```csharp
+// Use enum for built-in patterns
+var rect = new VRectangle(0, 0, 100, 80);
+var hatch = new VHatch(rect, BuiltInHatch.ANSI31, scale: 10);
+hatch.Color = "Cyan";
+
+// Use string name (case-insensitive)
+var hatch2 = new VHatch(rect, "BRICK", scale: 5);
+```
+
+### Pattern Scale and Angle
+
+```csharp
+var poly = new VPolygon(new VPoint(0,0), new VPoint(100,0),
+                        new VPoint(100,80), new VPoint(0,80));
+
+// Scale controls pattern density, angle rotates the entire pattern
+var hatch = new VHatch(poly, BuiltInHatch.ANSI37, scale: 15, angle: 30);
+hatch.Color = "Yellow";
+```
+
+### Custom Patterns from String
+
+Define custom patterns using the AutoCAD `.pat` format:
+`angle, x-origin, y-origin, delta-x, delta-y [, dash1, dash2, ...]`
+
+```csharp
+// Custom crosshatch pattern
+var hatch = VHatch.FromDefinition(polygon, @"
+  *CROSSHATCH, Custom crosshatch
+  0, 0,0, 0,10
+  90, 0,0, 0,10
+", scale: 1.0);
+hatch.Color = "Lime";
+```
+
+### Custom HatchType Object
+
+```csharp
+// Build a pattern programmatically
+var pattern = new HatchType("MyPattern", "Diagonal lines", new List<HatchPatternLine> {
+    new HatchPatternLine(45, 0, 0, 0, 5),
+    new HatchPatternLine(135, 0, 0, 0, 5)
+});
+var hatch = new VHatch(polygon, pattern, scale: 2.0);
+```
+
+### Available Built-in Patterns
+
+Common patterns include: `SOLID`, `ANSI31`-`ANSI38`, `ANGLE`, `BRICK`, `BRSTONE`, `CLAY`, `CORK`, `CROSS`, `DASH`, `DOTS`, `EARTH`, `ESCHER`, `GRASS`, `GRATE`, `HEX`, `HONEY`, `LINE`, `NET`, `NET3`, `SQUARE`, `STARS`, `STEEL`, `TRIANG`, `ZIGZAG`, `AR-HBONE`, `AR-BRSTD`, `AR-CONC`, `AR-SAND`, and more. Use `BuiltInHatches.GetAllNames()` to list all 73 patterns.
+
+### VHatch Properties
+
+```csharp
+var hatch = new VHatch(polygon, BuiltInHatch.ANSI31, scale: 10);
+hatch.Color = "Cyan";           // Hatch line color
+hatch.LineWeight = 1.0;         // Hatch line thickness
+hatch.PatternScale = 10;        // Pattern scale factor
+hatch.PatternAngle = 45;        // Additional rotation (degrees)
+hatch.Opacity = 0.5;            // Transparency
+```
 
 ---
 
@@ -818,6 +1017,7 @@ When a shape is selected, control point handles appear for interactive editing. 
 | **VArrow** | Move at midpoint, vertices at start/end |
 | **VText** | Move at location |
 | **VDimension** | Move at midpoint, vertices at Point1/Point2 |
+| **VRadialDimension** | Move at center, vertex at leader end |
 
 Drag any control point to edit the shape geometry. The source code updates automatically when you release.
 
@@ -1482,6 +1682,8 @@ bool hit = shape.Contains(point);// Point containment test
 double d = shape.DistanceTo(pt); // Distance to point
 shape.Hide();                    // Hide shape from canvas
 shape.Show();                    // Show hidden shape
+shape.BringAbove(otherShape);   // Render on top of otherShape
+shape.SendBehind(otherShape);   // Render behind otherShape
 ```
 
 ### BoundingBox

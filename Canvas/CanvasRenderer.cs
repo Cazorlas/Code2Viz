@@ -73,6 +73,33 @@ public class CanvasRenderer : ICanvasRenderer
         _shapes.RemoveAll(s => shapeSet.Contains(s));
     }
 
+    /// <summary>
+    /// Moves a shape so it renders above (after) the reference shape in the draw order.
+    /// </summary>
+    public void MoveShapeAbove(IDrawable shape, IDrawable referenceShape)
+    {
+        if (shape == referenceShape) return;
+        int refIndex = _shapes.IndexOf(referenceShape);
+        if (refIndex < 0) return;
+        if (!_shapes.Remove(shape)) return;
+        // Re-find reference index after removal (it may have shifted)
+        refIndex = _shapes.IndexOf(referenceShape);
+        _shapes.Insert(refIndex + 1, shape);
+    }
+
+    /// <summary>
+    /// Moves a shape so it renders behind (before) the reference shape in the draw order.
+    /// </summary>
+    public void MoveShapeBehind(IDrawable shape, IDrawable referenceShape)
+    {
+        if (shape == referenceShape) return;
+        int refIndex = _shapes.IndexOf(referenceShape);
+        if (refIndex < 0) return;
+        if (!_shapes.Remove(shape)) return;
+        refIndex = _shapes.IndexOf(referenceShape);
+        _shapes.Insert(refIndex, shape);
+    }
+
     public IReadOnlyList<IDrawable> GetShapes() => _shapes.AsReadOnly();
 
     public void Clear()

@@ -60,6 +60,8 @@ public class ApiReferenceResource
         - `GetBounds()` — Returns BoundingBox with Min, Max, Width, Height, Center, Area
         - `Show()` / `Hide()` — Toggle visibility
         - `Remove()` — Remove from canvas
+        - `BringAbove(otherShape)` — Move above another shape in draw order (renders on top)
+        - `SendBehind(otherShape)` — Move behind another shape in draw order (renders underneath)
         - `Contains(point)` — Point containment test
         - `DistanceTo(point)` — Distance to VPoint
         - `DoesIntersect(other)` — Check intersection with another shape
@@ -152,8 +154,11 @@ public class ApiReferenceResource
         ```csharp
         new VText(x, y, "text");
         new VText(x, y, "text", height);
-        // Properties: Content, Height, Width (0=auto), Font (VFont enum), FontWeight (Normal/Bold)
+        // Properties: Content, Height, Width (0=auto), Font (VFont enum), FontWeight (Normal/Bold),
+        //   Anchor (VTextAnchor enum, default BottomLeft)
         // VFont: Arial, TimesNewRoman, CourierNew, Verdana, Georgia, Tahoma, Consolas, etc.
+        // VTextAnchor: BottomLeft (default), BottomCenter, BottomRight, MiddleLeft, MiddleCenter,
+        //   MiddleRight, TopLeft, TopCenter, TopRight
         ```
 
         ### VArrow
@@ -188,6 +193,17 @@ public class ApiReferenceResource
         // Read-only: Distance, DisplayText (includes Prefix/Suffix)
         ```
 
+        ### VRadialDimension
+        ```csharp
+        new VRadialDimension(circle);          // from VCircle
+        new VRadialDimension(arc);             // from VArc
+        new VRadialDimension(center, radius);  // from VPoint + radius
+        // Properties: LeaderAngle (45), ShowDiameter (false), ArrowSize (8), TextHeight (12), DecimalPlaces (2)
+        // Prefix (""), Suffix (""), CustomText (null), TextBackgroundOpaque (false)
+        // Per-element colors (null = use base Color): DimensionLineColor, TextColor
+        // Read-only: Value (radius or diameter), DisplayText (with R/dia symbol)
+        ```
+
         ### VXLine (infinite construction line)
         ```csharp
         new VXLine(basePoint, direction);       // VPoint + VXYZ
@@ -220,6 +236,18 @@ public class ApiReferenceResource
         //          ToPolygonWithHoles(segments), Clone(), Move(), Rotate(), Flip(), Scale(), GetBounds()
         // Boolean ops (static): RegionBooleanOps.Union(a, b), .Intersect(a, b), .Difference(a, b), .Xor(a, b)
         // Multi-union: RegionBooleanOps.Union(r1, r2, r3, ...)
+        ```
+
+        ### VHatch (pattern fill)
+        ```csharp
+        new VHatch(polygon, BuiltInHatch.ANSI31, scale: 10);           // built-in enum
+        new VHatch(polygon, "BRICK", scale: 5, angle: 45);             // built-in by name
+        new VHatch(boundaryPoints, pattern, scale, angle);              // from HatchType
+        VHatch.FromDefinition(polygon, patString, scale, angle);        // from .pat string
+        // Properties: Boundary, Pattern, PatternScale, PatternAngle, Color, LineWeight
+        // Methods: GenerateLines() — returns clipped (Start, End) pairs
+        // Built-in patterns (73): ANSI31-38, BRICK, STEEL, HEX, HONEY, NET, DOTS, CROSS, etc.
+        // Custom: HatchType.Parse("*NAME, Desc\n45, 0,0, 0,10"), or new HatchType(name, desc, lines)
         ```
 
         ## ICurve Interface (VLine, VCircle, VArc, VEllipse, VPolyline, VPolygon, VBezier, VSpline)
@@ -338,7 +366,7 @@ public class ApiReferenceResource
         ## Animation
         ```csharp
         var animator = new Animator();
-        animator.Repeat = true;
+        animator.Repeat = true;  // Each animation loops independently at its own duration
         animator.Speed = 1.5;
         animator.Fps = 30;  // Target frame rate (1-120, default 60)
         // Sequential: animator.AddToAnimations(new DrawAnimation(shape, duration));

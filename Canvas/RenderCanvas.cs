@@ -799,6 +799,10 @@ public class RenderCanvas : FrameworkElement
                     DrawArrow(dc, arrow);
                     break;
 
+                case VRadialDimension radDim:
+                    DrawRadialDimension(dc, radDim);
+                    break;
+
                 case VDimension dim:
                     DrawDimension(dc, dim);
                     break;
@@ -809,6 +813,10 @@ public class RenderCanvas : FrameworkElement
 
                 case Region region:
                     DrawRegion(dc, region);
+                    break;
+
+                case VHatch hatch:
+                    DrawHatch(dc, hatch);
                     break;
             }
         }
@@ -2129,8 +2137,14 @@ public class RenderCanvas : FrameworkElement
             brush,
             VisualTreeHelper.GetDpi(this).PixelsPerDip);
 
-        // Draw text with origin at bottom-left (mathematical coordinate style)
-        dc.DrawText(formattedText, new Point(screenPos.X, screenPos.Y - formattedText.Height));
+        // Apply anchor offset (convert world-space offset to screen-space)
+        var (anchorOffsetX, anchorOffsetY) = text.GetAnchorOffset(
+            formattedText.Width / _viewport.Scale,
+            formattedText.Height / _viewport.Scale);
+        var drawX = screenPos.X + anchorOffsetX * _viewport.Scale;
+        // Y is inverted in screen coords, so negate the world offsetY
+        var drawY = screenPos.Y - formattedText.Height - anchorOffsetY * _viewport.Scale;
+        dc.DrawText(formattedText, new Point(drawX, drawY));
 
         if (applyOpacity) dc.Pop();
     }
@@ -2333,6 +2347,91 @@ public class RenderCanvas : FrameworkElement
         if (applyOpacity) dc.Pop();
     }
 
+    private void DrawRadialDimension(DrawingContext dc, VRadialDimension dim)
+    {
+        if (dim.DrawFactor <= 0 || dim.Opacity <= 0) return;
+
+        var applyOpacity = dim.Opacity < 1.0;
+        if (applyOpacity) dc.PushOpacity(dim.Opacity);
+
+        var dimLineColor = dim.DimensionLineColor ?? dim.Color;
+        var textColor = dim.TextColor ?? dim.Color;
+
+        var dimLinePen = GetCachedPen(dimLineColor, dim.LineWeight, dim.LineType, dim.LineTypeScale);
+        var dimLineBrush = GetCachedBrush(dimLineColor);
+        var textBrush = GetCachedBrush(textColor);
+
+        var (leaderStart, leaderEnd, textPos) = dim.GetDimensionGeometry();
+
+        // Create formatted text
+        var fontSize = dim.TextHeight * _viewport.Scale;
+        fontSize = Math.Max(fontSize, 8);
+        var typeface = new Typeface("Segoe UI");
+        var formattedText = new FormattedText(
+            dim.DisplayText,
+            CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight,
+            typeface,
+            fontSize,
+            textBrush,
+            VisualTreeHelper.GetDpi(this).PixelsPerDip);
+
+        // Draw leader line with gap for text
+        var ls = WorldToScreen(leaderStart.X, leaderStart.Y);
+        var le = WorldToScreen(leaderEnd.X, leaderEnd.Y);
+
+        var dimDx = leaderEnd.X - leaderStart.X;
+        var dimDy = leaderEnd.Y - leaderStart.Y;
+        var dimLength = Math.Sqrt(dimDx * dimDx + dimDy * dimDy);
+
+        if (dimLength > 1e-10)
+        {
+            var dirX = dimDx / dimLength;
+            var dirY = dimDy / dimLength;
+
+            var textWorldWidth = formattedText.Width / _viewport.Scale;
+            var padding = textWorldWidth * 0.15;
+            var halfGap = textWorldWidth / 2 + padding;
+
+            var midX = (leaderStart.X + leaderEnd.X) / 2;
+            var midY = (leaderStart.Y + leaderEnd.Y) / 2;
+
+            var gs = WorldToScreen(midX - dirX * halfGap, midY - dirY * halfGap);
+            var ge = WorldToScreen(midX + dirX * halfGap, midY + dirY * halfGap);
+
+            dc.DrawLine(dimLinePen, ls, gs);
+            dc.DrawLine(dimLinePen, ge, le);
+        }
+        else
+        {
+            dc.DrawLine(dimLinePen, ls, le);
+        }
+
+        // Arrowhead at circumference point (leaderEnd)
+        DrawDimensionArrowhead(dc, dimLineBrush, dimLinePen, leaderEnd, leaderStart, dim.ArrowSize);
+
+        // For diameter mode, also draw arrowhead at the opposite side
+        if (dim.ShowDiameter)
+        {
+            DrawDimensionArrowhead(dc, dimLineBrush, dimLinePen, leaderStart, leaderEnd, dim.ArrowSize);
+        }
+
+        // Draw text
+        var tp = WorldToScreen(textPos.X, textPos.Y);
+        var textOrigin = new Point(tp.X - formattedText.Width / 2, tp.Y - formattedText.Height / 2);
+
+        if (dim.TextBackgroundOpaque)
+        {
+            var bgRect = new Rect(textOrigin.X - 2, textOrigin.Y - 1,
+                formattedText.Width + 4, formattedText.Height + 2);
+            dc.DrawRectangle(CanvasBackground, null, bgRect);
+        }
+
+        dc.DrawText(formattedText, textOrigin);
+
+        if (applyOpacity) dc.Pop();
+    }
+
     private void DrawDimension(DrawingContext dc, VDimension dim)
     {
         if (dim.DrawFactor <= 0 || dim.Opacity <= 0) return;
@@ -2527,6 +2626,9 @@ public class RenderCanvas : FrameworkElement
             case VArrow arrow:
                 DrawArrow(dc, arrow);
                 break;
+            case VRadialDimension radDim:
+                DrawRadialDimension(dc, radDim);
+                break;
             case VDimension dim:
                 DrawDimension(dc, dim);
                 break;
@@ -2535,6 +2637,9 @@ public class RenderCanvas : FrameworkElement
                 break;
             case Region region:
                 DrawRegion(dc, region);
+                break;
+            case VHatch hatch:
+                DrawHatch(dc, hatch);
                 break;
         }
     }
@@ -2587,6 +2692,40 @@ public class RenderCanvas : FrameworkElement
         geometry.Freeze();
 
         dc.DrawGeometry(fill, pen, geometry);
+
+        if (applyOpacity) dc.Pop();
+    }
+
+    private void DrawHatch(DrawingContext dc, VHatch hatch)
+    {
+        if (hatch.Boundary.Count < 3 || hatch.DrawFactor <= 0 || hatch.Opacity <= 0) return;
+
+        var applyOpacity = hatch.Opacity < 1.0;
+        if (applyOpacity) dc.PushOpacity(hatch.Opacity);
+
+        var offsetX = hatch.OffsetX;
+        var offsetY = hatch.OffsetY;
+
+        var pen = GetCachedPen(hatch.Color, hatch.LineWeight, LineType.Continuous, 1.0);
+
+        // Generate hatch lines and draw them
+        var lines = hatch.GenerateLines();
+        foreach (var (start, end) in lines)
+        {
+            var p1 = WorldToScreen(start.X + offsetX, start.Y + offsetY);
+            var p2 = WorldToScreen(end.X + offsetX, end.Y + offsetY);
+
+            // Skip degenerate lines (dots become small circles)
+            var dx = p2.X - p1.X;
+            var dy = p2.Y - p1.Y;
+            if (dx * dx + dy * dy < 0.5)
+            {
+                dc.DrawEllipse(GetCachedBrush(hatch.Color), null, p1, 0.5, 0.5);
+                continue;
+            }
+
+            dc.DrawLine(pen, p1, p2);
+        }
 
         if (applyOpacity) dc.Pop();
     }
@@ -2661,6 +2800,11 @@ public class RenderCanvas : FrameworkElement
                 case VArrow arrow:
                     UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, arrow.Start.X, arrow.Start.Y);
                     UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, arrow.End.X, arrow.End.Y);
+                    break;
+                case VRadialDimension radDim:
+                    var radBounds = radDim.GetBounds();
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, radBounds.Min.X, radBounds.Min.Y);
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, radBounds.Max.X, radBounds.Max.Y);
                     break;
                 case VDimension dim:
                     UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, dim.Point1.X, dim.Point1.Y);
@@ -2794,6 +2938,11 @@ public class RenderCanvas : FrameworkElement
                 case VArrow arrow:
                     UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, arrow.Start.X, arrow.Start.Y);
                     UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, arrow.End.X, arrow.End.Y);
+                    break;
+                case VRadialDimension radDim2:
+                    var radBounds2 = radDim2.GetBounds();
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, radBounds2.Min.X, radBounds2.Min.Y);
+                    UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, radBounds2.Max.X, radBounds2.Max.Y);
                     break;
                 case VDimension dim:
                     UpdateBounds(ref minX, ref maxX, ref minY, ref maxY, dim.Point1.X, dim.Point1.Y);

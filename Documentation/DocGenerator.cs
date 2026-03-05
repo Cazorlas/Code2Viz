@@ -34,7 +34,7 @@ namespace Code2Viz.Documentation
                 { "Code2Viz.Editor", "Contains classes related to the code editor, including formatting, completion, and snippets." },
 
                 // Base classes
-                { "Shape", "Abstract base class for all drawable shapes. Provides common properties like Color, FillColor, LineWeight, and animation properties (DrawFactor, OffsetX, OffsetY, RotationAngle). Also defines common methods: Draw(), Clone() (returns same type via covariant return), Move(), Rotate(), Flip(), Scale(), GetBounds() (returns BoundingBox), Contains(), DistanceTo()." },
+                { "Shape", "Abstract base class for all drawable shapes. Provides common properties like Color, FillColor, LineWeight, and animation properties (DrawFactor, OffsetX, OffsetY, RotationAngle). Also defines common methods: Draw(), Clone() (returns same type via covariant return), Move(), Rotate(), Flip(), Scale(), GetBounds() (returns BoundingBox), Contains(), DistanceTo(), BringAbove(otherShape), SendBehind(otherShape)." },
                 { "BoundingBox", "Represents an axis-aligned bounding box with Min and Max corner points (VPoint). Properties: Min, Max, Width, Height, Center, Area. Methods: Contains(point), Intersects(other), Union(other), Expand(distance). Supports tuple deconstruction: var (min, max) = bounds." },
                 { "IDrawable", "Interface for any object that can be drawn on the canvas. Defines Draw() method and styling properties." },
                 { "ICurve", "Interface for geometric shapes that can be treated as curves. Extends IDrawable, so all curves have Draw(), Color, FillColor, and LineWeight. Provides curve operations: StartPoint, EndPoint, SelfIntersecting, Divide(), Measure(), GetLength(), Project(), PointAtSegmentLength(), Offset(), PointsAtChordLengthFromPoint(), SplitAtPoint(), NormalAtPoint(), Intersect(), PointAtParameter(), ParameterAtPoint(). The SelfIntersecting property indicates if the curve crosses itself. The Intersect() method computes intersection points with another curve. PointAtParameter() returns a point at a normalized position (0-1), while ParameterAtPoint() returns the normalized parameter for the closest point on the curve." },
@@ -54,11 +54,13 @@ namespace Code2Viz.Documentation
                 { "VPoint", "Represents a point in 2D Cartesian space (X, Y). Can be drawn as a small dot on the canvas." },
                 { "VBezier", "Represents a 2D cubic Bezier curve defined by four control points: start, control1, control2, and end." },
                 { "VSpline", "Represents a smooth Catmull-Rom spline curve passing through a series of points." },
-                { "VText", "Represents text drawn at a specific position. Supports font size via Height property or constructor parameter. Constructors: VText(point, text), VText(point, text, height), VText(x, y, text), VText(x, y, text, height). Supports Font and FontWeight properties for styling." },
+                { "VText", "Represents text drawn at a specific position. Supports font size via Height property or constructor parameter. Constructors: VText(point, text), VText(point, text, height), VText(x, y, text), VText(x, y, text, height). Supports Font, FontWeight, and Anchor properties for styling and alignment." },
+                { "VTextAnchor", "Enum specifying the anchor (alignment) point for VText. Values: BottomLeft (default), BottomCenter, BottomRight, MiddleLeft, MiddleCenter, MiddleRight, TopLeft, TopCenter, TopRight. Controls which point of the text bounding box is placed at the text's position." },
                 { "VGroup", "Represents a collection of shapes treated as a single unit. Supports multiple constructors (empty, params, IEnumerable, List), group transformations (Move, Rotate, Scale, Flip), style application (ApplyStyle, ApplyColor, ApplyFillColor), and utility methods (Flatten, ForEach, Where, GetShapesOfType). When drawn, the group is rendered and selected as a single entity on the canvas." },
                 { "VGrid", "Represents a rectangular grid of VPoints. Constructor: VGrid(location, xcount, ycount, xSpacing, ySpacing, centered). If centered=true, grid is centered at location; if false, location is bottom-left corner. Access points via Points property, indexers [index] or [col, row], or GetRow()/GetColumn() methods. Supports all Shape transformations (Move, Rotate, Scale, Flip) and ApplyStyle() to set colors on all points." },
                 { "VArrow", "Represents an arrow (line with arrowhead). Supports single or double-ended arrows with configurable head size and angle." },
                 { "VDimension", "Represents a dimension line showing the distance between two points with text annotation. AutoCAD-style properties: Offset, ArrowSize, TextHeight, DecimalPlaces, ExtendBeyondDimLines, OffsetFromOrigin, SuppressExtLine1/2, SuppressDimensionLine, Prefix, Suffix, TextBackgroundOpaque. Per-element colors: ExtensionLineColor, DimensionLineColor, TextColor (null = use base Color). The dimension line is always split around the text for readability. Renders arrowheads at both ends of the dimension line." },
+                { "VRadialDimension", "Represents a radial or diameter dimension for circles and arcs. Draws a leader line from center to circumference with an arrowhead and text label (R for radius, \u2300 for diameter). Constructors: VRadialDimension(circle), VRadialDimension(arc), VRadialDimension(center, radius). Properties: LeaderAngle (direction of leader), ShowDiameter (diameter mode), ArrowSize, TextHeight, DecimalPlaces, Prefix, Suffix, CustomText, TextBackgroundOpaque. Per-element colors: DimensionLineColor, TextColor." },
 
                 // Legacy aliases (for backward compatibility)
                 { "Arc2D", "Represents a 2D arc defined by a center, radius, start angle, and end angle." },
@@ -109,6 +111,14 @@ namespace Code2Viz.Documentation
                 { "RegionBooleanExtensions", "Extension methods for Region boolean operations. Provides instance-method syntax: region.Union(other), region.Intersect(other), region.Difference(other), region.Xor(other), region.ContainsPoint(point), region.GetArea(). Note: Use RegionBooleanOps.Intersect(a, b) static method instead of a.Intersect(b) to avoid collision with Shape.Intersect." },
                 { "JoinType", "Enum for polygon offset join style. Values: Miter (sharp corners, default), Round (rounded corners), Square (squared-off corners). Used with BooleanOps.OffsetPolygon." },
                 { "EndType", "Enum for polygon offset end style. Values: Polygon (closed polygon, default), OpenRound (rounded open ends), OpenSquare (squared open ends), OpenButt (flat cut open ends). Used with BooleanOps.OffsetPolygon." },
+
+                // Hatch Patterns
+                { "VHatch", "Fills a closed polygon boundary with a repeating line pattern. Supports 73 built-in AutoCAD-standard patterns (via BuiltInHatch enum or name string) and custom patterns defined using the .pat format. Constructors: new VHatch(polygon, BuiltInHatch.ANSI31, scale, angle), new VHatch(polygon, \"BRICK\", scale, angle), new VHatch(polygon, hatchType, scale, angle), new VHatch(boundaryPoints, pattern, scale, angle). Static factory: VHatch.FromDefinition(polygon, patString, scale, angle). Properties: Boundary (List<VPoint>), Pattern (HatchType), PatternScale (double), PatternAngle (double), Color, LineWeight, Opacity. Methods: GenerateLines() returns clipped line segments, Clone(), Move(), Rotate(), Flip(), Scale(), GetBounds(), Contains()." },
+                { "HatchType", "Defines a hatch pattern composed of one or more line families following the AutoCAD .pat format. Properties: Name, Description, Lines (List<HatchPatternLine>). Static methods: Parse(string patDefinition) parses from .pat format string, GetBuiltIn(string name) or GetBuiltIn(BuiltInHatch enum) retrieves a built-in pattern." },
+                { "HatchPatternLine", "A single line definition within a hatch pattern. Properties: Angle (degrees), OriginX, OriginY, DeltaX (shift along line between rows), DeltaY (spacing between parallel lines), Dashes (double[] - positive=dash, negative=gap, 0=dot, empty=continuous)." },
+                { "BuiltInHatch", "Enum of 73 built-in hatch patterns from the AutoCAD pattern library. Values include: SOLID, ANGLE, ANSI31-ANSI38, AR_B816, AR_B816C, AR_B88, AR_BRELM, AR_BRSTD, AR_CONC, AR_HBONE, AR_PARQ1, AR_RROOF, AR_RSHKE, AR_SAND, BOX, BRASS, BRICK, BRSTONE, CLAY, CORK, CROSS, DASH, DOLMIT, DOTS, EARTH, ESCHER, FLEX, GOST_GLASS, GOST_WOOD, GOST_GROUND, GRASS, GRATE, GRAVEL, HEX, HONEY, HOUND, INSUL, LINE, MUDST, NET, NET3, PLAST, PLASTI, SACNCR, SQUARE, STARS, STEEL, SWAMP, TRANS, TRIANG, ZIGZAG, and ACAD_ISO02W100 through ACAD_ISO15W100." },
+                { "BuiltInHatches", "Static registry of all built-in hatch patterns. Methods: Get(string name) or Get(BuiltInHatch enum) retrieves a pattern, GetAllNames() returns all available pattern names." },
+                { "HatchGenerator", "Static class that generates hatch line segments from a HatchType pattern clipped to a polygon boundary. Method: Generate(boundary, pattern, scale, patternAngle) returns List<(VPoint Start, VPoint End)>." },
 
                 // Array Operations
                 { "ArrayOps", "Static class providing array and pattern generation for shapes. Includes LinearArray (copies along direction), RectangularArray (grid pattern), CircularArray (polar pattern around center), PathArray (copies along curve), SpiralArray (spiral pattern), and Mirror (create mirrored copy)." },
@@ -440,10 +450,14 @@ namespace Code2Viz.Documentation
                 { "VPolyline", "let pts = [| VPoint(100.0,300.0); VPoint(150.0,350.0); VPoint(200.0,300.0) |]\nlet line = VPolyline(pts)\nline.Draw()" },
                 { "VBezier", "let b = VBezier(VPoint(0.0,0.0), VPoint(0.0,100.0), VPoint(100.0,100.0), VPoint(100.0,0.0))\nb.Draw()" },
                 { "VSpline", "let pts = [| VPoint(0.0,0.0); VPoint(50.0,50.0); VPoint(100.0,0.0) |]\nlet s = VSpline(pts)\ns.Draw()" },
-                { "VText", "let t = VText(VPoint(50.0, 50.0), \"Hi\")\nt.Height <- 40.0\nt.Draw()" },
+                { "VText", "let t = VText(VPoint(50.0, 50.0), \"Hi\")\nt.Height <- 40.0\nt.Anchor <- VTextAnchor.MiddleCenter\nt.Draw()" },
+                { "VTextAnchor", "// VTextAnchor controls text alignment at its position\nlet t = VText(VPoint(0.0, 0.0), \"Centered\")\nt.Anchor <- VTextAnchor.MiddleCenter  // text is centered on the point\n\n// Values: BottomLeft (default), BottomCenter, BottomRight,\n//         MiddleLeft, MiddleCenter, MiddleRight,\n//         TopLeft, TopCenter, TopRight" },
                 { "VArrow", "// From two points\nlet a = VArrow(VPoint(10.0, 10.0), VPoint(100.0, 10.0))\na.Draw()\n\n// From start point, direction, and length\nlet a2 = VArrow(VPoint(0.0, 0.0), VXYZ.BasisX, 50.0)\na2.Draw()" },
                 { "VDimension", "// Dimension between two points\nlet dim = VDimension(VPoint(0.0, 0.0), VPoint(100.0, 0.0))\ndim.Offset <- 20.0\ndim.Prefix <- \"L=\"\ndim.Suffix <- \"mm\"\ndim.Draw()\n\n// Per-element colors\nlet dim2 = VDimension(0.0, 50.0, 100.0, 50.0)\ndim2.ExtensionLineColor <- \"Green\"\ndim2.DimensionLineColor <- \"Red\"\ndim2.TextColor <- \"Cyan\"\ndim2.Draw()" },
+                { "VRadialDimension", "// Radius dimension for a circle\nlet circle = VCircle(0.0, 0.0, 50.0)\nlet dim = VRadialDimension(circle)\ndim.LeaderAngle <- 45.0\n\n// Diameter mode\nlet dim2 = VRadialDimension(circle)\ndim2.ShowDiameter <- true\ndim2.Suffix <- \"mm\"" },
                 { "Region", "// Region bounded by lines and an arc\nlet p0 = VPoint.Internal(0.0, 0.0)\nlet p1 = VPoint.Internal(100.0, 0.0)\nlet p2 = VPoint.Internal(100.0, 80.0)\nlet p3 = VPoint.Internal(0.0, 80.0)\nlet curves = System.Collections.Generic.List<ICurve>()\ncurves.Add(VLine(p0, p1))\ncurves.Add(VLine(p1, p2))\ncurves.Add(VLine(p2, p3))\ncurves.Add(VLine(p3, p0))\nlet region = Region(curves)\nregion.Color <- \"Cyan\"\nregion.FillColor <- \"#4000FFFF\"" },
+                { "VHatch", "// Built-in pattern with enum\nlet rect = VRectangle(0.0, 0.0, 100.0, 80.0)\nlet hatch = VHatch(rect, BuiltInHatch.ANSI31, 10.0)\nhatch.Color <- \"Cyan\"\n\n// By name\nlet hatch2 = VHatch(rect, \"BRICK\", 5.0)\nhatch2.Color <- \"Yellow\"\n\n// Custom from string\nlet custom = VHatch.FromDefinition(rect, \"*CROSS, Cross\\n0, 0,0, 0,10\\n90, 0,0, 0,10\", 1.0)\ncustom.Color <- \"Lime\"" },
+                { "HatchType", "// Parse from .pat format\nlet pattern = HatchType.Parse(\"*MY, Custom\\n45, 0,0, 0,10\\n135, 0,0, 0,10\")\n\n// Get built-in\nlet ansi31 = HatchType.GetBuiltIn(\"ANSI31\")\nlet brick = HatchType.GetBuiltIn(BuiltInHatch.BRICK)" },
                 { "VGroup", @"// Create a group from shapes
 let circle = VCircle(VPoint(0.0, 0.0), 20.0)
 let line1 = VLine(VPoint(-30.0, 0.0), VPoint(30.0, 0.0))
@@ -930,7 +944,29 @@ text.Draw();
 // Create text with height in constructor
 var text2 = new VText(0, -50, ""Compact syntax"", 18);
 text2.Color = ""Cyan"";
-text2.Draw();" },
+text2.Draw();
+
+// Use Anchor to control alignment
+var text3 = new VText(0, 0, ""Centered"", 20);
+text3.Anchor = VTextAnchor.MiddleCenter; // center text on position
+text3.Draw();" },
+
+                { "VTextAnchor", @"// VTextAnchor controls which point of the text is placed at its position
+// Default is BottomLeft (text extends right and up from the position)
+
+var label = new VText(0, 0, ""Bottom-Left (default)"", 16);
+label.Anchor = VTextAnchor.BottomLeft;
+
+var centered = new VText(0, -40, ""Middle-Center"", 16);
+centered.Anchor = VTextAnchor.MiddleCenter;
+
+var topRight = new VText(0, -80, ""Top-Right"", 16);
+topRight.Anchor = VTextAnchor.TopRight;
+
+// All 9 anchor values:
+// TopLeft,    TopCenter,    TopRight
+// MiddleLeft, MiddleCenter, MiddleRight
+// BottomLeft, BottomCenter, BottomRight" },
 
                 { "VArrow", @"// Create an arrow from two points
 var arrow = new VArrow(new VPoint(0, 0), new VPoint(100, 0));
@@ -969,6 +1005,29 @@ dim3.DimensionLineColor = ""Red"";     // Dim line + arrowheads in red
 dim3.TextColor = ""Cyan"";             // Text in cyan
 dim3.SuppressDimensionLine = true;     // Hide dim line + arrowheads
 dim3.Draw();" },
+
+                { "VRadialDimension", @"// Radius dimension for a circle
+var circle = new VCircle(0, 0, 50);
+var dim = new VRadialDimension(circle);
+dim.LeaderAngle = 45;    // Direction of leader line
+
+// Radius dimension for an arc
+var arc = new VArc(0, 0, 80, 30, 150);
+var dimArc = new VRadialDimension(arc);
+
+// Diameter mode
+var dim2 = new VRadialDimension(circle);
+dim2.ShowDiameter = true;
+dim2.LeaderAngle = 30;
+dim2.Suffix = ""mm"";
+// Displays: ""⌀100.00mm""
+
+// Custom text and colors
+var dim3 = new VRadialDimension(circle);
+dim3.CustomText = ""TYP."";
+dim3.DimensionLineColor = ""Red"";
+dim3.TextColor = ""Cyan"";
+dim3.TextBackgroundOpaque = true;" },
 
                 { "VGroup", @"// Create a group from shapes
 var group = new VGroup(
@@ -1118,7 +1177,11 @@ var bounds = shape.GetBounds();
 // bounds.Min, bounds.Max - corner points
 // bounds.Width, bounds.Height, bounds.Center, bounds.Area
 bool inside = shape.Contains(point);
-double dist = shape.DistanceTo(point);" },
+double dist = shape.DistanceTo(point);
+
+// Z-ordering
+shape.BringAbove(otherShape);  // Render on top of otherShape
+shape.SendBehind(otherShape);  // Render behind otherShape" },
 
                 { "BoundingBox", @"// BoundingBox represents an axis-aligned bounding box
 var circle = new VCircle(0, 0, 50);
@@ -1545,7 +1608,63 @@ var square = BooleanOps.OffsetPolygon(poly, 10, JoinType.Square);" },
 // OpenSquare - squared open ends
 // OpenButt - flat cut open ends
 var poly = new VPolygon(new VPoint(0,0), new VPoint(100,0), new VPoint(100,100), new VPoint(0,100));
-var offset = BooleanOps.OffsetPolygon(poly, 10, JoinType.Miter, EndType.Polygon);" }
+var offset = BooleanOps.OffsetPolygon(poly, 10, JoinType.Miter, EndType.Polygon);" },
+
+                // Hatch Patterns
+                { "VHatch", @"// Built-in pattern with enum
+var rect = new VRectangle(0, 0, 100, 80);
+var hatch = new VHatch(rect, BuiltInHatch.ANSI31, scale: 10);
+hatch.Color = ""Cyan"";
+
+// Built-in pattern by name
+var hatch2 = new VHatch(rect, ""BRICK"", scale: 5);
+hatch2.Color = ""Yellow"";
+
+// With rotation
+var hatch3 = new VHatch(rect, BuiltInHatch.ANSI37, scale: 15, angle: 30);
+
+// Custom pattern from string (.pat format)
+var custom = VHatch.FromDefinition(rect, @""
+  *CROSSHATCH, Custom crosshatch
+  0, 0,0, 0,10
+  90, 0,0, 0,10
+"", scale: 1.0);
+custom.Color = ""Lime"";
+
+// Custom HatchType object
+var pattern = new HatchType(""MyPattern"", ""Diagonal"", new List<HatchPatternLine> {
+    new HatchPatternLine(45, 0, 0, 0, 5),
+    new HatchPatternLine(135, 0, 0, 0, 5)
+});
+var hatch4 = new VHatch(rect, pattern, scale: 2.0);" },
+                { "HatchType", @"// Parse from .pat format string
+var pattern = HatchType.Parse(@""
+  *MYHAT, My custom hatch
+  45, 0,0, 0,10
+  135, 0,0, 0,10
+"");
+
+// Get built-in by name
+var ansi31 = HatchType.GetBuiltIn(""ANSI31"");
+
+// Get built-in by enum
+var brick = HatchType.GetBuiltIn(BuiltInHatch.BRICK);
+
+// Build programmatically
+var custom = new HatchType(""Custom"", ""My pattern"", new List<HatchPatternLine> {
+    new HatchPatternLine(0, 0, 0, 0, 5, 10, -5),  // horizontal dashed
+    new HatchPatternLine(90, 0, 0, 0, 5)            // vertical continuous
+});" },
+                { "BuiltInHatch", @"// Use enum values for built-in patterns
+var h1 = new VHatch(polygon, BuiltInHatch.ANSI31, scale: 10);
+var h2 = new VHatch(polygon, BuiltInHatch.BRICK, scale: 5);
+var h3 = new VHatch(polygon, BuiltInHatch.HEX, scale: 20);
+var h4 = new VHatch(polygon, BuiltInHatch.STEEL, scale: 10);
+var h5 = new VHatch(polygon, BuiltInHatch.AR_HBONE, scale: 2);
+
+// List all available patterns
+foreach (var name in BuiltInHatches.GetAllNames())
+    VizConsole.Log(name);" }
             };
         }
 
@@ -1907,6 +2026,18 @@ var offset = BooleanOps.OffsetPolygon(poly, 10, JoinType.Miter, EndType.Polygon)
                 { "VText.Text", "Gets or sets the text content to display." },
                 { "VText.Height", "Gets or sets the font height in world units." },
                 { "VText.FontFamily", "Gets or sets the font family name." },
+                { "VText.Anchor", "Gets or sets the text anchor point (VTextAnchor enum). Controls which point of the text bounding box is placed at the text's position. Default is BottomLeft." },
+
+                // VTextAnchor enum values
+                { "VTextAnchor.BottomLeft", "Anchor at the bottom-left corner of the text (default). Text extends right and up from the position." },
+                { "VTextAnchor.BottomCenter", "Anchor at the bottom-center of the text. Text is horizontally centered and extends up from the position." },
+                { "VTextAnchor.BottomRight", "Anchor at the bottom-right corner of the text. Text extends left and up from the position." },
+                { "VTextAnchor.MiddleLeft", "Anchor at the middle-left of the text. Text extends right and is vertically centered on the position." },
+                { "VTextAnchor.MiddleCenter", "Anchor at the center of the text. Text is both horizontally and vertically centered on the position." },
+                { "VTextAnchor.MiddleRight", "Anchor at the middle-right of the text. Text extends left and is vertically centered on the position." },
+                { "VTextAnchor.TopLeft", "Anchor at the top-left corner of the text. Text extends right and down from the position." },
+                { "VTextAnchor.TopCenter", "Anchor at the top-center of the text. Text is horizontally centered and extends down from the position." },
+                { "VTextAnchor.TopRight", "Anchor at the top-right corner of the text. Text extends left and down from the position." },
 
                 // VText Methods
                 { "VText.Draw", "Renders the text to the canvas." },
@@ -2010,6 +2141,28 @@ var offset = BooleanOps.OffsetPolygon(poly, 10, JoinType.Miter, EndType.Polygon)
                 { "VDimension.GetBounds", "Returns the axis-aligned bounding box of the dimension." },
                 { "VDimension.ToString", "Returns a string representation of the dimension." },
 
+                // VRadialDimension
+                { "VRadialDimension.Center", "Gets or sets the center point of the circle/arc being dimensioned." },
+                { "VRadialDimension.Radius", "Gets or sets the radius of the circle/arc being dimensioned." },
+                { "VRadialDimension.LeaderAngle", "Gets or sets the angle (in degrees) at which the leader line points to the circumference." },
+                { "VRadialDimension.ShowDiameter", "If true, shows diameter (line through center, both arrowheads) instead of radius." },
+                { "VRadialDimension.ArrowSize", "Gets or sets the size of the arrowhead." },
+                { "VRadialDimension.TextHeight", "Gets or sets the height of the dimension text." },
+                { "VRadialDimension.DecimalPlaces", "Gets or sets the number of decimal places for the displayed value." },
+                { "VRadialDimension.Prefix", "Gets or sets the text prefix prepended to the dimension value." },
+                { "VRadialDimension.Suffix", "Gets or sets the text suffix appended to the dimension value." },
+                { "VRadialDimension.CustomText", "Gets or sets custom text. If null, shows the calculated value with R/\u2300 symbol." },
+                { "VRadialDimension.Value", "Gets the calculated radius or diameter value (read-only)." },
+                { "VRadialDimension.DisplayText", "Gets the display text including symbol and Prefix/Suffix (read-only)." },
+                { "VRadialDimension.TextBackgroundOpaque", "If true, an opaque background is drawn behind the dimension text." },
+                { "VRadialDimension.DimensionLineColor", "Gets or sets the color for the leader line and arrowhead. When null, uses base Color." },
+                { "VRadialDimension.TextColor", "Gets or sets the color for the dimension text. When null, uses base Color." },
+                { "VRadialDimension.GetDimensionGeometry", "Returns the leader line start/end points and text position for rendering." },
+                { "VRadialDimension.Clone", "Creates a deep copy of this radial dimension with all properties duplicated." },
+                { "VRadialDimension.Move", "Translates the radial dimension by the specified displacement vector." },
+                { "VRadialDimension.Rotate", "Rotates the radial dimension around the specified pivot by the given angle in degrees." },
+                { "VRadialDimension.Scale", "Scales the radial dimension relative to a center point by the specified factor." },
+
                 // Shape base class properties
                 { "Shape.Id", "Gets the unique identifier for this shape, automatically assigned on creation." },
                 { "Shape.Color", "Gets or sets the outline/stroke color as a string (named color or hex code like '#FF0000' or '#80FF0000')." },
@@ -2039,6 +2192,8 @@ var offset = BooleanOps.OffsetPolygon(poly, 10, JoinType.Miter, EndType.Polygon)
                 { "Shape.ToString", "Returns a string representation of the shape." },
                 { "Shape.Show", "Shows this shape on the canvas by setting IsVisible to true." },
                 { "Shape.Hide", "Hides this shape from the canvas by setting IsVisible to false. The shape remains in the collection but is not rendered." },
+                { "Shape.BringAbove", "Moves this shape above the specified shape in the draw order, so it renders on top." },
+                { "Shape.SendBehind", "Moves this shape behind the specified shape in the draw order, so it renders underneath." },
 
                 // VXYZ Properties
                 { "VXYZ.X", "Gets or sets the X component of the vector." },
@@ -2445,6 +2600,32 @@ var offset = BooleanOps.OffsetPolygon(poly, 10, JoinType.Miter, EndType.Polygon)
                 { "EndType.OpenRound", "Open path with rounded end caps." },
                 { "EndType.OpenSquare", "Open path with squared end caps." },
                 { "EndType.OpenButt", "Open path with flat (butt) end caps." },
+
+                // VHatch Properties
+                { "VHatch.Boundary", "Gets or sets the closed boundary polygon points that define the hatch area." },
+                { "VHatch.Pattern", "Gets or sets the HatchType pattern definition used for this hatch." },
+                { "VHatch.PatternScale", "Gets or sets the scale factor applied to the pattern. Larger values = less dense. Default 1.0." },
+                { "VHatch.PatternAngle", "Gets or sets the additional rotation angle (degrees) applied to the entire pattern. Default 0." },
+                { "VHatch.GenerateLines", "Generates the hatch line segments clipped to the boundary. Returns a list of (Start, End) VPoint pairs." },
+
+                // HatchType Properties/Methods
+                { "HatchType.Name", "Gets or sets the pattern name." },
+                { "HatchType.Description", "Gets or sets the pattern description." },
+                { "HatchType.Lines", "Gets or sets the list of HatchPatternLine definitions that make up this pattern." },
+                { "HatchType.Parse", "Static method: parses a hatch pattern from an AutoCAD .pat format string. First line should be '*NAME, Description', subsequent lines define line families." },
+                { "HatchType.GetBuiltIn", "Static method: retrieves a built-in hatch pattern by name (string, case-insensitive) or by BuiltInHatch enum value." },
+
+                // HatchPatternLine Properties
+                { "HatchPatternLine.Angle", "Angle of the line family in degrees." },
+                { "HatchPatternLine.OriginX", "X coordinate of the line origin." },
+                { "HatchPatternLine.OriginY", "Y coordinate of the line origin." },
+                { "HatchPatternLine.DeltaX", "Delta X offset between successive parallel lines (shift along line direction)." },
+                { "HatchPatternLine.DeltaY", "Delta Y offset between successive parallel lines (spacing perpendicular to line direction)." },
+                { "HatchPatternLine.Dashes", "Dash pattern array. Positive values = dash length, negative = gap length, 0 = dot, empty = continuous line." },
+
+                // BuiltInHatches Methods
+                { "BuiltInHatches.Get", "Retrieves a built-in hatch pattern by name (string) or BuiltInHatch enum value." },
+                { "BuiltInHatches.GetAllNames", "Returns all available built-in hatch pattern names." },
             };
         }
 

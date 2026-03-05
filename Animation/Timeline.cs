@@ -93,7 +93,7 @@ namespace Code2Viz.Animation
             {
                 CurrentTime %= Duration;
             }
-            
+
             // Clamp time if not repeating
             if (!Repeat)
             {
@@ -103,32 +103,38 @@ namespace Code2Viz.Animation
 
             foreach (var anim in Animations)
             {
-                // Check if animation is active at CurrentTime
-                // or if we should apply the final state if time > end
-                // or initial state if time < start
-                
-                double t = (CurrentTime - anim.StartTime) / anim.Duration;
-                
-                // Clamp t to 0..1 for standard processing
-                // Or allow over/under shoot if desired (usually 0..1)
-                bool isActive = t >= 0 && t <= 1;
-                bool isPast = t > 1;
-                bool isFuture = t < 0;
+                double t;
 
-                if (isActive)
+                if (Repeat && time >= anim.StartTime)
                 {
+                    // Each animation loops independently based on its own duration
+                    double elapsed = time - anim.StartTime;
+                    t = (elapsed % anim.Duration) / anim.Duration;
                     anim.Apply(t);
                 }
-                else if (isPast)
+                else
                 {
-                    // Apply end state to ensure we don't glitch when moving fast
-                    anim.Apply(1.0);
-                }
-                else if (isFuture)
-                {
-                    // Pass the negative t value so animations know they haven't started yet
-                    // and can avoid capturing initial state prematurely
-                    anim.Apply(t);
+                    t = (CurrentTime - anim.StartTime) / anim.Duration;
+
+                    bool isActive = t >= 0 && t <= 1;
+                    bool isPast = t > 1;
+                    bool isFuture = t < 0;
+
+                    if (isActive)
+                    {
+                        anim.Apply(t);
+                    }
+                    else if (isPast)
+                    {
+                        // Apply end state to ensure we don't glitch when moving fast
+                        anim.Apply(1.0);
+                    }
+                    else if (isFuture)
+                    {
+                        // Pass the negative t value so animations know they haven't started yet
+                        // and can avoid capturing initial state prematurely
+                        anim.Apply(t);
+                    }
                 }
             }
         }

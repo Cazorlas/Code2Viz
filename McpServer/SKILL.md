@@ -1,6 +1,6 @@
 ---
 name: code2viz
-description: "Create and visualize 2D geometry on an interactive canvas using C# code. Use this skill when the user asks to draw shapes, create geometric visualizations, generate 2D diagrams, or visualize geometry. Supports points, lines, circles, arcs, rectangles, ellipses, polygons, polylines, beziers, splines, arrows, text, groups, grids, dimensions, regions, and construction lines. Shapes auto-register when created. Coordinate system is mathematical (Y-up, origin at center)."
+description: "Create and visualize 2D geometry on an interactive canvas using C# code. Use this skill when the user asks to draw shapes, create geometric visualizations, generate 2D diagrams, or visualize geometry. Supports points, lines, circles, arcs, rectangles, ellipses, polygons, polylines, beziers, splines, arrows, text, groups, grids, dimensions, regions, hatches (pattern fills), and construction lines. Shapes auto-register when created. Coordinate system is mathematical (Y-up, origin at center)."
 ---
 
 # Code2Viz - 2D Geometry Visualization
@@ -155,6 +155,10 @@ new VSpline(new VPoint(0,0), new VPoint(50,80), new VPoint(100,0), new VPoint(15
 ```csharp
 new VText(x, y, "Hello World");
 new VText(x, y, "Big Text", 24);   // with font height
+
+// Anchor controls alignment at position
+var t = new VText(0, 0, "Centered", 20);
+t.Anchor = VTextAnchor.MiddleCenter;  // center text on position
 ```
 
 | Property | Type | Default | Description |
@@ -164,8 +168,11 @@ new VText(x, y, "Big Text", 24);   // with font height
 | Width | double | 0 | Text width (0 = auto) |
 | Font | VFont | Arial | Font family |
 | FontWeight | VFontWeight | Normal | Normal or Bold |
+| Anchor | VTextAnchor | BottomLeft | Text anchor/alignment point |
 
 **VFont enum values**: Arial, TimesNewRoman, CourierNew, Verdana, Georgia, Tahoma, TrebuchetMS, Consolas, Calibri, Cambria, SegoeUI, ComicSansMS, Impact, LucidaConsole
+
+**VTextAnchor enum values**: `BottomLeft` (default), `BottomCenter`, `BottomRight`, `MiddleLeft`, `MiddleCenter`, `MiddleRight`, `TopLeft`, `TopCenter`, `TopRight`
 
 ### VArrow
 ```csharp
@@ -242,6 +249,31 @@ new VDimension(point1, point2);
 | Distance | double | | Calculated distance (read-only) |
 | DisplayText | string | | Display text with prefix/suffix (read-only) |
 
+### VRadialDimension
+```csharp
+new VRadialDimension(circle);          // from VCircle
+new VRadialDimension(arc);             // from VArc
+new VRadialDimension(center, radius);  // from VPoint + radius
+```
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| Center | VPoint | | Center of circle/arc |
+| Radius | double | | Radius of circle/arc |
+| LeaderAngle | double | 45 | Angle of leader line (degrees) |
+| ShowDiameter | bool | false | Show diameter instead of radius |
+| ArrowSize | double | 8 | Arrowhead size |
+| TextHeight | double | 12 | Text height |
+| DecimalPlaces | int | 2 | Value decimal places |
+| Prefix | string | "" | Text prefix |
+| Suffix | string | "" | Text suffix |
+| CustomText | string? | null | Custom text (null = auto R/dia) |
+| TextBackgroundOpaque | bool | false | Opaque background behind text |
+| DimensionLineColor | string? | null | Leader line & arrowhead color |
+| TextColor | string? | null | Text color |
+| Value | double | | Radius or diameter value (read-only) |
+| DisplayText | string | | Display text with symbol (read-only) |
+
 ### VXLine (infinite construction line)
 ```csharp
 new VXLine(basePoint, direction);       // VPoint + VXYZ direction
@@ -303,6 +335,49 @@ var regionFromPwh = Region.FromPolygonWithHoles(pwh);
 | `FromPolygon(poly)` | Region | Create from VPolygon (static) |
 | `FromPolygonWithHoles(pwh)` | Region | Create from PolygonWithHoles (static) |
 
+### VHatch (Pattern Fill)
+Fills a closed polygon boundary with a repeating hatch pattern. Supports 73 built-in AutoCAD-standard patterns and custom patterns from `.pat` format strings.
+
+```csharp
+// Built-in pattern with enum
+var rect = new VRectangle(0, 0, 100, 80);
+var hatch = new VHatch(rect, BuiltInHatch.ANSI31, scale: 10);
+hatch.Color = "Cyan";
+
+// Built-in pattern by name
+var hatch2 = new VHatch(rect, "BRICK", scale: 5, angle: 45);
+
+// Custom pattern from string (.pat format)
+var custom = VHatch.FromDefinition(rect, @"
+  *CROSSHATCH, Custom crosshatch
+  0, 0,0, 0,10
+  90, 0,0, 0,10
+", scale: 1.0);
+
+// Custom HatchType object
+var pattern = new HatchType("MyPat", "Diagonal", new List<HatchPatternLine> {
+    new HatchPatternLine(45, 0, 0, 0, 5),
+    new HatchPatternLine(135, 0, 0, 0, 5)
+});
+var hatch3 = new VHatch(rect, pattern, scale: 2.0);
+```
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| Boundary | List\<VPoint\> | - | Closed boundary polygon points |
+| Pattern | HatchType | - | Hatch pattern definition |
+| PatternScale | double | 1.0 | Scale factor for the pattern |
+| PatternAngle | double | 0 | Additional rotation (degrees) |
+| Color | string | "Cyan" | Hatch line color |
+| LineWeight | double | 1.0 | Hatch line thickness |
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `GenerateLines()` | List\<(VPoint,VPoint)\> | Generate clipped line segments |
+| `FromDefinition(poly, patString, scale, angle)` | VHatch | Create from .pat format string (static) |
+
+**Built-in patterns (BuiltInHatch enum)**: SOLID, ANGLE, ANSI31-ANSI38, AR_B816, AR_BRSTD, AR_CONC, AR_HBONE, AR_SAND, BOX, BRASS, BRICK, BRSTONE, CLAY, CORK, CROSS, DASH, DOTS, EARTH, ESCHER, GRASS, GRATE, HEX, HONEY, LINE, NET, NET3, SQUARE, STARS, STEEL, TRIANG, ZIGZAG, and more (73 total). Use `BuiltInHatches.GetAllNames()` to list all.
+
 ## Shape Properties (all shapes)
 
 | Property | Type | Default | Description |
@@ -332,6 +407,8 @@ var regionFromPwh = Region.FromPolygonWithHoles(pwh);
 | `Show()` | Make visible |
 | `Hide()` | Make invisible |
 | `Remove()` | Remove from canvas |
+| `BringAbove(otherShape)` | Move above another shape in draw order (renders on top) |
+| `SendBehind(otherShape)` | Move behind another shape in draw order (renders underneath) |
 | `Contains(point)` | Check if point is inside shape |
 | `DistanceTo(point)` | Distance from shape to point |
 | `DoesIntersect(other)` | Check intersection with another shape |
@@ -645,7 +722,7 @@ The animation system lets you animate shapes over time.
 ### Animator
 ```csharp
 var animator = new Animator();
-animator.Repeat = true;      // Loop
+animator.Repeat = true;      // Loop (each animation loops independently at its own duration)
 animator.Speed = 1.5;        // Playback speed
 animator.Fps = 30;           // Target frame rate (1-120, default 60)
 

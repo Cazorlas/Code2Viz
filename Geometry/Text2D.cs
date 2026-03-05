@@ -48,6 +48,31 @@ public enum VFontWeight
     Bold
 }
 
+/// <summary>
+/// Specifies the anchor point of text relative to its location.
+/// </summary>
+public enum VTextAnchor
+{
+    /// <summary>Text is anchored at the bottom-left (default).</summary>
+    BottomLeft,
+    /// <summary>Text is anchored at the bottom-center.</summary>
+    BottomCenter,
+    /// <summary>Text is anchored at the bottom-right.</summary>
+    BottomRight,
+    /// <summary>Text is anchored at the middle-left.</summary>
+    MiddleLeft,
+    /// <summary>Text is anchored at the middle-center.</summary>
+    MiddleCenter,
+    /// <summary>Text is anchored at the middle-right.</summary>
+    MiddleRight,
+    /// <summary>Text is anchored at the top-left.</summary>
+    TopLeft,
+    /// <summary>Text is anchored at the top-center.</summary>
+    TopCenter,
+    /// <summary>Text is anchored at the top-right.</summary>
+    TopRight
+}
+
 public class VText : Shape
 {
     public VPoint Location { get; set; }
@@ -56,6 +81,7 @@ public class VText : Shape
     public double Width { get; set; } = 0; // 0 = auto (measured)
     public VFont Font { get; set; } = VFont.Arial;
     public VFontWeight FontWeight { get; set; } = VFontWeight.Normal;
+    public VTextAnchor Anchor { get; set; } = VTextAnchor.BottomLeft;
 
     public VText(VPoint location, string content)
     {
@@ -117,7 +143,8 @@ public class VText : Shape
             Height = Height,
             Width = Width,
             Font = Font,
-            FontWeight = FontWeight
+            FontWeight = FontWeight,
+            Anchor = Anchor
         };
         CopyStyleTo(clone);
         return clone;
@@ -149,7 +176,26 @@ public class VText : Shape
     public override BoundingBox GetBounds()
     {
         var textWidth = Width > 0 ? Width : Height * Content.Length * 0.6;
-        return new BoundingBox(Location, VPoint.Internal(Location.X + textWidth, Location.Y + Height));
+        var (offsetX, offsetY) = GetAnchorOffset(textWidth, Height);
+        var bottomLeft = VPoint.Internal(Location.X + offsetX, Location.Y + offsetY);
+        return new BoundingBox(bottomLeft, VPoint.Internal(bottomLeft.X + textWidth, bottomLeft.Y + Height));
+    }
+
+    internal (double offsetX, double offsetY) GetAnchorOffset(double textWidth, double textHeight)
+    {
+        double offsetX = Anchor switch
+        {
+            VTextAnchor.BottomLeft or VTextAnchor.MiddleLeft or VTextAnchor.TopLeft => 0,
+            VTextAnchor.BottomCenter or VTextAnchor.MiddleCenter or VTextAnchor.TopCenter => -textWidth / 2,
+            _ => -textWidth
+        };
+        double offsetY = Anchor switch
+        {
+            VTextAnchor.BottomLeft or VTextAnchor.BottomCenter or VTextAnchor.BottomRight => 0,
+            VTextAnchor.MiddleLeft or VTextAnchor.MiddleCenter or VTextAnchor.MiddleRight => -textHeight / 2,
+            _ => -textHeight
+        };
+        return (offsetX, offsetY);
     }
 
     public override string ToString() => $"VText(\"{Content}\" at {Location})";

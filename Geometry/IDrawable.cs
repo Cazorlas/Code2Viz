@@ -208,6 +208,22 @@ public abstract class Shape : IDrawable
     }
 
     /// <summary>
+    /// Moves this shape above the specified shape in the draw order (renders on top).
+    /// </summary>
+    public void BringAbove(Shape otherShape)
+    {
+        CanvasRenderer.Instance.MoveShapeAbove(this, otherShape);
+    }
+
+    /// <summary>
+    /// Moves this shape behind the specified shape in the draw order (renders underneath).
+    /// </summary>
+    public void SendBehind(Shape otherShape)
+    {
+        CanvasRenderer.Instance.MoveShapeBehind(this, otherShape);
+    }
+
+    /// <summary>
     /// Shows this shape on the canvas (sets IsVisible to true).
     /// </summary>
     public void Show()
