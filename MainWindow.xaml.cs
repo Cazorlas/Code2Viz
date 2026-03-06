@@ -912,7 +912,12 @@ public partial class MainWindow : Window
                 }
                 // else: let AvalonEdit's default paste handle it
             },
-            (s, e) => { e.CanExecute = true; }));
+            (s, e) =>
+            {
+                if (_multiSelectionRenderer != null && _multiSelectionRenderer.HasSelections)
+                    e.CanExecute = true;
+                // else: don't handle, let AvalonEdit's default paste take over
+            }));
 
         // Initialize Bracket Highlighting
         _bracketRenderer = new BracketHighlightRenderer(CodeEditor.TextArea.TextView);
