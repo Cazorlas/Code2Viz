@@ -62,3 +62,6 @@ cleanup_errors*.txt
 msbuild.log
 test_failure*.txt
 tmpclaude-*-cwd
+
+# Node.js
+node_modules/
