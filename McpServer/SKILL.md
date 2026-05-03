@@ -712,6 +712,19 @@ double area = region.Area;
 
 > **Note**: Use `RegionBooleanOps.Intersect(a, b)` instead of `a.Intersect(b)` because the extension method collides with `Shape.Intersect(Shape)`.
 
+## Angle Conversion Extensions
+
+Extension methods on `double` for converting between degrees and radians. Lets you skip the `* Math.PI / 180.0` boilerplate when calling trig functions.
+
+```csharp
+double rad = 45.0.ToRadians();      // degrees → radians
+double deg = Math.PI.ToDegrees();   // radians → degrees
+
+// Idiomatic usage
+double y = Math.Sin(30.0.ToRadians());      // 0.5
+double a = Math.Atan2(dy, dx).ToDegrees();   // angle in degrees
+```
+
 ## VColor Utility
 
 ```csharp

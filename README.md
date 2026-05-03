@@ -825,6 +825,21 @@ double ellipseArea = ellipse.Area;             // π × rx × ry = ~7539.82
 double ellipseCircum = ellipse.Circumference;  // Ramanujan approximation = ~318.49
 ```
 
+### Angle Conversion Extensions
+
+Extension methods on `double` for converting between degrees and radians, so you can skip the `* Math.PI / 180.0` boilerplate when calling trig functions.
+
+```csharp
+double rad = 45.0.ToRadians();      // degrees → radians (0.7853...)
+double deg = Math.PI.ToDegrees();   // radians → degrees (180.0)
+
+// Use directly with trig functions
+double y = Math.Sin(30.0.ToRadians());          // 0.5
+double angleDeg = Math.Atan2(dy, dx).ToDegrees();
+```
+
+Defined in `Code2Viz.Geometry.DoubleExtensions`, available wherever you `using Code2Viz.Geometry;`.
+
 ---
 
 ## Animation System

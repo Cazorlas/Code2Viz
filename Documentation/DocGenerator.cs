@@ -85,6 +85,7 @@ namespace Code2Viz.Documentation
                 { "VTransform", "Represents a 3D transformation matrix for rotation and reflection operations." },
                 { "VCoordinateSystem", "Represents a 3D coordinate system with origin and orthonormal basis vectors (X, Y, Z axes)." },
                 { "GeometryHelper", "Static helper class providing common geometric algorithms like intersection, projection, distance calculations, and angle measurements." },
+                { "DoubleExtensions", "Extension methods on double for angle conversions. Provides ToRadians() (degrees → radians) and ToDegrees() (radians → degrees), so trigonometry can be written as Math.Sin(45.0.ToRadians()) instead of Math.Sin(45 * Math.PI / 180)." },
                 { "ShapeDefaults", "Static class holding global default settings for shapes (GlobalColor, GlobalFillColor, GlobalLineWeight, GlobalLineType). These are populated from Project Settings." },
                 { "LineType", "Enum defining the stroke style (line pattern) for shape outlines. Options: Continuous (solid, default), Dashed, Dotted, DashDot, DashDotDot, Center, Phantom, Hidden." },
                 { "VColor", "Static utility class for easy color access and random color generation. Provides named color properties (Red, Blue, Green, etc.), GetRandomColor(pastel) for random colors, FromRgb/FromArgb for custom colors. Use with Color and FillColor properties." },
@@ -1318,6 +1319,14 @@ double dist = GeometryHelper.DistancePointToLine(point, line);
 VXYZ? intersection = GeometryHelper.LineLineIntersection(line1, line2);
 double angle = GeometryHelper.AngleBetweenVectors(v1, v2);" },
 
+                { "DoubleExtensions", @"// Angle conversion extensions on double
+double rad = 45.0.ToRadians();      // 0.7853981633974483
+double deg = Math.PI.ToDegrees();   // 180.0
+
+// Use directly with trig functions
+double y = Math.Sin(30.0.ToRadians());     // 0.5
+double a = Math.Atan2(dy, dx).ToDegrees(); // angle in degrees" },
+
                 { "ICurve", @"// ICurve interface - all curve shapes implement this
 ICurve curve = new VLine(0, 0, 100, 100);
 curve.Draw();  // ICurve extends IDrawable
@@ -2476,6 +2485,10 @@ foreach (var name in BuiltInHatches.GetAllNames())
                 { "GeometryHelper.IsPointInPolygon", "Checks if a point is inside a polygon." },
                 { "GeometryHelper.GetPolygonArea", "Calculates the signed area of a polygon." },
                 { "GeometryHelper.GetPolygonCentroid", "Calculates the centroid (center of mass) of a polygon." },
+
+                // DoubleExtensions
+                { "DoubleExtensions.ToRadians", "Extension method on double. Converts an angle from degrees to radians (multiplies by π/180). Usage: 45.0.ToRadians()." },
+                { "DoubleExtensions.ToDegrees", "Extension method on double. Converts an angle from radians to degrees (multiplies by 180/π). Usage: Math.PI.ToDegrees()." },
 
                 // IDrawable
                 { "IDrawable.Draw", "Renders the drawable object to the canvas." },

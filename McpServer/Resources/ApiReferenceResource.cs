@@ -346,6 +346,15 @@ public class ApiReferenceResource
         // EndType: Polygon (default), OpenRound, OpenSquare, OpenButt
         ```
 
+        ## Angle Conversion Extensions
+        Extension methods on `double` — drop the `* Math.PI / 180.0` boilerplate.
+        ```csharp
+        double rad = 45.0.ToRadians();      // degrees → radians
+        double deg = Math.PI.ToDegrees();   // radians → degrees
+        double y = Math.Sin(30.0.ToRadians());      // 0.5
+        double a = Math.Atan2(dy, dx).ToDegrees();   // angle in degrees
+        ```
+
         ## VColor Utility
         ```csharp
         VColor.Red; VColor.Blue; VColor.Green; // 60+ named color properties
