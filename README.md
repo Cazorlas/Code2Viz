@@ -34,7 +34,7 @@ Code2Viz is a visual programming environment that lets you write C# or F# code t
 File > New Project (Ctrl+Shift+N) creates a new project with a starter template.
 
 ### 2. Write Your Code
-The entry point is `StartViz.Viz.Main()` in `StartViz.vizcode`:
+The entry point is `StartViz.Viz.Main()` in `StartViz.cs`:
 
 ```csharp
 using Code2Viz.Geometry;
@@ -1661,10 +1661,10 @@ When enabled, identifiers are colored based on their meaning:
 ## Project Structure
 
 ### File Format
-Code2Viz projects use `.vizcode` files. All files in the same directory (and subdirectories) are compiled together.
+Code2Viz projects use `.cs` files. All files in the same directory (and subdirectories) are compiled together.
 
 ### Entry Point
-The entry point must be `StartViz.Viz.Main()` in `StartViz.vizcode`:
+The entry point must be `StartViz.Viz.Main()` in `StartViz.cs`:
 
 ```csharp
 namespace StartViz

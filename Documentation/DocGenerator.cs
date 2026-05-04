@@ -2818,7 +2818,7 @@ foreach (var name in BuiltInHatches.GetAllNames())
                 Margin = new Thickness(20, 0, 0, 20)
             };
             AddListItem(stepsList, "Create or Open a Project", "Use File > New Project or File > Open to start");
-            AddListItem(stepsList, "Write Your Code", "The entry point is StartViz.Viz.Main() in StartViz.vizcode");
+            AddListItem(stepsList, "Write Your Code", "The entry point is StartViz.Viz.Main() in StartViz.cs");
             AddListItem(stepsList, "Create Shapes", "Instantiate shape objects (e.g., new VCircle(0, 0, 50))");
             AddListItem(stepsList, "Draw to Canvas", "Call .Draw() on shapes to render them");
             AddListItem(stepsList, "Run Your Code", "Press F5 or click the Run button to see results");

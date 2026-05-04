@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Code2Viz is a WPF 2D geometry visualization application that allows users to write C# or F# code to create and visualize shapes on an interactive canvas. Users write code in `.vizcode` files, which are compiled at runtime using Roslyn and executed to render shapes.
+Code2Viz is a WPF 2D geometry visualization application that allows users to write C# or F# code to create and visualize shapes on an interactive canvas. Users write code in `.cs` files, which are compiled at runtime using Roslyn and executed to render shapes.
 
 ## Tech Stack
 - **Framework**: WPF on .NET 9.0
@@ -48,8 +48,8 @@ Code2Viz/
 ```
 
 ### Module System
-- **Entry Point**: `StartViz.Viz.Main()` in `StartViz.vizcode`
-- All `.vizcode` files in the same directory are compiled together
+- **Entry Point**: `StartViz.Viz.Main()` in `StartViz.cs`
+- All `.cs` files in the same directory are compiled together
 - Available imports: `Code2Viz.Geometry`, `Code2Viz.Animation`, `Code2Viz.Console`
 
 ### Shape System
@@ -60,7 +60,7 @@ Code2Viz/
 - Each shape overrides `GetControlPoints()` and `MoveControlPoint()` for interactive editing
 
 ### Code Execution (ModuleCompiler)
-- Compiles all `.vizcode` files using Roslyn CSharpCompilation
+- Compiles all `.cs` files using Roslyn CSharpCompilation
 - Creates in-memory assembly with unique name
 - Invokes `StartViz.Viz.Main()` via reflection
 - Uses collectible AssemblyLoadContext for proper unloading
