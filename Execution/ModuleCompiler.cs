@@ -329,16 +329,16 @@ public class ModuleCompiler
     {
         var message = ex.Message;
 
-        // Parse the stack trace to find frames in user .vizcode files
+        // Parse the stack trace to find frames in user source files
         if (ex.StackTrace != null)
         {
             var lines = ex.StackTrace.Split('\n');
             foreach (var line in lines)
             {
-                // Look for stack frames with .vizcode file references
-                // Format: "at Namespace.Class.Method() in C:\path\file.vizcode:line 42"
+                // Look for stack frames with .cs/.fs file references
+                // Format: "at Namespace.Class.Method() in C:\path\file.cs:line 42"
                 var match = System.Text.RegularExpressions.Regex.Match(
-                    line, @"in\s+(.+\.vizcode):line\s+(\d+)");
+                    line, @"in\s+(.+\.(?:cs|fs)):line\s+(\d+)");
                 if (match.Success)
                 {
                     var filePath = match.Groups[1].Value;
