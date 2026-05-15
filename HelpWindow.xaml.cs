@@ -35,10 +35,11 @@ namespace Code2Viz
             foreach (var type in _allTypes)
             {
                 // Add the type itself
+                var cleanName = DocGenerator.GetCleanTypeName(type);
                 _searchIndex.Add(new SearchableItem
                 {
-                    Name = type.Name,
-                    FullName = type.Name,
+                    Name = cleanName,
+                    FullName = cleanName,
                     ItemType = "Class",
                     DeclaringType = type
                 });
@@ -50,7 +51,7 @@ namespace Code2Viz
                     _searchIndex.Add(new SearchableItem
                     {
                         Name = prop.Name,
-                        FullName = $"{type.Name}.{prop.Name}",
+                        FullName = $"{cleanName}.{prop.Name}",
                         ItemType = "Property",
                         DeclaringType = type,
                         Signature = prop.PropertyType.Name
@@ -66,7 +67,7 @@ namespace Code2Viz
                     _searchIndex.Add(new SearchableItem
                     {
                         Name = method.Name,
-                        FullName = $"{type.Name}.{method.Name}",
+                        FullName = $"{cleanName}.{method.Name}",
                         ItemType = "Method",
                         DeclaringType = type,
                         Signature = $"({paramStr}) → {method.ReturnType.Name}"
@@ -93,7 +94,7 @@ namespace Code2Viz
                 var nsItem = new TreeViewItem { Header = group.Key, IsExpanded = true };
                 foreach (var type in group)
                 {
-                    var typeItem = new TreeViewItem { Header = type.Name, Tag = type };
+                    var typeItem = new TreeViewItem { Header = DocGenerator.GetDisplayTypeName(type), Tag = type };
                     nsItem.Items.Add(typeItem);
                 }
                 DocTree.Items.Add(nsItem);
@@ -105,13 +106,13 @@ namespace Code2Viz
             DocTree.Items.Clear();
 
             // Group by declaring type
-            var groups = results.GroupBy(r => r.DeclaringType).OrderBy(g => g.Key.Name);
+            var groups = results.GroupBy(r => r.DeclaringType).OrderBy(g => DocGenerator.GetCleanTypeName(g.Key));
 
             foreach (var group in groups)
             {
                 var typeItem = new TreeViewItem
                 {
-                    Header = group.Key.Name,
+                    Header = DocGenerator.GetDisplayTypeName(group.Key),
                     Tag = group.Key,
                     IsExpanded = true
                 };

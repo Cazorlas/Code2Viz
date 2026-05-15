@@ -275,7 +275,7 @@ public class RoslynCompletionService
 
                 // Create CompletionData based on symbol kind
                 var kind = ConvertToCompletionKind(symbol.Kind);
-                var scope = ClassifyScope(symbol, token);
+                var scope = ClassifyScope(symbol, token, memberAccessContainer as ITypeSymbol);
 
                 // If after 'new', only include instantiable types
                 if (isAfterNew)
@@ -1100,15 +1100,25 @@ public class RoslynCompletionService
 
     /// <summary>
     /// Classifies a symbol's scope for priority sorting.
+    /// When accessedType is provided (member access like "sg."), symbols declared
+    /// directly on that type are ClassMember (shown first), inherited ones are Global.
     /// </summary>
-    private static SymbolScope ClassifyScope(ISymbol symbol, SyntaxToken cursorToken)
+    private static SymbolScope ClassifyScope(ISymbol symbol, SyntaxToken cursorToken, ITypeSymbol? accessedType = null)
     {
         // Local variables and parameters
         if (symbol.Kind == SymbolKind.Local || symbol.Kind == SymbolKind.Parameter ||
             symbol.Kind == SymbolKind.RangeVariable)
             return SymbolScope.Local;
 
-        // Members of the containing type
+        // Member access context: group own members above inherited
+        if (accessedType != null && symbol.ContainingType != null)
+        {
+            if (SymbolEqualityComparer.Default.Equals(symbol.ContainingType, accessedType))
+                return SymbolScope.ClassMember;
+            return SymbolScope.Global;
+        }
+
+        // Members of the containing type (user's own class)
         var containingType = cursorToken.Parent?.AncestorsAndSelf()
             .OfType<TypeDeclarationSyntax>()
             .FirstOrDefault();
