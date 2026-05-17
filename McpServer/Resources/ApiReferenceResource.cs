@@ -409,6 +409,40 @@ public class ApiReferenceResource
         ShapeDefaults.Reset();  // reset all to defaults
         ```
 
+        ## Ray Casting (RayCaster)
+        ```csharp
+        // Build a BVH once over the scene; queries run in O(log N).
+        var caster = new RayCaster(shapes);                       // leafSize = 8
+        var caster2 = new RayCaster(shapes, leafSize: 16);
+
+        // Closest hit (XY plane; Z is ignored)
+        RayHit? hit = caster.FindIntersection(new VXYZ(0,0,0), new VXYZ(1,0,0));
+        if (hit is { } h) { Shape s = h.Shape; VXYZ pt = h.Point; double d = h.Distance; }
+
+        // With distance cap (prunes BVH sub-trees)
+        var near = caster.FindIntersection(origin, dir, maxDistance: 50);
+
+        // Any-hit early-out (faster than closest-hit for shadow rays)
+        bool blocked = caster.HasIntersection(origin, dir);
+        bool nearby  = caster.HasIntersection(origin, dir, maxDistance: 100);
+
+        // Parallel batch (BVH is read-only — thread-safe by construction)
+        var qs = new[] {
+            new RayQuery(new VXYZ(0,0,0), new VXYZ(1,0,0)),
+            new RayQuery(new VXYZ(0,0,0), new VXYZ(0,1,0))
+        };
+        RayHit?[] results = caster.FindIntersections(qs);            // parallel
+        RayHit?[] seq     = caster.FindIntersections(qs, parallel: false);
+
+        // Refit after shape movement (in-place, O(N), preserves topology)
+        circle.Center = new VPoint(50, 0);
+        caster.Refit();
+        ```
+        - Returns `RayHit(Shape, VXYZ Point, double Distance)`; `RayQuery(VXYZ Origin, VXYZ Direction)` is the batch input record.
+        - Direction need not be normalised; Z component is ignored.
+        - Inline ray-vs-shape math covers VLine, VCircle, VArc, VEllipse, VPolygon (incl. VRectangle), VPolyline; other shape types fall back to AABB hit.
+        - Shapes with infinite bounds (VRay, VXLine) are excluded from the index.
+
         ## Animation
         ```csharp
         var animator = new Animator();

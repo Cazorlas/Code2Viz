@@ -200,3 +200,9 @@ Viz2d is a desktop application that enables users to visualize 2D geometric shap
 - Drag-and-drop file/folder moving in Project Explorer
 - "Go to Location" context menu to open file/folder in Windows File Explorer
 - MCP tools: get_project_context, update_file
+
+### Version 1.3 (Implemented)
+- RayCaster: accelerated 2D ray-casting against large shape collections (flat BVH with Surface Area Heuristic split, iterative traversal, allocation-free hot path, scales to millions of shapes)
+- Query API: `FindIntersection` (closest hit, optional `maxDistance`), `HasIntersection` (any-hit early-out), `FindIntersections` (parallel batch), `Refit` (in-place AABB refresh after shape movement)
+- Inline ray-vs-shape math for VLine, VCircle, VArc, VEllipse, VPolygon (and VRectangle), VPolyline; AABB fallback for other shape types
+- `RayHit` and `RayQuery` record structs for ergonomic results and batching

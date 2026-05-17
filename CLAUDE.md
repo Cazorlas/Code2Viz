@@ -32,6 +32,7 @@ dotnet test Tests/Code2Viz.Tests.csproj
 ```
 Code2Viz/
 ├── Geometry/           # Shape classes (VPoint, VLine, VArc, VCircle, VRectangle, etc.)
+│                       #   and spatial accelerators (RayCaster, SpatialGrid, KDTree)
 ├── Canvas/             # RenderCanvas (zoom/pan), CanvasRenderer, DrawingTool, SnapEngine
 ├── Console/            # VizConsole (output), ConsoleOutput (singleton collector)
 ├── Editor/             # Code editor: IntelliSenseProvider, SemanticHighlighter, CodeLensProvider, Minimap,
@@ -99,6 +100,7 @@ Due to naming conflicts with WPF types, use these aliases:
 6. **VPoint.Internal(x, y)** creates points without auto-registration (for intermediate calculations)
 7. **Every Draw* method in RenderCanvas must handle DrawFactor** - check `DrawFactor <= 0` for early return, implement partial drawing logic, and apply OffsetX/OffsetY for MoveAnimation support. See DrawPolyline as the reference pattern for segment-based shapes.
 8. **ConsolePanel must NOT span into Auto grid rows** - placing it at `Grid.Row="4"` only (no RowSpan into the Auto row 3). Spanning into Auto rows causes WPF to measure the ListBox with infinite height, making the console expand to fit all content instead of scrolling.
+9. **RayCaster (Geometry/RayCaster.cs)** is the spatial accelerator for ray queries — flat-array BVH with SAH binning, iterative traversal with `stackalloc` stack, inline ray-vs-shape math for VLine/VCircle/VArc/VEllipse/VPolygon/VPolyline. Never reintroduce the `Shape.AutoRegister` flip; the hot path is intentionally allocation-free and reentrant. Shapes with non-finite bounds (VRay, VXLine) are excluded at build time. Use `Refit()` for small movements; rebuild for large scene changes.
 
 ## Keyboard Shortcuts (Key Bindings)
 

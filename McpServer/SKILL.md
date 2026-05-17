@@ -737,6 +737,67 @@ double area = region.Area;
 
 > **Note**: Use `RegionBooleanOps.Intersect(a, b)` instead of `a.Intersect(b)` because the extension method collides with `Shape.Intersect(Shape)`.
 
+## Ray Casting (RayCaster)
+
+`RayCaster` accelerates ray-vs-shape queries over large 2D scenes. It builds a flat-array BVH (Surface Area Heuristic split) once, then each query traverses iteratively with a stack-allocated stack and inline ray-vs-shape math for `VLine`, `VCircle`, `VArc`, `VEllipse`, `VPolygon` (covers `VRectangle`), and `VPolyline`. Other shape types fall back to AABB hit. The hot path is allocation-free, and queries are thread-safe after construction.
+
+```csharp
+// Build once over the scene (millions of shapes are fine).
+var caster = new RayCaster(shapes);          // default leafSize = 8
+var caster2 = new RayCaster(shapes, leafSize: 16);
+
+// Closest hit
+RayHit? hit = caster.FindIntersection(
+    location:  new VXYZ(0, 0, 0),
+    direction: new VXYZ(1, 0, 0));           // need not be normalised
+if (hit is { } h)
+{
+    Shape s   = h.Shape;
+    VXYZ  pt  = h.Point;
+    double d  = h.Distance;
+}
+
+// Closest hit within a distance cap (prunes BVH sub-trees).
+RayHit? near = caster.FindIntersection(origin, direction, maxDistance: 50);
+
+// Any-hit / "is anything blocking?" — faster than closest-hit.
+bool blocked = caster.HasIntersection(origin, direction);
+bool nearby  = caster.HasIntersection(origin, direction, maxDistance: 100);
+
+// Batch (parallel by default — BVH is read-only after construction).
+var queries = new[]
+{
+    new RayQuery(new VXYZ(0,0,0), new VXYZ(1,0,0)),
+    new RayQuery(new VXYZ(0,0,0), new VXYZ(0,1,0))
+};
+RayHit?[] results = caster.FindIntersections(queries);
+RayHit?[] seq     = caster.FindIntersections(queries, parallel: false);
+
+// After shapes move, refit AABBs in O(N) without rebuilding the tree.
+circle.Center = new VPoint(50, 0);
+caster.Refit();
+```
+
+| Type | Description |
+|------|-------------|
+| `RayCaster(IEnumerable<Shape> shapes, int leafSize = 8)` | Builds the BVH. Shapes with non-finite bounds (`VRay`, `VXLine`) are excluded. |
+| `RayHit(Shape Shape, VXYZ Point, double Distance)` | `readonly record struct` returned by closest-hit queries. |
+| `RayQuery(VXYZ Origin, VXYZ Direction)` | `readonly record struct` for batch input. |
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `FindIntersection(location, direction)` | `RayHit?` | Closest hit (XY plane; Z ignored). |
+| `FindIntersection(location, direction, maxDistance)` | `RayHit?` | Closest hit, capped by distance. |
+| `HasIntersection(location, direction, maxDistance = +∞)` | `bool` | Any-hit early-out (shadow-ray style). |
+| `FindIntersections(queries, parallel = true)` | `RayHit?[]` | Batch query aligned with input. |
+| `Refit()` | `void` | In-place AABB refresh after shape movement. |
+| `Count` | `int` | Number of indexed shapes. |
+
+Notes:
+- Queries run on the XY plane — the Z component of `location`/`direction` is ignored.
+- Direction need not be normalised; degenerate (zero-length XY) direction returns null/false.
+- `Refit()` preserves the tree topology — good for small movements; rebuild (new `RayCaster`) after large scene changes.
+
 ## Angle Conversion Extensions
 
 Extension methods on `double` for converting between degrees and radians. Lets you skip the `* Math.PI / 180.0` boilerplate when calling trig functions.

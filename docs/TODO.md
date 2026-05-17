@@ -127,6 +127,7 @@ Core timeline playback is implemented; items below are advanced timeline UX poli
 - [ ] Optimize redraw for large shape counts (> 1000)
 - [ ] Cache brushes instead of creating new ones per shape
 - [ ] Implement shape culling for off-screen shapes
+- [x] Spatial acceleration for ray queries (`RayCaster`: flat BVH + SAH split, allocation-free queries, parallel batch, in-place refit)
 
 ---
 

@@ -144,6 +144,20 @@
 
 ---
 
+### Phase 18: Ray Casting & Spatial Acceleration
+- [x] Add `RayCaster` class with flat-array BVH and Surface Area Heuristic split
+- [x] Iterative traversal with `stackalloc` index stack (no per-query heap allocation)
+- [x] Inline ray-vs-shape math for VLine, VCircle, VArc, VEllipse, VPolygon (and VRectangle), VPolyline; AABB fallback for other shape types
+- [x] `RayHit` and `RayQuery` readonly record structs for results and batch input
+- [x] `FindIntersection(location, direction)` and `FindIntersection(location, direction, maxDistance)` for closest-hit queries
+- [x] `HasIntersection(location, direction, maxDistance = +∞)` for any-hit / shadow-ray queries
+- [x] `FindIntersections(IReadOnlyList<RayQuery>, parallel = true)` for parallel batch queries
+- [x] `Refit()` to refresh AABBs in O(N) after shape movement without rebuilding the tree
+- [x] Thread-safe queries (BVH is read-only after construction)
+- [x] xUnit test coverage: closest/any-hit, max-distance pruning, arc/ellipse angle filter, rectangle/polygon edges, batch parallel-vs-sequential parity, refit correctness
+
+---
+
 ## Implementation Statistics
 
 | Category | Count |
