@@ -446,6 +446,7 @@ public class ApiReferenceResource
         caster.Refit();
         ```
         - Indexes every Shape in CanvasRenderer.Instance.GetShapes() with IsVisible == true.
+        - VPoint markers are always excluded (zero-area; not a useful ray target).
         - Canvas state is snapshotted at construction; later adds/removes are not reflected — build a new RayCaster to pick them up.
         - Returns `RayHit(Shape, VXYZ Point, double Distance)`; `RayQuery(VXYZ Origin, VXYZ Direction)` is the batch input record.
         - Direction need not be normalised; Z component is ignored.

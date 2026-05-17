@@ -80,10 +80,13 @@ public class RayCaster
     /// Builds a ray-casting accelerator over all visible shapes currently on
     /// the canvas — every <see cref="Shape"/> in
     /// <c>CanvasRenderer.Instance.GetShapes()</c> with
-    /// <see cref="Shape.IsVisible"/> set. The canvas state is snapshotted
-    /// at construction: shapes added or removed afterwards are not
-    /// reflected. Use <see cref="Refit"/> when indexed shapes move; build
-    /// a new <see cref="RayCaster"/> when the scene changes structurally.
+    /// <see cref="Shape.IsVisible"/> set. <see cref="VPoint"/> markers are
+    /// always excluded from the index: they have zero area, ray hits on
+    /// them are degenerate, and they exist primarily as visual labels
+    /// rather than hit targets. The canvas state is snapshotted at
+    /// construction: shapes added or removed afterwards are not reflected.
+    /// Use <see cref="Refit"/> when indexed shapes move; build a new
+    /// <see cref="RayCaster"/> when the scene changes structurally.
     /// </summary>
     /// <param name="leafSize">Maximum primitives per BVH leaf. Smaller values
     /// produce a deeper tree (more traversal, fewer leaf tests); larger values
@@ -103,6 +106,9 @@ public class RayCaster
         {
             if (drawable is not Shape s) continue;
             if (!s.IsVisible) continue;
+            // VPoint markers are zero-area visual labels — never a useful
+            // ray-cast target. Always skip them.
+            if (s is VPoint) continue;
 
             BoundingBox? bb;
             try { bb = s.GetBounds(); }

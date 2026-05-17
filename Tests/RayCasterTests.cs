@@ -197,20 +197,32 @@ public class RayCasterTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_IncludesAutoRegisteredVPoints()
+    public void Constructor_AlwaysExcludesVPoints()
     {
-        // A bare VPoint is a valid visible canvas shape — RayCaster should
-        // index it. The slab test must stay finite even when the ray is
-        // axis-aligned (direction Y == 0) and the shape's AABB is degenerate
-        // on that same axis (a VPoint has zero extent on both axes).
+        // VPoint markers are zero-area visual labels — they have no
+        // meaningful ray hit and are unconditionally skipped by the
+        // RayCaster, regardless of IsVisible or how they were registered.
         _ = new VPoint(10, 0);
+        _ = new VPoint(20, 0);
         var rc = new RayCaster();
-        Assert.Equal(1, rc.Count);
 
+        Assert.Equal(0, rc.Count);
+        Assert.Null(rc.FindIntersection(new VXYZ(0, 0, 0), new VXYZ(1, 0, 0)));
+    }
+
+    [Fact]
+    public void Constructor_ExcludesVPointsEvenWhenMixedWithRealShapes()
+    {
+        // Auto-registered VPoint (the center) plus the VCircle — only the
+        // circle should be indexed.
+        var circle = new VCircle(new VPoint(10, 0), 1);
+        var rc = new RayCaster();
+
+        Assert.Equal(1, rc.Count);
         var hit = rc.FindIntersection(new VXYZ(0, 0, 0), new VXYZ(1, 0, 0));
         Assert.NotNull(hit);
-        Assert.Equal(10.0, hit!.Value.Point.X, 6);
-        Assert.False(double.IsNaN(hit.Value.Point.Y), "Hit point Y must not be NaN");
+        Assert.Same(circle, hit!.Value.Shape);
+        Assert.Equal(9.0, hit.Value.Point.X, 6);
     }
 
     // -- maxDistance ----------------------------------------------------------

@@ -741,6 +741,8 @@ double area = region.Area;
 
 `RayCaster` accelerates ray-vs-shape queries over large 2D scenes. It snapshots all visible shapes on the canvas (every `Shape` in `CanvasRenderer.Instance.GetShapes()` with `IsVisible == true`) at construction, builds a flat-array BVH (Surface Area Heuristic split), then each query traverses iteratively with a stack-allocated stack and inline ray-vs-shape math for `VLine`, `VCircle`, `VArc`, `VEllipse`, `VPolygon` (covers `VRectangle`), and `VPolyline`. Other shape types fall back to AABB hit. The hot path is allocation-free, and queries are thread-safe after construction.
 
+**`VPoint` markers are always excluded** from the index — they're zero-area visual labels, not meaningful ray targets. This holds regardless of `IsVisible` or how the `VPoint` was registered (including auto-registered centers from `new VCircle(new VPoint(...), r)`).
+
 ```csharp
 // Build once over every visible shape currently on the canvas
 // (millions of shapes are fine).
@@ -790,7 +792,7 @@ caster.Refit();
 
 | Type | Description |
 |------|-------------|
-| `RayCaster(int leafSize = 8)` | Snapshots all visible canvas shapes and builds the BVH. Shapes with `IsVisible == false` or non-finite bounds (`VRay`, `VXLine`) are excluded. |
+| `RayCaster(int leafSize = 8)` | Snapshots all visible canvas shapes and builds the BVH. `VPoint` is always excluded; shapes with `IsVisible == false` or non-finite bounds (`VRay`, `VXLine`) are also excluded. |
 | `RayHit(Shape Shape, VXYZ Point, double Distance)` | `readonly record struct` returned by closest-hit queries. |
 | `RayQuery(VXYZ Origin, VXYZ Direction)` | `readonly record struct` for batch input. |
 
