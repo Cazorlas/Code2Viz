@@ -95,7 +95,9 @@
       "PowerShell(cp *)",
       "PowerShell(New-Item *)",
       "Bash(tasklist /FI \"IMAGENAME eq Code2Viz.exe\")",
-      "Bash(\"C:\\\\Work\\\\Nicety\\\\Projects\\\\Code2Viz\\\\bin\\\\Debug\\\\net9.0-windows\\\\Code2Viz.exe\")"
+      "Bash(\"C:\\\\Work\\\\Nicety\\\\Projects\\\\Code2Viz\\\\bin\\\\Debug\\\\net9.0-windows\\\\Code2Viz.exe\")",
+      "PowerShell(dotnet build *)",
+      "PowerShell(dotnet test *)"
     ]
   }
 }
