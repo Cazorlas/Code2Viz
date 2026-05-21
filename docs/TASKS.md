@@ -217,6 +217,14 @@
 
 ---
 
+### Phase 24: Manual Release Flow (2026-05-21)
+- [x] **`Directory.Build.props`** at repo root — canonical `<Version>` / `<AssemblyVersion>` / `<FileVersion>` source. Every C# project in the repo (Code2Viz, Animator, Tests, McpBridge, McpServer, C2VGeometry) inherits it automatically.
+- [x] **`scripts/release.ps1`** — single entry point for bumping and shipping. Guards a clean working tree on `main` in sync with `origin`, bumps `Directory.Build.props` and mirrors the same version into `installer.iss` (Inno Setup can't read MSBuild props, so the script is the only place that touches both), commits as `Release v<new>`, builds Release config of `Code2Viz.csproj` + `Animator/Animator.csproj`, invokes `ISCC.exe` at `C:\Program Files (x86)\Inno Setup 6\` to produce `installer/output/Code2Viz-<new>-Setup.exe`, tags `v<new>`, pushes `main` + tag, then calls `gh release create` with the installer attached and notes auto-generated from `git log v<prev>..HEAD`. Falls back to printing the manual upload URL when `gh` isn't installed.
+- [x] **`CLAUDE.md` `/release` Command** — documents the procedure (run `/update-docs` first as a separate commit so the release ships with current documentation; never bump versions by hand). Mirrored in a `release_command.md` claude memory entry so future sessions follow the same flow.
+- [x] **First release: v1.0.0** — tagged the current state without a bump (the script's bump-then-tag flow is for subsequent releases).
+
+---
+
 ## Implementation Statistics
 
 | Category | Count |
