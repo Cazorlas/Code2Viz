@@ -52,6 +52,9 @@ Source: "{#BuildOutput}\Code2Viz.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildOutput}\Code2Viz.deps.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildOutput}\Code2Viz.runtimeconfig.json"; DestDir: "{app}"; Flags: ignoreversion
 
+; C2VGeometry (shared geometry library used by sketches and projects)
+Source: "{#BuildOutput}\C2VGeometry.dll"; DestDir: "{app}"; Flags: ignoreversion
+
 ; McpBridge
 Source: "{#BuildOutput}\Code2Viz.McpBridge.dll"; DestDir: "{app}"; Flags: ignoreversion
 
