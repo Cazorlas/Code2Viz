@@ -10,7 +10,6 @@ namespace Code2Viz
         public string ProjectName => ProjectNameBox.Text;
         public string ProjectLocation => LocationBox.Text;
         public string FullPath => Path.Combine(ProjectLocation, ProjectName);
-        public Code2Viz.Project.ProjectLanguage SelectedLanguage => LanguageBox.SelectedIndex == 1 ? Code2Viz.Project.ProjectLanguage.FSharp : Code2Viz.Project.ProjectLanguage.CSharp;
         public bool OpenExistingProject { get; private set; }
 
         public NewProjectDialog()

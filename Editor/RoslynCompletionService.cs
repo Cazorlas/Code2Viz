@@ -774,7 +774,6 @@ public class RoslynCompletionService
                 ns.StartsWith("System.Buffers") ||
                 ns.StartsWith("System.Private") ||
                 ns.StartsWith("Internal") ||
-                ns.StartsWith("FSharp.") ||
                 ns.StartsWith("Interop") ||
                 // New additions to further declutter
                 ns.StartsWith("System.Collections.Concurrent") ||

@@ -403,16 +403,11 @@ namespace Code2Viz.Editor
 
         public void LoadLanguageHighlighting(string filePath)
         {
-            var ext = Path.GetExtension(filePath).ToLowerInvariant();
-            var isFSharp = ext == ".fs" || ext == ".fsi" || ext == ".fsx" || ext == ".fsscript";
-
             try
             {
                 var assembly = Assembly.GetEntryAssembly() ?? typeof(SharedEditorController).Assembly;
                 var resourceNames = assembly.GetManifestResourceNames();
-                
-                string targetName = isFSharp ? "FSharpHighlighting.xshd" : "CSharpHighlighting.xshd";
-                var resourceName = resourceNames.FirstOrDefault(r => r.EndsWith(targetName));
+                var resourceName = resourceNames.FirstOrDefault(r => r.EndsWith("CSharpHighlighting.xshd"));
 
                 if (resourceName != null)
                 {
@@ -424,9 +419,8 @@ namespace Code2Viz.Editor
                         return;
                     }
                 }
-                
-                // Fallback
-                _editor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition(isFSharp ? "F#" : "C#");
+
+                _editor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("C#");
             }
             catch (Exception ex)
             {

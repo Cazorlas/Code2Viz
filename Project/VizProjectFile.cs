@@ -28,16 +28,9 @@ public class AssemblyReference
 }
 
 
-public enum ProjectLanguage
-{
-    CSharp,
-    FSharp
-}
-
 public class VizProjectFile
 {
     public string Name { get; set; } = "New Project";
-    public ProjectLanguage Language { get; set; } = ProjectLanguage.CSharp;
     public List<PackageReference> Packages { get; set; } = new();
     public List<AssemblyReference> References { get; set; } = new();
     public ProjectSettings Settings { get; set; } = new();

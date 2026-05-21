@@ -78,7 +78,7 @@ namespace Code2Viz
                 try
                 {
                     // Logic to create project
-                    var project = VizCodeProject.CreateNew(fullPath, dialog.ProjectName, dialog.SelectedLanguage);
+                    var project = VizCodeProject.CreateNew(fullPath, dialog.ProjectName);
                     OpenMainWindow(project);
                 }
                 catch (Exception ex)

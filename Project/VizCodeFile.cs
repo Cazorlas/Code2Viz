@@ -31,11 +31,9 @@ public class VizCodeFile
     private static VizFileKind InferKindFromFileName(string fileName)
     {
         if (fileName.StartsWith("StartSketch", StringComparison.OrdinalIgnoreCase)
-            && (fileName.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
-                || fileName.EndsWith(".fs", StringComparison.OrdinalIgnoreCase)))
+            && fileName.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
             return VizFileKind.Sketch;
-        if (fileName.Equals("StartViz.cs", StringComparison.OrdinalIgnoreCase)
-            || fileName.Equals("StartViz.fs", StringComparison.OrdinalIgnoreCase))
+        if (fileName.Equals("StartViz.cs", StringComparison.OrdinalIgnoreCase))
             return VizFileKind.MainEntry;
         return VizFileKind.Module;
     }

@@ -1,6 +1,5 @@
 using System.Text.RegularExpressions;
 using Code2Viz.Geometry;
-using Code2Viz.Project;
 
 namespace Code2Viz.Canvas;
 
@@ -69,23 +68,18 @@ public class CodeSyncManager
     /// </summary>
     /// <param name="content">The file content.</param>
     /// <param name="shape">The shape with updated properties.</param>
-    /// <param name="language">The target language.</param>
     /// <returns>Tuple of (new content, was found and updated).</returns>
-    public static (string newContent, bool found) UpdateShapeCode(string content, Shape shape, ProjectLanguage language = ProjectLanguage.CSharp)
+    public static (string newContent, bool found) UpdateShapeCode(string content, Shape shape)
     {
         var shapeType = shape.GetType().Name;
 
-        // Find "new VCircle(" (or "VCircle(" for F#) and then scan for balanced closing paren.
-        // This handles nested parentheses like new VCircle(new VPoint(0, 5), 5).
-        var openPattern = language == ProjectLanguage.FSharp
-            ? new Regex($@"{shapeType}\s*\(", RegexOptions.Singleline)
-            : new Regex($@"new\s+{shapeType}\s*\(", RegexOptions.Singleline);
-
+        // Find "new VCircle(" and scan for balanced closing paren. Handles nested
+        // parentheses like new VCircle(new VPoint(0, 5), 5).
+        var openPattern = new Regex($@"new\s+{shapeType}\s*\(", RegexOptions.Singleline);
         var match = openPattern.Match(content);
 
         if (match.Success)
         {
-            // Scan forward from the opening '(' to find the matching closing ')'
             int depth = 1;
             int pos = match.Index + match.Length;
             while (pos < content.Length && depth > 0)
@@ -95,11 +89,7 @@ public class CodeSyncManager
                 pos++;
             }
 
-            // pos now points to right after the matching ')'
-            // Generate the new constructor call
-            var newConstructor = CodeGenerator.GenerateConstructorCall(shape, language);
-
-            // Replace the old constructor (from match start to matching close paren) with the new one
+            var newConstructor = CodeGenerator.GenerateConstructorCall(shape);
             var newContent = content.Substring(0, match.Index) + newConstructor + content.Substring(pos);
             return (newContent, true);
         }

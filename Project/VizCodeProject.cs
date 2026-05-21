@@ -80,7 +80,7 @@ public class VizCodeProject
         Geometry.ShapeDefaults.DimSuppressDimensionLine = ProjectFile.Settings.DimSuppressDimensionLine;
     }
 
-    public static VizCodeProject CreateNew(string directory, string projectName, ProjectLanguage language)
+    public static VizCodeProject CreateNew(string directory, string projectName)
     {
         if (!Directory.Exists(directory))
         {
@@ -93,19 +93,13 @@ public class VizCodeProject
         var project = new VizCodeProject
         {
             ProjectFilePath = projPath,
-            ProjectFile = new VizProjectFile { Name = projectName, Language = language }
+            ProjectFile = new VizProjectFile { Name = projectName }
         };
-        
+
         project.SaveProjectFile();
 
-        // Create entry point file with namespace matching project name
-        var extension = language == ProjectLanguage.FSharp ? ".fs" : ".cs";
-        var fileName = language == ProjectLanguage.FSharp ? "StartViz.fs" : "StartViz.cs";
-        var entryPointPath = Path.Combine(directory, fileName);
-        
-        var content = language == ProjectLanguage.FSharp 
-            ? FSharpTemplates.GetStartVizTemplate(projectName)
-            : Templates.GetStartVizTemplate(projectName);
+        var entryPointPath = Path.Combine(directory, "StartViz.cs");
+        var content = Templates.GetStartVizTemplate(projectName);
 
         var entryPointFile = new VizCodeFile
         {
@@ -204,10 +198,7 @@ public class VizCodeProject
 
     private static IEnumerable<string> DiscoverVizCodeFiles(string directory)
     {
-        var files = new List<string>();
-        files.AddRange(Directory.GetFiles(directory, "*.cs", SearchOption.AllDirectories));
-        files.AddRange(Directory.GetFiles(directory, "*.fs", SearchOption.AllDirectories));
-        return files;
+        return Directory.GetFiles(directory, "*.cs", SearchOption.AllDirectories);
     }
 
     /// <summary>

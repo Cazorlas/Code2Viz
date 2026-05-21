@@ -93,7 +93,7 @@ public static class VizCodeTools
     }
 
     [McpServerTool, Description(
-        "Get the full project context — all source files (.cs/.fs) in the current Code2Viz project. " +
+        "Get the full project context — all C# source files in the current Code2Viz project. " +
         "Returns JSON with fileCount and a files array, each containing fileName, isEntryPoint, and content. " +
         "Use this to understand custom classes, helper methods, and other code defined across the project " +
         "before writing code that references them. The entry point file (StartViz.cs) contains Main(). " +
@@ -114,7 +114,7 @@ public static class VizCodeTools
         "Use this to add helper classes, utility code, or data files that Main() in StartViz.cs can reference. " +
         "Do NOT use this to update StartViz.cs — use execute_vizcode instead, which sets the Main() body.")]
     public static async Task<string> UpdateFile(
-        [Description("File name (e.g. 'Room.cs', 'Helpers.cs'). Must end in .cs or .fs.")] string fileName,
+        [Description("File name (e.g. 'Room.cs', 'Helpers.cs'). Must end in .cs.")] string fileName,
         [Description("The full source code content for the file.")] string content)
     {
         using var client = new IpcClient();

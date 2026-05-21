@@ -7,12 +7,6 @@
         ResizeMode="NoResize">
     <Grid Margin="20">
         <StackPanel>
-            <TextBlock Text="Language" Foreground="#CCCCCC" Margin="0,0,0,5"/>
-            <ComboBox x:Name="LanguageBox" Margin="0,0,0,15" SelectedIndex="0">
-                <ComboBoxItem Content="C#" Tag="CSharp"/>
-                <ComboBoxItem Content="F#" Tag="FSharp"/>
-            </ComboBox>
-
             <TextBlock Text="Project Name" Foreground="#CCCCCC" Margin="0,0,0,5"/>
             <TextBox x:Name="ProjectNameBox" Padding="5" Margin="0,0,0,15" Text="MyVizProject"/>
 

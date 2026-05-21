@@ -1844,7 +1844,7 @@ namespace StartViz
 ### Project Explorer
 The Project Explorer panel (right side) shows all files and folders in your project.
 
-**Drag and Drop**: Move files and folders between directories by dragging them in the tree view. Entry point files (`StartViz.cs`/`StartViz.fs`) and the root project node cannot be moved. Open file tabs and references update automatically after a move.
+**Drag and Drop**: Move files and folders between directories by dragging them in the tree view. The entry point file (`StartViz.cs`) and the root project node cannot be moved. Open file tabs and references update automatically after a move.
 
 **Context Menu** (right-click any file or folder):
 - **New File** / **New Folder** - Create new items
@@ -2181,7 +2181,6 @@ dotnet run
 
 - **AvalonEdit** (6.3.0.90) - Code editor with syntax highlighting
 - **Microsoft.CodeAnalysis.CSharp** (4.8.0) - Roslyn compilation for C# code execution
-- **FSharp.Compiler.Service** - F# compilation support
 - **NuGet.Protocol** - Package management integration
 
 ---

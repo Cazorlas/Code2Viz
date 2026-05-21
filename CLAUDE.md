@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Code2Viz is a WPF 2D geometry visualization application that allows users to write C# or F# code to create and visualize shapes on an interactive canvas. Users write code in `.cs` files, which are compiled at runtime using Roslyn and executed to render shapes.
+Code2Viz is a WPF 2D geometry visualization application that allows users to write C# code to create and visualize shapes on an interactive canvas. Users write code in `.cs` files, which are compiled at runtime using Roslyn and executed to render shapes.
 
 ## Tech Stack
 - **Framework**: WPF on .NET 9.0
@@ -155,7 +155,7 @@ Due to naming conflicts with WPF types, use these aliases:
 **After ANY code change that affects the public API (new classes, methods, properties, or signature changes), you MUST update ALL of the following:**
 
 1. **README.md** - Update examples, API tables, and feature descriptions
-2. **Help Documentation (DocGenerator.cs)** - Update `_summaries`, `_csharpSamples`, `_fsharpSamples`, and `_memberDescriptions` dictionaries
+2. **Help Documentation (DocGenerator.cs)** - Update `_summaries`, `_csharpSamples`, and `_memberDescriptions` dictionaries
 3. **MCP Server Documentation**:
    - `McpServer/SKILL.md` - Update the skill reference with new types, constructors, and examples
    - `McpServer/Resources/ApiReferenceResource.cs` - Update the API reference resource content

@@ -53,27 +53,14 @@
                 </StackPanel>
             </Border>
 
-            <!-- Document Viewers -->
-            <TabControl Grid.Row="1" Margin="0,5,0,0">
-                <TabItem Header="C# Reference">
-                    <FlowDocumentScrollViewer x:Name="DocViewer" VerticalScrollBarVisibility="Auto">
-                        <FlowDocument>
-                            <Paragraph FontSize="16" Foreground="Gray" TextAlignment="Center" Margin="0,50,0,0">
-                                Select a class from the left to view C# documentation.
-                            </Paragraph>
-                        </FlowDocument>
-                    </FlowDocumentScrollViewer>
-                </TabItem>
-                <TabItem Header="F# Reference">
-                    <FlowDocumentScrollViewer x:Name="DocViewerFSharp" VerticalScrollBarVisibility="Auto">
-                        <FlowDocument>
-                            <Paragraph FontSize="16" Foreground="Gray" TextAlignment="Center" Margin="0,50,0,0">
-                                Select a class from the left to view F# documentation and examples.
-                            </Paragraph>
-                        </FlowDocument>
-                    </FlowDocumentScrollViewer>
-                </TabItem>
-            </TabControl>
+            <!-- Document Viewer -->
+            <FlowDocumentScrollViewer Grid.Row="1" x:Name="DocViewer" VerticalScrollBarVisibility="Auto" Margin="0,5,0,0">
+                <FlowDocument>
+                    <Paragraph FontSize="16" Foreground="Gray" TextAlignment="Center" Margin="0,50,0,0">
+                        Select a class from the left to view C# documentation.
+                    </Paragraph>
+                </FlowDocument>
+            </FlowDocumentScrollViewer>
         </Grid>
     </Grid>
 </Window>

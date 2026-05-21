@@ -11,7 +11,6 @@
 ; C:\Work\Nicety\Projects\Code2Viz\bin\Release\net9.0-windows
 #define BuildOutput "bin\Release\net9.0-windows"
 #define SampleCSharp "CSharp-SampleProject"
-#define SampleFSharp "FSharp-SampleProject"
 
 [Setup]
 AppId={{B7A3F2E1-4D5C-6E7F-8A9B-0C1D2E3F4A5B}
@@ -62,9 +61,6 @@ Source: "{#BuildOutput}\Microsoft.CodeAnalysis.dll"; DestDir: "{app}"; Flags: ig
 Source: "{#BuildOutput}\Microsoft.CodeAnalysis.CSharp.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildOutput}\Microsoft.CodeAnalysis.CSharp.Scripting.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildOutput}\Microsoft.CodeAnalysis.Scripting.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#BuildOutput}\FSharp.Compiler.Service.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#BuildOutput}\FSharp.Core.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#BuildOutput}\FSharp.DependencyManager.Nuget.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildOutput}\Microsoft.Extensions.DependencyInjection.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildOutput}\Microsoft.Extensions.DependencyInjection.Abstractions.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BuildOutput}\Microsoft.Extensions.Logging.dll"; DestDir: "{app}"; Flags: ignoreversion
@@ -102,7 +98,6 @@ Source: "{#BuildOutput}\zh-Hant\*"; DestDir: "{app}\zh-Hant"; Flags: ignoreversi
 
 ; Sample projects
 Source: "{#SampleCSharp}\*"; DestDir: "{app}\Samples\CSharp-SampleProject"; Flags: ignoreversion recursesubdirs
-Source: "{#SampleFSharp}\*"; DestDir: "{app}\Samples\FSharp-SampleProject"; Flags: ignoreversion recursesubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

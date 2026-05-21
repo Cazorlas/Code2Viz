@@ -79,7 +79,6 @@ namespace Code2Viz
         private void ShowWelcomePage()
         {
             DocViewer.Document = _generator.GenerateWelcomePage();
-            DocViewerFSharp.Document = _generator.GenerateWelcomePage();
         }
 
         private void PopulateTree(List<Type> types)
@@ -146,7 +145,6 @@ namespace Code2Viz
             if (e.NewValue is TreeViewItem item && item.Tag is Type type)
             {
                 DocViewer.Document = _generator.GenerateDocForType(type);
-                DocViewerFSharp.Document = _generator.GenerateFSharpDocForType(type);
             }
         }
 

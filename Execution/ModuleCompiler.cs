@@ -10,24 +10,11 @@ using Code2Viz.Project;
 
 namespace Code2Viz.Execution;
 
-public class FSharpDiagnosticInfo
-{
-    public string FilePath { get; set; } = string.Empty;
-    public int StartLine { get; set; }
-    public int StartColumn { get; set; }
-    public int EndLine { get; set; }
-    public int EndColumn { get; set; }
-    public string Message { get; set; } = string.Empty;
-    public string Severity { get; set; } = string.Empty;
-    public string ErrorNumber { get; set; } = string.Empty;
-}
-
 public class CompilationResult
 {
     public bool Success { get; set; }
     public string? Error { get; set; }
     public IEnumerable<Diagnostic>? Diagnostics { get; set; }
-    public List<FSharpDiagnosticInfo>? FSharpDiagnostics { get; set; }
 }
 
 public class ModuleCompiler
@@ -120,13 +107,6 @@ public class ModuleCompiler
 
     public async Task<CompilationResult> CompileAndExecuteAsync(VizCodeProject project)
     {
-        // Dispatch based on language
-        if (project.ProjectFile.Language == ProjectLanguage.FSharp)
-        {
-            var fsCompiler = new FSharpModuleCompiler();
-            return await fsCompiler.CompileAndExecuteAsync(project);
-        }
-
         try
         {
             // Tear down any currently-running sketch (unloads its assembly context) before
@@ -196,12 +176,6 @@ public class ModuleCompiler
     /// </summary>
     public async Task<CompilationResult> CheckSyntaxAsync(VizCodeProject project)
     {
-        if (project.ProjectFile.Language == ProjectLanguage.FSharp)
-        {
-            var fsCompiler = new FSharpModuleCompiler();
-            return await fsCompiler.CheckSyntaxAsync(project);
-        }
-
         try
         {
             var (compilation, _) = await CreateCompilationAsync(project);

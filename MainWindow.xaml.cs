@@ -2121,50 +2121,6 @@ public partial class MainWindow : Window
                 }
             }
 
-            // Handle F# diagnostics
-            if (result.FSharpDiagnostics != null)
-            {
-                foreach (var diagnostic in result.FSharpDiagnostics)
-                {
-                    if (diagnostic.Severity != "Error" && diagnostic.Severity != "Warning")
-                        continue;
-
-                    // Check if diagnostic belongs to the currently active file
-                    var activePath = _activeFile?.FilePath;
-                    bool isMatch = false;
-
-                    if (activePath != null)
-                    {
-                        if (string.IsNullOrEmpty(diagnostic.FilePath))
-                            isMatch = true;
-                        else if (string.Equals(diagnostic.FilePath, activePath, StringComparison.OrdinalIgnoreCase))
-                            isMatch = true;
-                        else if (string.Equals(Path.GetFileName(diagnostic.FilePath), Path.GetFileName(activePath), StringComparison.OrdinalIgnoreCase))
-                            isMatch = true;
-                    }
-
-                    if (isMatch)
-                    {
-                        try
-                        {
-                            var offset = CodeEditor.Document.GetOffset(new TextLocation(diagnostic.StartLine, diagnostic.StartColumn + 1));
-                            var endOffset = CodeEditor.Document.GetOffset(new TextLocation(diagnostic.EndLine, diagnostic.EndColumn + 1));
-                            var length = endOffset - offset;
-
-                            if (length > 0)
-                            {
-                                var color = diagnostic.Severity == "Error" ? Colors.Red : Colors.Orange;
-                                _textMarkerService?.Create(offset, length, diagnostic.Message, color);
-
-                                if (diagnostic.Severity == "Error")
-                                    totalErrorCount++;
-                            }
-                        }
-                        catch { /* Ignore invalid ranges */ }
-                    }
-                }
-            }
-
             // Update inlay hints
             if (_inlayHintGenerator != null && _inlayHintGenerator.Enabled)
             {
@@ -2821,21 +2777,10 @@ public partial class MainWindow : Window
 
     private void UpdateSyntaxHighlighting(string fileName)
     {
-        var ext = Path.GetExtension(fileName).ToLower();
-        var isFSharp = ext == ".fs" || ext == ".fsi" || ext == ".fsx" || ext == ".fsscript";
-        
-        // If file has no extension (e.g. unsaved new file might need logic), fallback to project language
-        if (string.IsNullOrEmpty(ext) && _currentProject != null)
-        {
-            isFSharp = _currentProject.ProjectFile.Language == ProjectLanguage.FSharp;
-        }
-
-        var resourceName = isFSharp ? "Code2Viz.Editor.FSharpHighlighting.xshd" : "Code2Viz.Editor.CSharpHighlighting.xshd";
-        
         try
         {
             var assembly = typeof(MainWindow).Assembly;
-            using var stream = assembly.GetManifestResourceStream(resourceName);
+            using var stream = assembly.GetManifestResourceStream("Code2Viz.Editor.CSharpHighlighting.xshd");
 
             if (stream != null)
             {
@@ -2844,14 +2789,12 @@ public partial class MainWindow : Window
             }
             else
             {
-                // Fallback
-                CodeEditor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition(isFSharp ? "F#" : "C#");
+                CodeEditor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("C#");
             }
         }
         catch
         {
-            // Fallback
-             CodeEditor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("C#");
+            CodeEditor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("C#");
         }
     }
 
@@ -2953,7 +2896,7 @@ public partial class MainWindow : Window
                 EnableRaisingEvents = true
             };
 
-            // Watch for .cs and .fs files
+            // Watch for .cs files
             _projectWatcher.Created += OnProjectFileChanged;
             _projectWatcher.Deleted += OnProjectFileChanged;
             _projectWatcher.Renamed += OnProjectFileRenamed;
@@ -3025,7 +2968,7 @@ public partial class MainWindow : Window
 
         // Refresh for source code files
         var ext = Path.GetExtension(path).ToLowerInvariant();
-        return ext == ".cs" || ext == ".fs";
+        return ext == ".cs";
     }
 
     private void RefreshProjectFromDisk()
@@ -3090,10 +3033,8 @@ public partial class MainWindow : Window
             // Don't allow closing the entry point file
             if (file.IsEntryPoint)
             {
-                var entryFileName = _currentProject?.ProjectFile.Language == ProjectLanguage.FSharp
-                    ? "StartViz.fs" : "StartViz.cs";
                 MessageBox.Show(
-                    $"Cannot close the entry point file ({entryFileName}).",
+                    "Cannot close the entry point file (StartViz.cs).",
                     "Cannot Close",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
@@ -3159,7 +3100,7 @@ public partial class MainWindow : Window
                 }
                 else
                 {
-                    _currentProject = VizCodeProject.CreateNew(dialog.FullPath, dialog.ProjectName, dialog.SelectedLanguage);
+                    _currentProject = VizCodeProject.CreateNew(dialog.FullPath, dialog.ProjectName);
                     SetStatus($"Project created: {dialog.ProjectName}", false);
                 }
 
@@ -3192,25 +3133,19 @@ public partial class MainWindow : Window
             return;
         }
 
-        var isFSharp = _currentProject.ProjectFile.Language == ProjectLanguage.FSharp;
         var projectName = _currentProject.ProjectFile.Name;
 
-        // Ask whether this is a module file or a p5.js-style Sketch (C# projects only)
-        bool createSketch = false;
-        if (!isFSharp)
-        {
-            var result = MessageBox.Show(
-                "Create a Sketch file?\n\nYes — p5.js-style animation file with Setup()/Draw() blocks (uses C2VGeometry).\nNo — regular module file.",
-                "New File",
-                MessageBoxButton.YesNoCancel,
-                MessageBoxImage.Question);
-            if (result == MessageBoxResult.Cancel) return;
-            createSketch = result == MessageBoxResult.Yes;
-        }
+        var result = MessageBox.Show(
+            "Create a Sketch file?\n\nYes — p5.js-style animation file with Setup()/Draw() blocks (uses C2VGeometry).\nNo — regular module file.",
+            "New File",
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Question);
+        if (result == MessageBoxResult.Cancel) return;
+        bool createSketch = result == MessageBoxResult.Yes;
 
         // Generate unique name. Sketches use the StartSketch convention; the auto-infer
         // in VizCodeFile.Kind picks up that name pattern even after reload.
-        var ext = isFSharp ? ".fs" : ".cs";
+        const string ext = ".cs";
         var baseStem = createSketch ? "StartSketch" : "Untitled";
         int i = 1;
         string fileName = createSketch ? $"{baseStem}{ext}" : $"{baseStem}-1{ext}";
@@ -3221,13 +3156,9 @@ public partial class MainWindow : Window
         }
 
         var className = Path.GetFileNameWithoutExtension(fileName);
-        string content;
-        if (createSketch)
-            content = Templates.GetStartSketchTemplate(projectName);
-        else if (isFSharp)
-            content = FSharpTemplates.GetEmptyModuleTemplate(projectName, className);
-        else
-            content = string.Format(Templates.EmptyModuleTemplate, projectName, className);
+        string content = createSketch
+            ? Templates.GetStartSketchTemplate(projectName)
+            : string.Format(Templates.EmptyModuleTemplate, projectName, className);
 
         var newFile = new VizCodeFile
         {
@@ -3787,14 +3718,11 @@ public partial class MainWindow : Window
         foreach (var file in _currentProject.Files.Where(f => f.IsNew).ToList())
         {
             SelectFile(file); // Show the file being saved
-            var isFSharp = _currentProject.ProjectFile.Language == ProjectLanguage.FSharp;
             var dialog = new SaveFileDialog
             {
                 FileName = file.FileName,
-                Filter = isFSharp
-                    ? "F# Files (*.fs)|*.fs|Text Files (*.txt)|*.txt|JSON Files (*.json)|*.json"
-                    : "C# Files (*.cs)|*.cs|Text Files (*.txt)|*.txt|JSON Files (*.json)|*.json",
-                DefaultExt = isFSharp ? ".fs" : ".cs",
+                Filter = "C# Files (*.cs)|*.cs|Text Files (*.txt)|*.txt|JSON Files (*.json)|*.json",
+                DefaultExt = ".cs",
                 InitialDirectory = _currentProject.ProjectDirectory
             };
 
@@ -3885,9 +3813,7 @@ public partial class MainWindow : Window
         // Verify entry point exists
         if (_currentProject.EntryPointFile == null)
         {
-            var expectedFile = _currentProject.ProjectFile.Language == ProjectLanguage.FSharp
-                ? "StartViz.fs" : "StartViz.cs";
-            SetStatus($"Error: {expectedFile} not found", isError: true);
+            SetStatus("Error: StartViz.cs not found", isError: true);
             return;
         }
 
@@ -3932,9 +3858,7 @@ public partial class MainWindow : Window
             }
             else
             {
-                // Count errors for status (both C# and F# diagnostics)
-                var errorCount = (result.Diagnostics?.Count(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error) ?? 0)
-                               + (result.FSharpDiagnostics?.Count(d => d.Severity == "Error") ?? 0);
+                var errorCount = result.Diagnostics?.Count(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error) ?? 0;
 
                 if (errorCount > 0)
                 {
@@ -4014,51 +3938,6 @@ public partial class MainWindow : Window
                             {
                                 var color = diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error ? Colors.Red : Colors.Orange;
                                 _textMarkerService?.Create(offset, length, diagnostic.GetMessage(), color);
-                            }
-                        }
-                        catch (Exception) { /* Ignore invalid ranges */ }
-                    }
-                }
-            }
-
-            // Show F# diagnostics (errors/warnings) in console and editor
-            if (result.FSharpDiagnostics != null)
-            {
-                foreach (var diagnostic in result.FSharpDiagnostics)
-                {
-                    if (diagnostic.Severity != "Error" && diagnostic.Severity != "Warning")
-                        continue;
-
-                    // Add to console as clickable error entry
-                    var message = $"FS{diagnostic.ErrorNumber}: {diagnostic.Message}";
-                    Console.ConsoleOutput.Instance.WriteCompilationError(diagnostic.FilePath, diagnostic.StartLine, diagnostic.StartColumn, message);
-
-                    // Also highlight in editor if it matches the active file
-                    var activePath = _activeFile?.FilePath;
-                    bool isMatch = false;
-
-                    if (activePath != null)
-                    {
-                        if (string.IsNullOrEmpty(diagnostic.FilePath))
-                            isMatch = true;
-                        else if (string.Equals(diagnostic.FilePath, activePath, StringComparison.OrdinalIgnoreCase))
-                            isMatch = true;
-                        else if (string.Equals(Path.GetFileName(diagnostic.FilePath), Path.GetFileName(activePath), StringComparison.OrdinalIgnoreCase))
-                            isMatch = true;
-                    }
-
-                    if (isMatch)
-                    {
-                        try
-                        {
-                            var offset = CodeEditor.Document.GetOffset(new TextLocation(diagnostic.StartLine, diagnostic.StartColumn + 1));
-                            var endOffset = CodeEditor.Document.GetOffset(new TextLocation(diagnostic.EndLine, diagnostic.EndColumn + 1));
-                            var length = endOffset - offset;
-
-                            if (length > 0)
-                            {
-                                var color = diagnostic.Severity == "Error" ? Colors.Red : Colors.Orange;
-                                _textMarkerService?.Create(offset, length, diagnostic.Message, color);
                             }
                         }
                         catch (Exception) { /* Ignore invalid ranges */ }
@@ -4156,7 +4035,7 @@ public partial class MainWindow : Window
         if (_currentProject == null)
         {
             var tempDir = Path.Combine(Path.GetTempPath(), "Code2Viz_Mcp_" + Guid.NewGuid().ToString("N")[..8]);
-            _currentProject = VizCodeProject.CreateNew(tempDir, "McpProject", ProjectLanguage.CSharp);
+            _currentProject = VizCodeProject.CreateNew(tempDir, "McpProject");
             LoadProjectTree();
             RefreshFileTabs();
             var entry = _currentProject.EntryPointFile;
@@ -4305,8 +4184,7 @@ public partial class MainWindow : Window
             else
             {
                 // Show error count in status bar only (no dialogs)
-                var errorCount = (result.Diagnostics?.Count(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error) ?? 0)
-                               + (result.FSharpDiagnostics?.Count(d => d.Severity == "Error") ?? 0);
+                var errorCount = result.Diagnostics?.Count(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error) ?? 0;
                 if (errorCount > 0)
                 {
                     SetStatus($"Auto-update: {errorCount} error{(errorCount != 1 ? "s" : "")}", isError: true);
@@ -5554,7 +5432,6 @@ public partial class MainWindow : Window
         if (entryFile == null) return;
 
         var content = entryFile.Content;
-        var language = _currentProject.ProjectFile.Language;
         bool codeChanged = false;
 
         if (e.PropertyName == "Name" && !string.IsNullOrEmpty(e.OldValue))
@@ -5594,7 +5471,7 @@ public partial class MainWindow : Window
         else
         {
             // Geometry change - update constructor parameters
-            var (newContent, found) = Canvas.CodeSyncManager.UpdateShapeCode(content, shape, language);
+            var (newContent, found) = Canvas.CodeSyncManager.UpdateShapeCode(content, shape);
             if (found && newContent != content) { content = newContent; codeChanged = true; }
         }
 
@@ -6349,10 +6226,9 @@ public partial class MainWindow : Window
         if (entryFile == null) return;
 
         var content = entryFile.Content;
-        var language = _currentProject.ProjectFile.Language;
 
         // Try to update the shape's constructor in code
-        var (newContent, found) = Canvas.CodeSyncManager.UpdateShapeCode(content, shape, language);
+        var (newContent, found) = Canvas.CodeSyncManager.UpdateShapeCode(content, shape);
 
         if (found && newContent != content)
         {
@@ -6592,14 +6468,11 @@ public partial class MainWindow : Window
 
     private void OnShapeCompleted(object? sender, Geometry.Shape shape)
     {
-        // Generate code based on project language
-        var language = _currentProject?.ProjectFile?.Language ?? Project.ProjectLanguage.CSharp;
-
         // Sync counters from existing code to avoid duplicate variable names
         var existingCode = _currentProject?.EntryPointFile?.Content ?? "";
         Canvas.CodeGenerator.SyncCountersFromCode(existingCode);
 
-        var code = Canvas.CodeGenerator.GenerateCode(shape, language);
+        var code = Canvas.CodeGenerator.GenerateCode(shape);
         InsertShapeCode(code);
 
         // Add the shape directly to the canvas (no need to run code)
@@ -6711,10 +6584,8 @@ public partial class MainWindow : Window
         var insertPos = FindMainMethodInsertPosition(content);
         if (insertPos < 0) return;
 
-        // Insert the code with proper indentation (8 spaces for F#, 12 for C#)
-        var isFSharp = _currentProject?.ProjectFile?.Language == Project.ProjectLanguage.FSharp;
-        var indent = isFSharp ? "        " : "            ";
-        var indentedCode = indent + code + Environment.NewLine;
+        // Insert the code with 12-space indent (inside Main body)
+        var indentedCode = "            " + code + Environment.NewLine;
         var newContent = content.Insert(insertPos, indentedCode);
 
         // Update the file content
@@ -6740,75 +6611,29 @@ public partial class MainWindow : Window
 
     private int FindMainMethodInsertPosition(string content)
     {
-        var isFSharp = _currentProject?.ProjectFile?.Language == Project.ProjectLanguage.FSharp;
+        // C# syntax: "public static void Main()"
+        var mainIndex = content.IndexOf("public static void Main");
+        if (mainIndex < 0) return -1;
 
-        if (isFSharp)
+        // Find the opening brace of Main()
+        var braceStart = content.IndexOf('{', mainIndex);
+        if (braceStart < 0) return -1;
+
+        // Find matching closing brace
+        int braceCount = 1;
+        int pos = braceStart + 1;
+        int lastNewline = pos;
+
+        while (pos < content.Length && braceCount > 0)
         {
-            // F# syntax: "let Main() ="
-            var mainIndex = content.IndexOf("let Main()");
-            if (mainIndex < 0) return -1;
-
-            // Find the '=' after Main()
-            var eqIndex = content.IndexOf('=', mainIndex);
-            if (eqIndex < 0) return -1;
-
-            // Find the end of the file or next top-level declaration
-            // In F#, we insert at the end of the Main function (before any following module/type)
-            // For simplicity, find the last non-empty line before end of module or file
-            var insertPos = content.Length;
-
-            // Look for next module, type, or let at same indentation level
-            var lines = content.Substring(eqIndex + 1).Split('\n');
-            var currentPos = eqIndex + 1;
-            var lastContentLine = currentPos;
-
-            foreach (var line in lines)
-            {
-                var trimmed = line.TrimStart();
-                // Check if this is a new top-level declaration (not indented content)
-                if (trimmed.Length > 0 && !char.IsWhiteSpace(line[0]) &&
-                    (trimmed.StartsWith("module ") || trimmed.StartsWith("type ") ||
-                     trimmed.StartsWith("let ") || trimmed.StartsWith("open ") ||
-                     trimmed.StartsWith("//")))
-                {
-                    break;
-                }
-                if (trimmed.Length > 0 && !trimmed.StartsWith("//"))
-                {
-                    lastContentLine = currentPos + line.Length;
-                }
-                currentPos += line.Length + 1; // +1 for \n
-            }
-
-            // Insert after the last content line in Main
-            return lastContentLine + 1;
+            if (content[pos] == '{') braceCount++;
+            else if (content[pos] == '}') braceCount--;
+            if (content[pos] == '\n') lastNewline = pos + 1;
+            pos++;
         }
-        else
-        {
-            // C# syntax: "public static void Main()"
-            var mainIndex = content.IndexOf("public static void Main");
-            if (mainIndex < 0) return -1;
 
-            // Find the opening brace of Main()
-            var braceStart = content.IndexOf('{', mainIndex);
-            if (braceStart < 0) return -1;
-
-            // Find matching closing brace
-            int braceCount = 1;
-            int pos = braceStart + 1;
-            int lastNewline = pos;
-
-            while (pos < content.Length && braceCount > 0)
-            {
-                if (content[pos] == '{') braceCount++;
-                else if (content[pos] == '}') braceCount--;
-                if (content[pos] == '\n') lastNewline = pos + 1;
-                pos++;
-            }
-
-            // Insert before the closing brace line
-            return lastNewline;
-        }
+        // Insert before the closing brace line
+        return lastNewline;
     }
 
     #endregion
@@ -7709,8 +7534,7 @@ public partial class MainWindow : Window
         var ext = Path.GetExtension(fileName);
         if (string.IsNullOrEmpty(ext))
         {
-            ext = _currentProject.ProjectFile.Language == ProjectLanguage.FSharp ? ".fs" : ".cs";
-            fileName += ext;
+            fileName += ".cs";
         }
 
         var fullPath = Path.Combine(targetDir, fileName);
@@ -7726,10 +7550,7 @@ public partial class MainWindow : Window
             // Create file with template
             var projectName = _currentProject.ProjectFile.Name;
             var className = Path.GetFileNameWithoutExtension(fileName);
-            var isFSharp = _currentProject.ProjectFile.Language == ProjectLanguage.FSharp;
-            var content = isFSharp
-                ? FSharpTemplates.GetEmptyModuleTemplate(projectName, className)
-                : string.Format(Templates.EmptyModuleTemplate, projectName, className);
+            var content = string.Format(Templates.EmptyModuleTemplate, projectName, className);
 
             File.WriteAllText(fullPath, content);
 
@@ -8176,16 +7997,10 @@ public partial class MainWindow : Window
     private bool IsEntryPointFile(string filePath)
     {
         var fileName = Path.GetFileName(filePath);
-        return fileName.Equals("StartViz.cs", StringComparison.OrdinalIgnoreCase)
-            || fileName.Equals("StartViz.fs", StringComparison.OrdinalIgnoreCase);
+        return fileName.Equals("StartViz.cs", StringComparison.OrdinalIgnoreCase);
     }
 
-    private string GetDefaultNewFileName()
-    {
-        if (_currentProject == null) return "NewFile.cs";
-        var ext = _currentProject.ProjectFile.Language == ProjectLanguage.FSharp ? ".fs" : ".cs";
-        return $"NewFile{ext}";
-    }
+    private string GetDefaultNewFileName() => "NewFile.cs";
 
     private string? PromptForInput(string title, string prompt, string defaultValue)
     {
@@ -10355,7 +10170,7 @@ public class {typeName}
             var fileName = _activeFile.FileName ?? "";
             var ext = Path.GetExtension(fileName);
             if (string.IsNullOrEmpty(ext))
-                ext = _currentProject?.ProjectFile.Language == ProjectLanguage.FSharp ? ".fs" : ".cs";
+                ext = ".cs";
 
             moveItem.Header = $"Move type '{className}' to {className}{ext}";
             moveItem.Tag = className;
@@ -10423,7 +10238,7 @@ public class {typeName}
         var fileName = _activeFile.FileName ?? "";
         var ext = Path.GetExtension(fileName);
         if (string.IsNullOrEmpty(ext))
-            ext = _currentProject.ProjectFile.Language == ProjectLanguage.FSharp ? ".fs" : ".cs";
+            ext = ".cs";
         var newFileName = $"{typeName}{ext}";
 
         // Basic template for new file (preserving usings if possible, or just the type)
