@@ -32,6 +32,13 @@ public class VCircle : Shape, ICurve
         Color = ShapeDefaults.GlobalColor ?? "Yellow";
     }
 
+    public VCircle(VXYZ center, double radius)
+    {
+        Center = VPoint.Internal(center.X, center.Y);
+        Radius = radius;
+        Color = ShapeDefaults.GlobalColor ?? "Yellow";
+    }
+
     public VCircle(double centerX, double centerY, double radius)
     {
         Center = VPoint.Internal(centerX, centerY);

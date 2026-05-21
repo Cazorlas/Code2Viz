@@ -61,7 +61,7 @@ Viz2d is a desktop application that enables users to visualize 2D geometric shap
 | FR-020 | Stroke Color | Done | Customizable border color |
 | FR-021 | Fill Color | Done | Customizable fill color |
 | FR-022 | Stroke Thickness | Done | Customizable line width |
-| FR-023 | Dash Pattern | Done | StrokeStyle property (Dashed, Dotted, DashDot, etc.) |
+| FR-023 | Dash Pattern | Done | LineType property (Dashed, Dotted, DashDot, etc.) |
 | FR-024 | Opacity | Done | Transparency support |
 
 ### 2.3 Canvas Features

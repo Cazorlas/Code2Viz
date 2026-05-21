@@ -90,7 +90,7 @@ public class ApiReferenceResource
         ### VCircle
         ```csharp
         new VCircle(centerX, centerY, radius);
-        new VCircle(center, radius);                       // VPoint center
+        new VCircle(center, radius);                       // VPoint or VXYZ center
         new VCircle(p1, p2, p3);                           // circumcircle through 3 points
         VCircle.FromCenterDiameter(center, diameter);
         VCircle.FromCenterDiameter(cx, cy, diameter);

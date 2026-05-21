@@ -134,9 +134,9 @@ Core timeline playback is implemented; items below are advanced timeline UX poli
 ## Low Priority (P2) - Styling Enhancements
 
 ### Shape Styling
-- [x] **Dash patterns** - Dashed/dotted lines via StrokeStyle property
+- [x] **Dash patterns** - Dashed/dotted lines via LineType property
   ```csharp
-  line.StrokeStyle = StrokeStyle.Dashed; // Dashed, Dotted, DashDot, DashDotDot, Center, Phantom, Hidden
+  line.LineType = LineType.Dashed; // Dashed, Dotted, DashDot, DashDotDot, Center, Phantom, Hidden
   ```
 - [ ] **Line caps** - Round, Square, Flat
 - [ ] **Line joins** - Miter, Bevel, Round
@@ -222,10 +222,12 @@ Core timeline playback is implemented; items below are advanced timeline UX poli
 - [x] PDF export (vector graphics)
 
 ### Editor
-- [x] Syntax highlighting (C# and F#)
+- [x] Syntax highlighting (C#)
 - [x] Code completion and IntelliSense
 - [x] Code folding and bracket matching
 - [x] Code snippets
+- [x] Shared editor host glue (`Editor/SharedEditorController`) — Animator wires up TextMarkerService, syntax-check timer, bracket/selection renderers, semantic highlighter, inlay hints, code lens, snippets, folding, hover tooltips, multi-cursor, F12/F2/Ctrl+. key bindings in one Initialize() call. Code2Viz still has its parallel inlined implementation in MainWindow.xaml.cs.
+- [x] Visible realtime syntax-error squiggles — TextMarkerService draws a 2px-amplitude red zigzag tucked under the text baseline (was 1px in the inter-line gap and effectively invisible).
 
 ### Canvas
 - [x] Zoom and pan
@@ -252,6 +254,13 @@ Core timeline playback is implemented; items below are advanced timeline UX poli
 ### Animator Sub-Project
 - [x] **In-process Sketch mode** in Code2Viz — `Code2Viz.Sketching.Sketch` base, `SketchRuntime`, adapter for C2VGeometry → Code2Viz.Geometry shapes (`Sketch/`), entry probe in `ModuleCompiler`, frame-loop integration in `MainWindow`.
 - [x] **Standalone Animator app** (`Animator.exe`) — separate project under `Animator/`, depends only on `C2VGeometry.csproj`. Direct C2VGeometry renderer (`AnimCanvas`), single-file Roslyn compiler, AvalonEdit + Code2Viz dark theme, IntelliSense (Ctrl+Space, auto-popup), colored console, save-on-close prompts, Ctrl+Enter toggle, cross-app Switch buttons.
+
+### Recently Completed (2026-05-21)
+- [x] **F# support removed** — `FSharp.Compiler.Service` / `FSharp.Core` package refs gone; `FSharpModuleCompiler`, `FSharpTemplates`, `FSharpHighlighting.xshd`, `FSharp/VizDsl.fs` deleted; `ProjectLanguage` enum + `VizProjectFile.Language` removed; all `isFSharp` / `== ProjectLanguage.FSharp` branches stripped from `MainWindow`, `Canvas/CodeGenerator`, `Canvas/CodeSyncManager`, `Execution/ModuleCompiler`, `Editor/SharedEditorController`, `Project/*`; F# tab removed from `HelpWindow`; Welcome / New-Project language ComboBox gone. Net: 25 files, +186 / −1942.
+- [x] **`SharedEditorController` host glue** — single `Initialize()` call wires every editor feature for Animator; Code2Viz's `MainWindow` still has its parallel inlined version.
+- [x] **Squiggle visibility fix** — `Editor/TextMarkerService.Draw` now uses amplitude 2 / pen 1.2 / position `r.Bottom - amplitude` instead of amplitude 1 in the inter-line gap.
+- [x] **`VCircle(VXYZ, double)` overload** added to `Code2Viz.Geometry.VCircle` so the help-sample-style `new VCircle(new VXYZ(50, 50), 30)` now compiles in Code2Viz projects. Uses `VPoint.Internal(center.X, center.Y)` to avoid auto-registering a stray marker.
+- [x] **F1 Help crash fix** — `DocGenerator.InitializeSummaries` had two `"Animator"` keys (one for the sub-project namespace, one for the `Animation.Animator` class) which threw `ArgumentException` from the constructor; removed the unreachable namespace-keyed entry plus its `"Animator.Sketching.Sketch"` sibling (dict is keyed by `type.Name`).
 
 ---
 
