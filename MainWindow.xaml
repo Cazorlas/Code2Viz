@@ -521,6 +521,14 @@
                                 <GradientStop Offset="1" Color="#C2185B" />
                             </LinearGradientBrush>
                         </Button.Resources>
+                        <Button.Effect>
+                            <DropShadowEffect
+                                BlurRadius="14"
+                                Direction="0"
+                                Opacity="0.85"
+                                ShadowDepth="0"
+                                Color="#FF6F61" />
+                        </Button.Effect>
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border
@@ -529,15 +537,6 @@
                                     BorderBrush="#FFFFFF"
                                     BorderThickness="1"
                                     CornerRadius="14">
-                                    <Border.Effect>
-                                        <DropShadowEffect
-                                            x:Name="GlowShadow"
-                                            BlurRadius="14"
-                                            Direction="0"
-                                            Opacity="0.85"
-                                            ShadowDepth="0"
-                                            Color="#FF6F61" />
-                                    </Border.Effect>
                                     <ContentPresenter
                                         Margin="{TemplateBinding Padding}"
                                         HorizontalAlignment="Center"
