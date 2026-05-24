@@ -216,6 +216,10 @@
                             Header="Move Line D_own"
                             InputGestureText="Alt+Down"
                             Style="{StaticResource MenuItemStyle}" />
+                        <MenuItem
+                            Click="RemoveBlankLinesMenuItem_Click"
+                            Header="Remove _Blank Lines"
+                            Style="{StaticResource MenuItemStyle}" />
                         <Separator />
                         <MenuItem
                             Click="AddCursorAboveMenuItem_Click"

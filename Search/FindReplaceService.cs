@@ -50,6 +50,14 @@ namespace Code2Viz.Search
     /// </summary>
     public class FindReplaceService
     {
+        private static RegexOptions BuildRegexOptions(SearchOptions options)
+        {
+            var flags = options.CaseSensitive ? RegexOptions.None : RegexOptions.IgnoreCase;
+            if (options.UseRegex)
+                flags |= RegexOptions.Multiline;
+            return flags;
+        }
+
         /// <summary>
         /// Finds all matches in the given content.
         /// </summary>
@@ -73,9 +81,7 @@ namespace Code2Viz.Search
                 if (options.WholeWord)
                     pattern = $@"\b{pattern}\b";
 
-                var regexOptions = options.CaseSensitive
-                    ? RegexOptions.None
-                    : RegexOptions.IgnoreCase;
+                var regexOptions = BuildRegexOptions(options);
 
                 var regex = new Regex(pattern, regexOptions);
                 var lines = content.Split('\n');
@@ -144,9 +150,7 @@ namespace Code2Viz.Search
                 if (options.WholeWord)
                     pattern = $@"\b{pattern}\b";
 
-                var regexOptions = options.CaseSensitive
-                    ? RegexOptions.None
-                    : RegexOptions.IgnoreCase;
+                var regexOptions = BuildRegexOptions(options);
 
                 var regex = new Regex(pattern, regexOptions);
 
@@ -189,9 +193,7 @@ namespace Code2Viz.Search
                 if (options.WholeWord)
                     pattern = $@"\b{pattern}\b";
 
-                var regexOptions = options.CaseSensitive
-                    ? RegexOptions.None
-                    : RegexOptions.IgnoreCase;
+                var regexOptions = BuildRegexOptions(options);
 
                 var regex = new Regex(pattern, regexOptions);
                 var match = regex.Match(content, startIndex);
@@ -237,9 +239,7 @@ namespace Code2Viz.Search
                 if (options.WholeWord)
                     pattern = $@"\b{pattern}\b";
 
-                var regexOptions = options.CaseSensitive
-                    ? RegexOptions.None
-                    : RegexOptions.IgnoreCase;
+                var regexOptions = BuildRegexOptions(options);
 
                 var regex = new Regex(pattern, regexOptions);
                 var match = regex.Match(content, startIndex);
@@ -281,9 +281,7 @@ namespace Code2Viz.Search
                 if (options.WholeWord)
                     pattern = $@"\b{pattern}\b";
 
-                var regexOptions = options.CaseSensitive
-                    ? RegexOptions.None
-                    : RegexOptions.IgnoreCase;
+                var regexOptions = BuildRegexOptions(options);
 
                 var regex = new Regex(pattern, regexOptions | RegexOptions.RightToLeft);
                 var match = regex.Match(content, startIndex);

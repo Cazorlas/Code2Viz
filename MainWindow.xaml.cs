@@ -5637,6 +5637,30 @@ public partial class MainWindow : Window
         MoveLineDown();
     }
 
+    private void RemoveBlankLinesMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var document = CodeEditor.Document;
+        if (document.LineCount == 0) return;
+
+        document.BeginUpdate();
+        try
+        {
+            for (int i = document.LineCount; i >= 1; i--)
+            {
+                var line = document.GetLineByNumber(i);
+                var text = document.GetText(line.Offset, line.Length);
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    document.Remove(line.Offset, line.TotalLength);
+                }
+            }
+        }
+        finally
+        {
+            document.EndUpdate();
+        }
+    }
+
     private void AddCursorAboveMenuItem_Click(object sender, RoutedEventArgs e)
     {
         CodeEditor.Focus();
