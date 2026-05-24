@@ -14,6 +14,7 @@ public class AppSettingsData
     public bool AutoDraw { get; set; } = true;
 
     // Window Visibility Settings
+    public bool ShowRibbon { get; set; } = true;
     public bool ShowProjectBrowser { get; set; } = false;
     public bool ShowOutliner { get; set; } = false;
     public bool ShowTimeline { get; set; } = false;

@@ -57,8 +57,9 @@
             <RowDefinition Height="40" />
         </Grid.RowDefinitions>
 
-        <!--  Title Bar with Logo  -->
+        <!--  Title Bar with Logo (Ribbon)  -->
         <Border
+            x:Name="RibbonPanel"
             Grid.Row="0"
             Padding="12,12"
             Background="{StaticResource SecondaryBackgroundBrush}"
@@ -428,6 +429,14 @@
 
                     <!--  Windows Menu  -->
                     <MenuItem Header="_Windows">
+                        <MenuItem
+                            x:Name="ShowRibbonMenuItem"
+                            Click="ShowRibbonMenuItem_Click"
+                            Header="_Ribbon"
+                            IsCheckable="True"
+                            IsChecked="True"
+                            Style="{StaticResource MenuItemStyle}" />
+                        <Separator />
                         <MenuItem
                             x:Name="ShowProjectBrowserMenuItem"
                             Click="ShowProjectBrowserMenuItem_Click"

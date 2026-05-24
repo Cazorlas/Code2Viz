@@ -3851,8 +3851,11 @@ public partial class MainWindow : Window
         RenderCanvas.SelectionTool.ClearSelection();
         _propertiesPanel?.UpdateSelection(new List<Geometry.Shape>());
 
-        // Show console tab when running code
-        ShowConsoleTab();
+        // Show console tab when running code, unless the user has hidden it via Windows > Console
+        if (ShowConsoleMenuItem.IsChecked)
+        {
+            ShowConsoleTab();
+        }
 
         try
         {
@@ -4963,6 +4966,20 @@ public partial class MainWindow : Window
         ApplicationSettings.Save();
     }
 
+    private void ShowRibbonMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var isVisible = ShowRibbonMenuItem.IsChecked;
+        SetRibbonVisibility(isVisible);
+
+        ApplicationSettings.Instance.ShowRibbon = isVisible;
+        ApplicationSettings.Save();
+    }
+
+    private void SetRibbonVisibility(bool isVisible)
+    {
+        RibbonPanel.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private void SetProjectBrowserVisibility(bool isVisible)
     {
         // Update Project Browser row visibility within the right panel
@@ -5082,6 +5099,9 @@ public partial class MainWindow : Window
                 SetConsoleVisibility(false);
             }
         }
+
+        ApplicationSettings.Instance.ShowConsole = isVisible;
+        ApplicationSettings.Save();
     }
 
     private void SetConsoleVisibility(bool isVisible)
@@ -5112,6 +5132,33 @@ public partial class MainWindow : Window
             ConsoleRow.Height = new GridLength(0);
             ConsoleRow.MinHeight = 0;
             ConsoleRow.MaxHeight = double.PositiveInfinity;
+        }
+
+        UpdateCanvasConsoleColumn();
+    }
+
+    // When both canvas and console are hidden, collapse their shared column so the
+    // code editor expands to fill the freed width; restore the column otherwise.
+    private void UpdateCanvasConsoleColumn()
+    {
+        bool canvasVisible = RenderCanvas.Visibility == Visibility.Visible;
+        bool consoleVisible = ConsolePanel.Visibility == Visibility.Visible;
+        bool anyVisible = canvasVisible || consoleVisible;
+
+        if (anyVisible)
+        {
+            if (CanvasConsoleColumn.MinWidth == 0)
+            {
+                CanvasConsoleColumn.MinWidth = 200;
+                CanvasConsoleColumn.Width = new GridLength(1, GridUnitType.Star);
+            }
+            CodeEditorSplitter.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            CanvasConsoleColumn.MinWidth = 0;
+            CanvasConsoleColumn.Width = new GridLength(0);
+            CodeEditorSplitter.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -5210,12 +5257,17 @@ public partial class MainWindow : Window
         RunButton.IsEnabled = isVisible;
         RunMenuItem.IsEnabled = isVisible;
         DrawMenu.IsEnabled = isVisible;
+
+        UpdateCanvasConsoleColumn();
     }
 
     private void ApplyWindowVisibilitySettings()
     {
         // Apply saved settings on startup
         var settings = ApplicationSettings.Instance;
+
+        ShowRibbonMenuItem.IsChecked = settings.ShowRibbon;
+        SetRibbonVisibility(settings.ShowRibbon);
 
         ShowProjectBrowserMenuItem.IsChecked = settings.ShowProjectBrowser;
         SetProjectBrowserVisibility(settings.ShowProjectBrowser);
@@ -5236,6 +5288,10 @@ public partial class MainWindow : Window
         }
         else
         {
+            // Collapse the tab before hiding the panel; SetConsoleVisibility re-evaluates
+            // IsChecked from ConsoleTab.Visibility (XAML default is Visible) and would
+            // otherwise leave the menu showing checked even though the panel is hidden.
+            ConsoleTab.Visibility = Visibility.Collapsed;
             SetConsoleVisibility(false);
         }
 
