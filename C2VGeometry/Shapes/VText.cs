@@ -139,6 +139,7 @@ public class VText : Shape
     public override void Rotate(VXYZ pivot, double angleDegrees)
     {
         Location = GeometryHelper.RotatePoint(Location, pivot, angleDegrees);
+        Angle += angleDegrees;
     }
 
     public override void Flip(VLine mirrorLine)

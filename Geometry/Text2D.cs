@@ -164,6 +164,7 @@ public class VText : Shape
     public override void Rotate(VPoint pivot, double angleDegrees)
     {
         Location.Rotate(pivot, angleDegrees);
+        Angle += angleDegrees;
     }
 
     public override void Flip(VLine mirrorLine)
