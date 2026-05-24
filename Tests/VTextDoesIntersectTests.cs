@@ -75,6 +75,23 @@ public class VTextDoesIntersectC2VTests
         // Anchored top-right at (0,0): rect occupies x in [-12, 0], y in [-10, 0] → no overlap with probe at (1..3, 1..3).
         Assert.False(topRight.DoesIntersect(probe));
     }
+
+    [Fact]
+    public void ReverseDirection_OtherShapeDoesIntersectText_IsSymmetric()
+    {
+        var text = new C2V.VText(0, 0, "Hello", 2)
+        {
+            Anchor = C2V.VTextAnchor.MiddleCenter,
+            Angle = 90
+        };
+        var overlapping = new C2V.VRectangle(new C2V.VXYZ(-0.25, 1.5), 0.5, 0.5);
+        var separated = new C2V.VRectangle(new C2V.VXYZ(2, -0.25), 0.8, 0.5);
+
+        Assert.True(overlapping.DoesIntersect(text));
+        Assert.Equal(text.DoesIntersect(overlapping), overlapping.DoesIntersect(text));
+        Assert.False(separated.DoesIntersect(text));
+        Assert.Equal(text.DoesIntersect(separated), separated.DoesIntersect(text));
+    }
 }
 
 [Collection("CanvasState")]
@@ -124,5 +141,22 @@ public class VTextDoesIntersectGeomTests : IDisposable
 
         text.Angle = 0;
         Assert.True(text.DoesIntersect(target));
+    }
+
+    [Fact]
+    public void ReverseDirection_OtherShapeDoesIntersectText_IsSymmetric()
+    {
+        var text = new Geom.VText(0, 0, "Hello", 2)
+        {
+            Anchor = Geom.VTextAnchor.MiddleCenter,
+            Angle = 90
+        };
+        var overlapping = new Geom.VRectangle(new Geom.VPoint(-0.25, 1.5), 0.5, 0.5);
+        var separated = new Geom.VRectangle(new Geom.VPoint(2, -0.25), 0.8, 0.5);
+
+        Assert.True(overlapping.DoesIntersect(text));
+        Assert.Equal(text.DoesIntersect(overlapping), overlapping.DoesIntersect(text));
+        Assert.False(separated.DoesIntersect(text));
+        Assert.Equal(text.DoesIntersect(separated), separated.DoesIntersect(text));
     }
 }

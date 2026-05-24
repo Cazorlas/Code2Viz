@@ -318,7 +318,10 @@ public abstract class Shape : IDrawable
     /// </summary>
     public virtual bool DoesIntersect(Shape other)
     {
-        return Intersect(other) != null;
+        if (Intersect(other) != null) return true;
+        // VText has a custom DoesIntersect (OBB-vs-AABB SAT); delegate so the check is symmetric.
+        if (other is VText) return other.DoesIntersect(this);
+        return false;
     }
 
 
