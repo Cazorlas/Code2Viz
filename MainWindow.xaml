@@ -68,8 +68,22 @@
             <StackPanel HorizontalAlignment="Left" Orientation="Vertical">
                 <Image Height="80" Source="/img/logo.png" />
                 <TextBlock
+                    Margin="6,4,0,0"
+                    FontFamily="Segoe UI"
+                    FontSize="13"
+                    FontStyle="Italic"
+                    FontWeight="SemiBold"
+                    Text="Doodle in dotnet.">
+                    <TextBlock.Foreground>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Offset="0.0" Color="{StaticResource AccentColor}" />
+                            <GradientStop Offset="1.0" Color="{StaticResource SuccessColor}" />
+                        </LinearGradientBrush>
+                    </TextBlock.Foreground>
+                </TextBlock>
+                <TextBlock
                     x:Name="VersionText"
-                    Margin="4,2,0,0"
+                    Margin="6,1,0,0"
                     FontFamily="Segoe UI"
                     FontSize="11"
                     Foreground="{StaticResource MutedForegroundBrush}"
