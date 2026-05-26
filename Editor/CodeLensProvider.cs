@@ -58,6 +58,25 @@ namespace Code2Viz.Editor
         }
 
         /// <summary>
+        /// Creates a document anchor at the start of a declaration line. The anchor's
+        /// offset moves automatically as the document changes, so the CodeLens row stays
+        /// glued to its declaration between keystrokes — without this, the cached absolute
+        /// offsets go stale until the debounced recompute, making the 2x-tall row render on
+        /// the wrong line and snap back (vertical jitter while typing).
+        /// </summary>
+        private TextAnchor CreateLineAnchor(int offset)
+        {
+            var anchor = _document.CreateAnchor(offset);
+            // Insertions at the line start (e.g. pressing Enter above) should push the
+            // anchor down with the declaration text, not leave it on the new blank line.
+            anchor.MovementType = AnchorMovementType.AfterInsertion;
+            // If the line is deleted, keep the anchor alive (at the deletion point) so
+            // reading .Offset never throws; the next recompute discards it anyway.
+            anchor.SurviveDeletion = true;
+            return anchor;
+        }
+
+        /// <summary>
         /// Updates code lens information by analyzing the code.
         /// </summary>
         public void UpdateCodeLens(string code)
@@ -110,6 +129,7 @@ namespace Code2Viz.Editor
                     newItems.Add(new CodeLensItem
                     {
                         Offset = line.Offset,
+                        Anchor = CreateLineAnchor(line.Offset),
                         Line = lineNumber,
                         Text = $"{refCount} reference{(refCount != 1 ? "s" : "")}",
                         Kind = CodeLensKind.Type,
@@ -134,6 +154,7 @@ namespace Code2Viz.Editor
                     newItems.Add(new CodeLensItem
                     {
                         Offset = line.Offset,
+                        Anchor = CreateLineAnchor(line.Offset),
                         Line = lineNumber,
                         Text = $"{refCount} reference{(refCount != 1 ? "s" : "")}",
                         Kind = CodeLensKind.Method,
@@ -158,6 +179,7 @@ namespace Code2Viz.Editor
                     newItems.Add(new CodeLensItem
                     {
                         Offset = line.Offset,
+                        Anchor = CreateLineAnchor(line.Offset),
                         Line = lineNumber,
                         Text = $"{refCount} reference{(refCount != 1 ? "s" : "")}",
                         Kind = CodeLensKind.Property,
@@ -245,8 +267,8 @@ namespace Code2Viz.Editor
 
                 foreach (var item in snapshot)
                 {
-                    if (item.Offset >= startOffset)
-                        return item.Offset;
+                    if (item.CurrentOffset >= startOffset)
+                        return item.CurrentOffset;
                 }
             }
             catch (Exception ex)
@@ -269,7 +291,7 @@ namespace Code2Viz.Editor
                     snapshot = _items;
                 }
 
-                var item = snapshot.FirstOrDefault(i => i.Offset == offset);
+                var item = snapshot.FirstOrDefault(i => i.CurrentOffset == offset);
                 if (item == null) return null;
 
                 var lineHeight = CurrentContext?.TextView?.DefaultLineHeight ?? 16.0;
@@ -285,7 +307,20 @@ namespace Code2Viz.Editor
 
     public class CodeLensItem
     {
+        /// <summary>Snapshot offset captured when the item was built (used for the initial sort).</summary>
         public int Offset { get; set; }
+
+        /// <summary>
+        /// Live document anchor for the declaration line. Reading <see cref="CurrentOffset"/>
+        /// returns the up-to-date offset even before the next recompute, so the CodeLens row
+        /// follows edits instead of snapping. Anchors preserve their relative order under edits,
+        /// so the sorted-by-offset item list stays sorted when read via CurrentOffset.
+        /// </summary>
+        public TextAnchor? Anchor { get; set; }
+
+        /// <summary>The anchor's current offset, falling back to the snapshot offset.</summary>
+        public int CurrentOffset => Anchor?.Offset ?? Offset;
+
         public int Line { get; set; }
         public string Text { get; set; } = "";
         public CodeLensKind Kind { get; set; }
