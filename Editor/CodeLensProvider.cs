@@ -91,6 +91,8 @@ namespace Code2Viz.Editor
             }
 
             var newItems = new List<CodeLensItem>();
+            bool buildSucceeded = false;
+            bool hasSyntaxErrors = false;
 
             try
             {
@@ -104,6 +106,13 @@ namespace Code2Viz.Editor
 
                 var semanticModel = compilation.GetSemanticModel(syntaxTree);
                 var root = syntaxTree.GetRoot();
+
+                // Structural parse errors (e.g. an unclosed generic '<' mid-type) make
+                // Roslyn's error recovery intermittently fail to parse the *following*
+                // declaration as a method/type. If we trusted that broken tree, the
+                // declaration's CodeLens row would vanish and reappear keystroke-to-keystroke
+                // — toggling a 2x-tall row and bouncing the code below it up and down.
+                hasSyntaxErrors = syntaxTree.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error);
 
                 // Build a map of symbol usages
                 var usageMap = BuildUsageMap(root);
@@ -189,17 +198,55 @@ namespace Code2Viz.Editor
 
                 // Sort by offset
                 newItems.Sort((a, b) => a.Offset.CompareTo(b.Offset));
+                buildSucceeded = true;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"CodeLens error: {ex.Message}");
             }
 
-            // Atomically swap the items list
             lock (_lock)
             {
-                _items = newItems;
+                if (!buildSucceeded)
+                {
+                    // A transient parse/analysis failure must not blank the gutter; keep
+                    // the last good set (its anchors track the edits) until we recompute.
+                    return;
+                }
+
+                _items = hasSyntaxErrors
+                    // Preserve existing rows during broken-syntax states: keep every prior
+                    // item (anchors keep them glued to their declarations) and only reveal
+                    // genuinely new declarations. Never drop an item on a broken parse.
+                    ? MergePreservingExisting(_items, newItems)
+                    // Clean parse is authoritative: replace outright so renamed/removed
+                    // declarations reconcile and reference counts refresh.
+                    : newItems;
             }
+        }
+
+        /// <summary>
+        /// Merges a freshly parsed item set into the existing one without ever removing an
+        /// existing item. Used only when the parse had syntax errors, where Roslyn's error
+        /// recovery may have temporarily lost a declaration. Existing items (and their live
+        /// anchors) are retained as-is; only declarations whose (Kind, SymbolName) is not
+        /// already present are added. The result stays sorted by live offset.
+        /// </summary>
+        private static List<CodeLensItem> MergePreservingExisting(List<CodeLensItem> oldItems, List<CodeLensItem> newItems)
+        {
+            var merged = new List<CodeLensItem>(oldItems);
+            var seen = new HashSet<(CodeLensKind, string)>();
+            foreach (var o in oldItems)
+                seen.Add((o.Kind, o.SymbolName));
+
+            foreach (var n in newItems)
+            {
+                if (seen.Add((n.Kind, n.SymbolName)))
+                    merged.Add(n);
+            }
+
+            merged.Sort((a, b) => a.CurrentOffset.CompareTo(b.CurrentOffset));
+            return merged;
         }
 
         private Dictionary<string, int> BuildUsageMap(SyntaxNode root)
