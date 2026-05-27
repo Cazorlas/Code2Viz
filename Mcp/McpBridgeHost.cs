@@ -4,7 +4,7 @@ using System.Windows;
 using System.Windows.Threading;
 using Code2Viz.Canvas;
 using Code2Viz.Execution;
-using Code2Viz.Geometry;
+using C2VGeometry;
 using Code2Viz.McpBridge;
 using Code2Viz.Project;
 

@@ -44,6 +44,21 @@ public class VDimension : Shape
     /// <summary>Text suffix appended to the dimension value</summary>
     public string Suffix { get; set; } = "";
 
+    /// <summary>If true, the text is drawn over an opaque background swatch.</summary>
+    public bool TextBackgroundOpaque { get; set; } = false;
+
+    /// <summary>Override color for the extension lines (null = use Color).</summary>
+    public string? ExtensionLineColor { get; set; }
+
+    /// <summary>Override color for the dimension line (null = use Color).</summary>
+    public string? DimensionLineColor { get; set; }
+
+    /// <summary>Override color for the dimension text (null = use Color).</summary>
+    public string? TextColor { get; set; }
+
+    /// <summary>If true, the dimension line (and arrowheads) is not drawn.</summary>
+    public bool SuppressDimensionLine { get; set; }
+
     public VDimension(VXYZ point1, VXYZ point2)
     {
         Point1 = point1;
@@ -70,6 +85,11 @@ public class VDimension : Shape
         if (ShapeDefaults.DimOffsetFromOrigin.HasValue) OffsetFromOrigin = ShapeDefaults.DimOffsetFromOrigin.Value;
         if (ShapeDefaults.DimPrefix != null) Prefix = ShapeDefaults.DimPrefix;
         if (ShapeDefaults.DimSuffix != null) Suffix = ShapeDefaults.DimSuffix;
+        if (ShapeDefaults.DimTextBgOpaque.HasValue) TextBackgroundOpaque = ShapeDefaults.DimTextBgOpaque.Value;
+        if (ShapeDefaults.DimExtensionLineColor != null) ExtensionLineColor = ShapeDefaults.DimExtensionLineColor;
+        if (ShapeDefaults.DimDimensionLineColor != null) DimensionLineColor = ShapeDefaults.DimDimensionLineColor;
+        if (ShapeDefaults.DimTextColor != null) TextColor = ShapeDefaults.DimTextColor;
+        if (ShapeDefaults.DimSuppressDimensionLine.HasValue) SuppressDimensionLine = ShapeDefaults.DimSuppressDimensionLine.Value;
     }
 
     /// <summary>
@@ -172,7 +192,12 @@ public class VDimension : Shape
             SuppressExtLine1 = SuppressExtLine1,
             SuppressExtLine2 = SuppressExtLine2,
             Prefix = Prefix,
-            Suffix = Suffix
+            Suffix = Suffix,
+            TextBackgroundOpaque = TextBackgroundOpaque,
+            ExtensionLineColor = ExtensionLineColor,
+            DimensionLineColor = DimensionLineColor,
+            TextColor = TextColor,
+            SuppressDimensionLine = SuppressDimensionLine
         };
         CopyStyleTo(clone);
         return clone;

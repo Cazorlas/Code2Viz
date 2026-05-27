@@ -41,11 +41,7 @@ public static class TypeInspector
         _knownTypes["decimal"] = typeof(decimal);
         _knownTypes["object"] = typeof(object);
 
-#if !ANIMATOR
-        var geometryAssembly = typeof(Code2Viz.Geometry.VPoint).Assembly;
-#else
         var geometryAssembly = typeof(C2VGeometry.Shape).Assembly;
-#endif
         foreach (var type in geometryAssembly.GetExportedTypes())
         {
             if (type.IsPublic && !type.IsNested)
@@ -117,13 +113,8 @@ public static class TypeInspector
         _commonTypes = new List<(string Name, string Description)>();
         var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-#if !ANIMATOR
-        var geometryAssembly = typeof(Code2Viz.Geometry.VPoint).Assembly;
-        var geometryNamespace = "Code2Viz.Geometry";
-#else
         var geometryAssembly = typeof(C2VGeometry.Shape).Assembly;
         var geometryNamespace = "C2VGeometry";
-#endif
 
         // Add Code2Viz.Geometry types (VPoint, VLine, VCircle, etc.)
         var geometryTypes = geometryAssembly.GetExportedTypes()
@@ -1060,11 +1051,7 @@ public static class TypeInspector
             }
         }
 
-#if !ANIMATOR
-        var code2vizAssembly = typeof(Code2Viz.Geometry.VPoint).Assembly;
-#else
         var code2vizAssembly = typeof(C2VGeometry.Shape).Assembly;
-#endif
         try
         {
             foreach (var type in code2vizAssembly.GetExportedTypes())

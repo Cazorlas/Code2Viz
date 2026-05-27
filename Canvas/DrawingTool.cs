@@ -1,4 +1,4 @@
-using Code2Viz.Geometry;
+using C2VGeometry;
 
 namespace Code2Viz.Canvas;
 
@@ -48,12 +48,12 @@ public class DrawingTool
     /// <summary>
     /// Collected click points for the current shape being drawn.
     /// </summary>
-    public List<VPoint> Points { get; } = new();
+    public List<VXYZ> Points { get; } = new();
 
     /// <summary>
     /// Current cursor position in world coordinates.
     /// </summary>
-    public VPoint? CurrentPoint { get; private set; }
+    public VXYZ? CurrentPoint { get; private set; }
 
     /// <summary>
     /// Whether orthogonal constraint is active (Shift key held).
@@ -113,9 +113,9 @@ public class DrawingTool
 
     /// <summary>
     /// Event raised when text placement is requested (click location collected, waiting for text input).
-    /// The VPoint represents the location where the text should be placed.
+    /// The VXYZ represents the location where the text should be placed.
     /// </summary>
-    public event EventHandler<VPoint>? TextPlacementRequested;
+    public event EventHandler<VXYZ>? TextPlacementRequested;
 
     /// <summary>
     /// Gets the status message for the current drawing state.
@@ -384,7 +384,7 @@ public class DrawingTool
     /// <summary>
     /// Gets the effective end point considering override distance/angle.
     /// </summary>
-    public VPoint? GetEffectiveEndPoint()
+    public VXYZ? GetEffectiveEndPoint()
     {
         if (Points.Count == 0)
             return CurrentSnap?.Point ?? CurrentPoint;
@@ -417,7 +417,7 @@ public class DrawingTool
                     : Math.Atan2(endPoint.Y - basePoint.Y, endPoint.X - basePoint.X);
             }
 
-            return new VPoint(
+            return new VXYZ(
                 basePoint.X + distance * Math.Cos(angleRad),
                 basePoint.Y + distance * Math.Sin(angleRad)
             );
@@ -448,7 +448,7 @@ public class DrawingTool
     /// <param name="shapes">Current shapes on canvas.</param>
     /// <param name="scale">Current canvas scale.</param>
     /// <param name="spatialIndex">Optional spatial index for efficient snap detection.</param>
-    public void OnMouseMove(VPoint worldPos, IReadOnlyList<IDrawable> shapes, double scale, QuadTree? spatialIndex = null)
+    public void OnMouseMove(VXYZ worldPos, IReadOnlyList<IDrawable> shapes, double scale, QuadTree? spatialIndex = null)
     {
         if (Mode == DrawingMode.None)
             return;
@@ -477,7 +477,7 @@ public class DrawingTool
     /// Applies orthogonal constraint to a point relative to a reference point.
     /// The point is constrained to be either horizontal or vertical from the reference.
     /// </summary>
-    private VPoint ApplyOrthoConstraint(VPoint point, VPoint reference)
+    private VXYZ ApplyOrthoConstraint(VXYZ point, VXYZ reference)
     {
         var dx = Math.Abs(point.X - reference.X);
         var dy = Math.Abs(point.Y - reference.Y);
@@ -486,12 +486,12 @@ public class DrawingTool
         if (dx >= dy)
         {
             // Horizontal constraint (keep X, lock Y to reference Y)
-            return new VPoint(point.X, reference.Y);
+            return new VXYZ(point.X, reference.Y);
         }
         else
         {
             // Vertical constraint (keep Y, lock X to reference X)
-            return new VPoint(reference.X, point.Y);
+            return new VXYZ(reference.X, point.Y);
         }
     }
 
@@ -499,7 +499,7 @@ public class DrawingTool
     /// Handles left click during drawing.
     /// </summary>
     /// <returns>True if the click was handled and potentially completed a shape.</returns>
-    public bool OnLeftClick(VPoint worldPos)
+    public bool OnLeftClick(VXYZ worldPos)
     {
         if (Mode == DrawingMode.None)
             return false;
@@ -512,7 +512,7 @@ public class DrawingTool
         }
 
         // Use effective end point if override values are set (from Tab input)
-        VPoint clickPoint;
+        VXYZ clickPoint;
         if (Points.Count > 0 && (OverrideDistance.HasValue || OverrideAngle.HasValue))
         {
             clickPoint = GetEffectiveEndPoint() ?? CurrentSnap?.Point ?? constrainedPos;
@@ -558,7 +558,7 @@ public class DrawingTool
     /// Handles double-click during drawing (for polygon/polyline/spline completion).
     /// </summary>
     /// <returns>True if the click was handled.</returns>
-    public bool OnDoubleClick(VPoint worldPos)
+    public bool OnDoubleClick(VXYZ worldPos)
     {
         if (Mode == DrawingMode.None)
             return false;
@@ -799,7 +799,7 @@ public class DrawingTool
     /// <summary>
     /// Calculates the circumcircle (center and radius) from three points.
     /// </summary>
-    private static (VPoint center, double radius) CalculateCircumcircle(VPoint p1, VPoint p2, VPoint p3)
+    private static (VXYZ center, double radius) CalculateCircumcircle(VXYZ p1, VXYZ p2, VXYZ p3)
     {
         var x1 = p1.X; var y1 = p1.Y;
         var x2 = p2.X; var y2 = p2.Y;
@@ -813,7 +813,7 @@ public class DrawingTool
             // Points are nearly collinear, return midpoint as center with large radius
             var midX = (x1 + x3) / 2;
             var midY = (y1 + y3) / 2;
-            return (new VPoint(midX, midY), p1.DistanceTo(p3) / 2);
+            return (new VXYZ(midX, midY), p1.DistanceTo(p3) / 2);
         }
 
         var sq1 = x1 * x1 + y1 * y1;
@@ -823,7 +823,7 @@ public class DrawingTool
         var cx = (sq1 * (y2 - y3) + sq2 * (y3 - y1) + sq3 * (y1 - y2)) / d;
         var cy = (sq1 * (x3 - x2) + sq2 * (x1 - x3) + sq3 * (x2 - x1)) / d;
 
-        var center = new VPoint(cx, cy);
+        var center = new VXYZ(cx, cy);
         var radius = center.DistanceTo(p1);
 
         return (center, radius);
@@ -876,12 +876,12 @@ public class DrawingTool
 
     private VPolygon CreatePolygon()
     {
-        return new VPolygon(Points.Select(p => new VPoint(p.X, p.Y)).ToArray());
+        return new VPolygon(Points.ToArray());
     }
 
     private VPolyline CreatePolyline()
     {
-        return new VPolyline(Points.Select(p => new VPoint(p.X, p.Y)).ToArray());
+        return new VPolyline(Points.ToArray());
     }
 
     private VBezier CreateBezier()
@@ -891,7 +891,7 @@ public class DrawingTool
 
     private VSpline CreateSpline()
     {
-        return new VSpline(Points.Select(p => new VPoint(p.X, p.Y)).ToArray());
+        return new VSpline(Points.ToArray());
     }
 
     private VArrow CreateArrow()
@@ -911,7 +911,7 @@ public class DrawingTool
         return point;
     }
 
-    private VLine? CreatePreviewLine(VPoint endPoint)
+    private VLine? CreatePreviewLine(VXYZ endPoint)
     {
         if (Points.Count < 1) return null;
         var line = new VLine(Points[0], endPoint);
@@ -919,7 +919,7 @@ public class DrawingTool
         return line;
     }
 
-    private VCircle? CreatePreviewCircle(VPoint endPoint)
+    private VCircle? CreatePreviewCircle(VXYZ endPoint)
     {
         if (Points.Count < 1) return null;
         var radius = Points[0].DistanceTo(endPoint);
@@ -929,7 +929,7 @@ public class DrawingTool
         return circle;
     }
 
-    private VCircle? CreatePreviewCircleDiameter(VPoint endPoint)
+    private VCircle? CreatePreviewCircleDiameter(VXYZ endPoint)
     {
         if (Points.Count < 1) return null;
         // Distance is diameter, not radius
@@ -940,11 +940,11 @@ public class DrawingTool
         return circle;
     }
 
-    private Shape? CreatePreviewCircleTwoPoints(VPoint endPoint)
+    private Shape? CreatePreviewCircleTwoPoints(VXYZ endPoint)
     {
         if (Points.Count < 1) return null;
         // Two points define diameter endpoints, center is midpoint
-        var center = new VPoint((Points[0].X + endPoint.X) / 2.0, (Points[0].Y + endPoint.Y) / 2.0);
+        var center = new VXYZ((Points[0].X + endPoint.X) / 2.0, (Points[0].Y + endPoint.Y) / 2.0);
         var radius = Points[0].DistanceTo(endPoint) / 2.0;
         var circle = new VCircle(center, radius);
         circle.Color = "Gray";
@@ -952,7 +952,7 @@ public class DrawingTool
         return circle;
     }
 
-    private Shape? CreatePreviewCircleThreePoints(VPoint endPoint)
+    private Shape? CreatePreviewCircleThreePoints(VXYZ endPoint)
     {
         if (Points.Count < 1) return null;
 
@@ -982,7 +982,7 @@ public class DrawingTool
     }
 
 
-    private VRectangle? CreatePreviewRectangle(VPoint endPoint)
+    private VRectangle? CreatePreviewRectangle(VXYZ endPoint)
     {
         if (Points.Count < 1) return null;
         var minX = Math.Min(Points[0].X, endPoint.X);
@@ -995,7 +995,7 @@ public class DrawingTool
         return rect;
     }
 
-    private VEllipse? CreatePreviewEllipse(VPoint endPoint)
+    private VEllipse? CreatePreviewEllipse(VXYZ endPoint)
     {
         if (Points.Count < 1) return null;
         var radiusX = Math.Abs(endPoint.X - Points[0].X);
@@ -1006,7 +1006,7 @@ public class DrawingTool
         return ellipse;
     }
 
-    private Shape? CreatePreviewArc(VPoint endPoint)
+    private Shape? CreatePreviewArc(VXYZ endPoint)
     {
         if (Points.Count < 1) return null;
 
@@ -1031,50 +1031,50 @@ public class DrawingTool
         return polyline;
     }
 
-    private VPolygon? CreatePreviewPolygon(VPoint endPoint)
+    private VPolygon? CreatePreviewPolygon(VXYZ endPoint)
     {
         if (Points.Count < 1) return null;
-        var previewPoints = Points.Concat(new[] { endPoint }).Select(p => new VPoint(p.X, p.Y)).ToArray();
+        var previewPoints = Points.Concat(new[] { endPoint }).Select(p => (VXYZ)new VXYZ(p.X, p.Y)).ToArray();
         var polygon = new VPolygon(previewPoints);
         polygon.Color = "Gray";
         polygon.FillColor = "Transparent";
         return polygon;
     }
 
-    private VPolyline? CreatePreviewPolyline(VPoint endPoint)
+    private VPolyline? CreatePreviewPolyline(VXYZ endPoint)
     {
         if (Points.Count < 1) return null;
-        var previewPoints = Points.Concat(new[] { endPoint }).Select(p => new VPoint(p.X, p.Y)).ToArray();
+        var previewPoints = Points.Concat(new[] { endPoint }).Select(p => (VXYZ)new VXYZ(p.X, p.Y)).ToArray();
         var polyline = new VPolyline(previewPoints);
         polyline.Color = "Gray";
         return polyline;
     }
 
-    private VBezier? CreatePreviewBezier(VPoint endPoint)
+    private VBezier? CreatePreviewBezier(VXYZ endPoint)
     {
         if (Points.Count < 1) return null;
 
         // Create preview based on number of points collected
-        VPoint p0 = Points[0];
-        VPoint p1 = Points.Count > 1 ? Points[1] : endPoint;
-        VPoint p2 = Points.Count > 2 ? Points[2] : endPoint;
-        VPoint p3 = Points.Count > 3 ? Points[3] : endPoint;
+        VXYZ p0 = Points[0];
+        VXYZ p1 = Points.Count > 1 ? Points[1] : endPoint;
+        VXYZ p2 = Points.Count > 2 ? Points[2] : endPoint;
+        VXYZ p3 = Points.Count > 3 ? Points[3] : endPoint;
 
         var bezier = new VBezier(p0, p1, p2, p3);
         bezier.Color = "Gray";
         return bezier;
     }
 
-    private VSpline? CreatePreviewSpline(VPoint endPoint)
+    private VSpline? CreatePreviewSpline(VXYZ endPoint)
     {
         if (Points.Count < 1) return null;
-        var previewPoints = Points.Concat(new[] { endPoint }).Select(p => new VPoint(p.X, p.Y)).ToArray();
+        var previewPoints = Points.Concat(new[] { endPoint }).Select(p => (VXYZ)new VXYZ(p.X, p.Y)).ToArray();
         var spline = new VSpline(previewPoints);
         spline.Color = "Gray";
         return spline;
     }
 
-    private VArrow? CreatePreviewArrow(VPoint endPoint)
+    private VArrow? CreatePreviewArrow(VXYZ endPoint)
     {
         if (Points.Count < 1) return null;
         var arrow = new VArrow(Points[0], endPoint);
@@ -1104,7 +1104,7 @@ public class DrawingTool
     /// Completes a text shape with the given content.
     /// Called by the UI after getting text input from the user.
     /// </summary>
-    public void CompleteText(VPoint location, string content)
+    public void CompleteText(VXYZ location, string content)
     {
         if (Mode != DrawingMode.Text || string.IsNullOrEmpty(content))
             return;

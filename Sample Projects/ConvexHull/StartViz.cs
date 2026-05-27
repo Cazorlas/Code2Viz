@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
-using Code2Viz.Geometry;
+using C2VGeometry;
 using Code2Viz.Console;
 using Code2Viz.Animation;
 
@@ -21,12 +21,12 @@ namespace ConvexHull
             // ---------- SETUP ----------
             var rand = new Random(42);
             int N = 15;
-            var basePts = new List<VPoint>();
+            var basePts = new List<VXYZ>();
             for (int i = 0; i < N; i++)
-            basePts.Add(new VPoint(rand.NextDouble() * 180 - 90, rand.NextDouble() * 180 - 90));
+            basePts.Add(new VXYZ(rand.NextDouble() * 180 - 90, rand.NextDouble() * 180 - 90));
 
             var centers      = new[]
-            { new VPoint(-300, 0), new VPoint(0, 0), new VPoint(300, 0)
+            { new VXYZ(-300, 0), new VXYZ(0, 0), new VXYZ(300, 0)
             };
             var titles       = new[]
             { "GRAHAM SCAN", "JARVIS MARCH", "ANDREW'S MONOTONE"
@@ -44,11 +44,11 @@ namespace ConvexHull
             }; // primary trail per panel
             var trailColB = "#2C5260"; // Andrew upper-chain variant
 
-            var panelPts = new List<VPoint>[3];
+            var panelPts = new List<VXYZ>[3];
             for (int p = 0; p < 3; p++)
             {
                 var c = centers[p];
-                panelPts[p] = basePts.Select(pt => new VPoint(pt.X + c.X, pt.Y + c.Y)).ToList();
+                panelPts[p] = basePts.Select(pt => new VXYZ(pt.X + c.X, pt.Y + c.Y)).ToList();
             }
 
             // ---------- STATIC CHROME ----------
@@ -115,7 +115,7 @@ namespace ConvexHull
             // Helper — trail VLine at full opacity (DrawAnimation handles reveal).
             // Name is set explicitly so HideUnnamedShapes() doesn't strip these
             // (the AnimationNameRewriter only names shapes assigned to `var x = new ...`).
-            VLine T(VPoint a, VPoint b, string color, LineType lt, double weight)
+            VLine T(VXYZ a, VXYZ b, string color, LineType lt, double weight)
             {
                 return new VLine(a, b)
                 { Color = color, LineType = lt, LineWeight = weight, Name = "trail"
@@ -135,7 +135,7 @@ namespace ConvexHull
                 }
                 var pivot = pts[pivotIdx];
 
-                var others = new List<VPoint>();
+                var others = new List<VXYZ>();
                 for (int i = 0; i < pts.Count; i++) if (i != pivotIdx) others.Add(pts[i]);
                 others = others
                 .OrderBy(p => Math.Atan2(p.Y - pivot.Y, p.X - pivot.X))
@@ -147,7 +147,7 @@ namespace ConvexHull
                 trail.Add(T(pivot, p, trailColA[0], LineType.Dotted, 1.0));
 
                 // Dashed = stack-scan decision edges
-                var stack = new List<VPoint>
+                var stack = new List<VXYZ>
                 { pivot, others[0]
                 };
                 for (int i = 1; i < others.Count; i++)
@@ -186,7 +186,7 @@ namespace ConvexHull
                     if (pi.X < ps.X || (pi.X == ps.X && pi.Y < ps.Y)) startIdx = i;
                 }
                 var start = pts[startIdx];
-                var hullPts = new List<VPoint>();
+                var hullPts = new List<VXYZ>();
                 int currentIdx = startIdx;
                 int safety = 0;
                 do
@@ -223,7 +223,7 @@ namespace ConvexHull
                 var pts = panelPts[2];
                 var trail = new List<VLine>();
                 var sorted = pts.OrderBy(p => p.X).ThenBy(p => p.Y).ToList();
-                var H = new List<VPoint>();
+                var H = new List<VXYZ>();
 
                 foreach (var p in sorted)
                 {

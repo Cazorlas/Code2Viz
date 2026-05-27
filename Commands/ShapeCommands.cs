@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Code2Viz.Canvas;
-using Code2Viz.Geometry;
+using C2VGeometry;
 
 namespace Code2Viz.Commands
 {
@@ -264,13 +264,13 @@ namespace Code2Viz.Commands
     public class RotateShapesCommand : ICommand
     {
         private readonly List<Shape> _shapes;
-        private readonly VPoint _pivot;
+        private readonly VXYZ _pivot;
         private readonly double _angleDegrees;
         private readonly RenderCanvas _canvas;
 
         public string Description { get; }
 
-        public RotateShapesCommand(IEnumerable<Shape> shapes, VPoint pivot, double angleDegrees, RenderCanvas canvas)
+        public RotateShapesCommand(IEnumerable<Shape> shapes, VXYZ pivot, double angleDegrees, RenderCanvas canvas)
         {
             _shapes = shapes.ToList();
             _pivot = pivot;
@@ -311,13 +311,13 @@ namespace Code2Viz.Commands
     public class ScaleShapesCommand : ICommand
     {
         private readonly List<Shape> _shapes;
-        private readonly VPoint _center;
+        private readonly VXYZ _center;
         private readonly double _factor;
         private readonly RenderCanvas _canvas;
 
         public string Description { get; }
 
-        public ScaleShapesCommand(IEnumerable<Shape> shapes, VPoint center, double factor, RenderCanvas canvas)
+        public ScaleShapesCommand(IEnumerable<Shape> shapes, VXYZ center, double factor, RenderCanvas canvas)
         {
             _shapes = shapes.ToList();
             _center = center;

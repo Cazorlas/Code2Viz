@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Media;
 using Code2Viz.Canvas;
-using Code2Viz.Geometry;
+using C2VGeometry;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 
@@ -176,10 +176,10 @@ public class PdfExporter
 
         if (minX == double.MaxValue)
         {
-            return new BoundingBox(VPoint.Internal(0, 0), VPoint.Internal(100, 100));
+            return new BoundingBox(new VXYZ(0, 0), new VXYZ(100, 100));
         }
 
-        return new BoundingBox(VPoint.Internal(minX, minY), VPoint.Internal(maxX, maxY));
+        return new BoundingBox(new VXYZ(minX, minY), new VXYZ(maxX, maxY));
     }
 
     private void DrawShape(XGraphics gfx, Shape shape)
@@ -616,7 +616,7 @@ public class PdfExporter
         gfx.Restore();
     }
 
-    private static void DrawDimensionArrowhead(XGraphics gfx, XBrush brush, VPoint tipPoint, VPoint tailPoint, double arrowSize)
+    private static void DrawDimensionArrowhead(XGraphics gfx, XBrush brush, VXYZ tipPoint, VXYZ tailPoint, double arrowSize)
     {
         var dx = tipPoint.X - tailPoint.X;
         var dy = tipPoint.Y - tailPoint.Y;

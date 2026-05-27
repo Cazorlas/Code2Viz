@@ -239,7 +239,7 @@ public class Region : Shape
         for (int i = 0; i < polygon.Points.Count; i++)
         {
             int next = (i + 1) % polygon.Points.Count;
-            curves.Add(new VLine(polygon.Points[i], polygon.Points[next]));
+            curves.Add(VLine.Internal(polygon.Points[i], polygon.Points[next]));
         }
 
         // Use internal constructor (skip validation — polygon is already validated)
@@ -258,7 +258,7 @@ public class Region : Shape
             for (int i = 0; i < hole.Points.Count; i++)
             {
                 int next = (i + 1) % hole.Points.Count;
-                holeCurves.Add(new VLine(hole.Points[i], hole.Points[next]));
+                holeCurves.Add(VLine.Internal(hole.Points[i], hole.Points[next]));
             }
             region.Holes.Add(holeCurves);
         }
@@ -346,7 +346,7 @@ public class Region : Shape
     /// <summary>
     /// Samples a curve loop into a list of points for polygon approximation.
     /// </summary>
-    internal static List<VXYZ> SampleLoop(List<ICurve> loop, int segmentsPerCurve)
+    public static List<VXYZ> SampleLoop(List<ICurve> loop, int segmentsPerCurve)
     {
         var points = new List<VXYZ>();
 

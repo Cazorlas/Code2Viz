@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using Code2Viz.Geometry;
+using C2VGeometry;
 
 namespace Code2Viz.Canvas;
 

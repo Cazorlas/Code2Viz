@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using Code2Viz.Geometry;
+using C2VGeometry;
 
 namespace Code2Viz;
 
@@ -149,69 +149,69 @@ public partial class PropertiesPanel : UserControl
                 break;
 
             case VLine ln:
-                props.Add(("Start X", F(ln.Start.X), v => { if (double.TryParse(v, out var d)) { ln.Start.X = d; RaisePropertyChanged(shape); } }));
-                props.Add(("Start Y", F(ln.Start.Y), v => { if (double.TryParse(v, out var d)) { ln.Start.Y = d; RaisePropertyChanged(shape); } }));
-                props.Add(("End X", F(ln.End.X), v => { if (double.TryParse(v, out var d)) { ln.End.X = d; RaisePropertyChanged(shape); } }));
-                props.Add(("End Y", F(ln.End.Y), v => { if (double.TryParse(v, out var d)) { ln.End.Y = d; RaisePropertyChanged(shape); } }));
+                props.Add(("Start X", F(ln.Start.X), v => { if (double.TryParse(v, out var d)) { ln.Start = new VXYZ(d, ln.Start.Y); RaisePropertyChanged(shape); } }));
+                props.Add(("Start Y", F(ln.Start.Y), v => { if (double.TryParse(v, out var d)) { ln.Start = new VXYZ(ln.Start.X, d); RaisePropertyChanged(shape); } }));
+                props.Add(("End X", F(ln.End.X), v => { if (double.TryParse(v, out var d)) { ln.End = new VXYZ(d, ln.End.Y); RaisePropertyChanged(shape); } }));
+                props.Add(("End Y", F(ln.End.Y), v => { if (double.TryParse(v, out var d)) { ln.End = new VXYZ(ln.End.X, d); RaisePropertyChanged(shape); } }));
                 break;
 
             case VCircle c:
-                props.Add(("Center X", F(c.Center.X), v => { if (double.TryParse(v, out var d)) { c.Center.X = d; RaisePropertyChanged(shape); } }));
-                props.Add(("Center Y", F(c.Center.Y), v => { if (double.TryParse(v, out var d)) { c.Center.Y = d; RaisePropertyChanged(shape); } }));
+                props.Add(("Center X", F(c.Center.X), v => { if (double.TryParse(v, out var d)) { c.Center = new VXYZ(d, c.Center.Y); RaisePropertyChanged(shape); } }));
+                props.Add(("Center Y", F(c.Center.Y), v => { if (double.TryParse(v, out var d)) { c.Center = new VXYZ(c.Center.X, d); RaisePropertyChanged(shape); } }));
                 props.Add(("Radius", F(c.Radius), v => { if (double.TryParse(v, out var d) && d > 0) { c.Radius = d; RaisePropertyChanged(shape); } }));
                 break;
 
             case VRectangle rect:
-                props.Add(("X", F(rect.Corner.X), v => { if (double.TryParse(v, out var d)) { rect.Corner = VPoint.Internal(d, rect.Corner.Y); RaisePropertyChanged(shape); } }));
-                props.Add(("Y", F(rect.Corner.Y), v => { if (double.TryParse(v, out var d)) { rect.Corner = VPoint.Internal(rect.Corner.X, d); RaisePropertyChanged(shape); } }));
+                props.Add(("X", F(rect.Corner.X), v => { if (double.TryParse(v, out var d)) { rect.Corner = new VXYZ(d, rect.Corner.Y); RaisePropertyChanged(shape); } }));
+                props.Add(("Y", F(rect.Corner.Y), v => { if (double.TryParse(v, out var d)) { rect.Corner = new VXYZ(rect.Corner.X, d); RaisePropertyChanged(shape); } }));
                 props.Add(("Width", F(rect.Width), v => { if (double.TryParse(v, out var d) && d > 0) { rect.Width = d; RaisePropertyChanged(shape); } }));
                 props.Add(("Height", F(rect.Height), v => { if (double.TryParse(v, out var d) && d > 0) { rect.Height = d; RaisePropertyChanged(shape); } }));
                 break;
 
             case VArc arc:
-                props.Add(("Center X", F(arc.Center.X), v => { if (double.TryParse(v, out var d)) { arc.Center.X = d; RaisePropertyChanged(shape); } }));
-                props.Add(("Center Y", F(arc.Center.Y), v => { if (double.TryParse(v, out var d)) { arc.Center.Y = d; RaisePropertyChanged(shape); } }));
+                props.Add(("Center X", F(arc.Center.X), v => { if (double.TryParse(v, out var d)) { arc.Center = new VXYZ(d, arc.Center.Y); RaisePropertyChanged(shape); } }));
+                props.Add(("Center Y", F(arc.Center.Y), v => { if (double.TryParse(v, out var d)) { arc.Center = new VXYZ(arc.Center.X, d); RaisePropertyChanged(shape); } }));
                 props.Add(("Radius", F(arc.Radius), v => { if (double.TryParse(v, out var d) && d > 0) { arc.Radius = d; RaisePropertyChanged(shape); } }));
                 props.Add(("Start °", F(arc.StartAngle), v => { if (double.TryParse(v, out var d)) { arc.StartAngle = d; RaisePropertyChanged(shape); } }));
                 props.Add(("End °", F(arc.EndAngle), v => { if (double.TryParse(v, out var d)) { arc.EndAngle = d; RaisePropertyChanged(shape); } }));
                 break;
 
             case VEllipse el:
-                props.Add(("Center X", F(el.Center.X), v => { if (double.TryParse(v, out var d)) { el.Center.X = d; RaisePropertyChanged(shape); } }));
-                props.Add(("Center Y", F(el.Center.Y), v => { if (double.TryParse(v, out var d)) { el.Center.Y = d; RaisePropertyChanged(shape); } }));
+                props.Add(("Center X", F(el.Center.X), v => { if (double.TryParse(v, out var d)) { el.Center = new VXYZ(d, el.Center.Y); RaisePropertyChanged(shape); } }));
+                props.Add(("Center Y", F(el.Center.Y), v => { if (double.TryParse(v, out var d)) { el.Center = new VXYZ(el.Center.X, d); RaisePropertyChanged(shape); } }));
                 props.Add(("Radius X", F(el.RadiusX), v => { if (double.TryParse(v, out var d) && d > 0) { el.RadiusX = d; RaisePropertyChanged(shape); } }));
                 props.Add(("Radius Y", F(el.RadiusY), v => { if (double.TryParse(v, out var d) && d > 0) { el.RadiusY = d; RaisePropertyChanged(shape); } }));
                 break;
 
             case VBezier bz:
-                props.Add(("P0 X", F(bz.P0.X), v => { if (double.TryParse(v, out var d)) { bz.P0.X = d; RaisePropertyChanged(shape); } }));
-                props.Add(("P0 Y", F(bz.P0.Y), v => { if (double.TryParse(v, out var d)) { bz.P0.Y = d; RaisePropertyChanged(shape); } }));
-                props.Add(("P1 X", F(bz.P1.X), v => { if (double.TryParse(v, out var d)) { bz.P1.X = d; RaisePropertyChanged(shape); } }));
-                props.Add(("P1 Y", F(bz.P1.Y), v => { if (double.TryParse(v, out var d)) { bz.P1.Y = d; RaisePropertyChanged(shape); } }));
-                props.Add(("P2 X", F(bz.P2.X), v => { if (double.TryParse(v, out var d)) { bz.P2.X = d; RaisePropertyChanged(shape); } }));
-                props.Add(("P2 Y", F(bz.P2.Y), v => { if (double.TryParse(v, out var d)) { bz.P2.Y = d; RaisePropertyChanged(shape); } }));
-                props.Add(("P3 X", F(bz.P3.X), v => { if (double.TryParse(v, out var d)) { bz.P3.X = d; RaisePropertyChanged(shape); } }));
-                props.Add(("P3 Y", F(bz.P3.Y), v => { if (double.TryParse(v, out var d)) { bz.P3.Y = d; RaisePropertyChanged(shape); } }));
+                props.Add(("P0 X", F(bz.P0.X), v => { if (double.TryParse(v, out var d)) { bz.P0 = new VXYZ(d, bz.P0.Y); RaisePropertyChanged(shape); } }));
+                props.Add(("P0 Y", F(bz.P0.Y), v => { if (double.TryParse(v, out var d)) { bz.P0 = new VXYZ(bz.P0.X, d); RaisePropertyChanged(shape); } }));
+                props.Add(("P1 X", F(bz.P1.X), v => { if (double.TryParse(v, out var d)) { bz.P1 = new VXYZ(d, bz.P1.Y); RaisePropertyChanged(shape); } }));
+                props.Add(("P1 Y", F(bz.P1.Y), v => { if (double.TryParse(v, out var d)) { bz.P1 = new VXYZ(bz.P1.X, d); RaisePropertyChanged(shape); } }));
+                props.Add(("P2 X", F(bz.P2.X), v => { if (double.TryParse(v, out var d)) { bz.P2 = new VXYZ(d, bz.P2.Y); RaisePropertyChanged(shape); } }));
+                props.Add(("P2 Y", F(bz.P2.Y), v => { if (double.TryParse(v, out var d)) { bz.P2 = new VXYZ(bz.P2.X, d); RaisePropertyChanged(shape); } }));
+                props.Add(("P3 X", F(bz.P3.X), v => { if (double.TryParse(v, out var d)) { bz.P3 = new VXYZ(d, bz.P3.Y); RaisePropertyChanged(shape); } }));
+                props.Add(("P3 Y", F(bz.P3.Y), v => { if (double.TryParse(v, out var d)) { bz.P3 = new VXYZ(bz.P3.X, d); RaisePropertyChanged(shape); } }));
                 break;
 
             case VArrow arrow:
-                props.Add(("Start X", F(arrow.Start.X), v => { if (double.TryParse(v, out var d)) { arrow.Start.X = d; RaisePropertyChanged(shape); } }));
-                props.Add(("Start Y", F(arrow.Start.Y), v => { if (double.TryParse(v, out var d)) { arrow.Start.Y = d; RaisePropertyChanged(shape); } }));
-                props.Add(("End X", F(arrow.End.X), v => { if (double.TryParse(v, out var d)) { arrow.End.X = d; RaisePropertyChanged(shape); } }));
-                props.Add(("End Y", F(arrow.End.Y), v => { if (double.TryParse(v, out var d)) { arrow.End.Y = d; RaisePropertyChanged(shape); } }));
+                props.Add(("Start X", F(arrow.Start.X), v => { if (double.TryParse(v, out var d)) { arrow.Start = new VXYZ(d, arrow.Start.Y); RaisePropertyChanged(shape); } }));
+                props.Add(("Start Y", F(arrow.Start.Y), v => { if (double.TryParse(v, out var d)) { arrow.Start = new VXYZ(arrow.Start.X, d); RaisePropertyChanged(shape); } }));
+                props.Add(("End X", F(arrow.End.X), v => { if (double.TryParse(v, out var d)) { arrow.End = new VXYZ(d, arrow.End.Y); RaisePropertyChanged(shape); } }));
+                props.Add(("End Y", F(arrow.End.Y), v => { if (double.TryParse(v, out var d)) { arrow.End = new VXYZ(arrow.End.X, d); RaisePropertyChanged(shape); } }));
                 break;
 
             case VText txt:
-                props.Add(("X", F(txt.Location.X), v => { if (double.TryParse(v, out var d)) { txt.Location.X = d; RaisePropertyChanged(shape); } }));
-                props.Add(("Y", F(txt.Location.Y), v => { if (double.TryParse(v, out var d)) { txt.Location.Y = d; RaisePropertyChanged(shape); } }));
+                props.Add(("X", F(txt.Location.X), v => { if (double.TryParse(v, out var d)) { txt.Location = new VXYZ(d, txt.Location.Y); RaisePropertyChanged(shape); } }));
+                props.Add(("Y", F(txt.Location.Y), v => { if (double.TryParse(v, out var d)) { txt.Location = new VXYZ(txt.Location.X, d); RaisePropertyChanged(shape); } }));
                 props.Add(("Height", F(txt.Height), v => { if (double.TryParse(v, out var d) && d > 0) { txt.Height = d; RaisePropertyChanged(shape); } }));
                 break;
 
             case VDimension dim:
-                props.Add(("P1 X", F(dim.Point1.X), v => { if (double.TryParse(v, out var d)) { dim.Point1.X = d; RaisePropertyChanged(shape); } }));
-                props.Add(("P1 Y", F(dim.Point1.Y), v => { if (double.TryParse(v, out var d)) { dim.Point1.Y = d; RaisePropertyChanged(shape); } }));
-                props.Add(("P2 X", F(dim.Point2.X), v => { if (double.TryParse(v, out var d)) { dim.Point2.X = d; RaisePropertyChanged(shape); } }));
-                props.Add(("P2 Y", F(dim.Point2.Y), v => { if (double.TryParse(v, out var d)) { dim.Point2.Y = d; RaisePropertyChanged(shape); } }));
+                props.Add(("P1 X", F(dim.Point1.X), v => { if (double.TryParse(v, out var d)) { dim.Point1 = new VXYZ(d, dim.Point1.Y); RaisePropertyChanged(shape); } }));
+                props.Add(("P1 Y", F(dim.Point1.Y), v => { if (double.TryParse(v, out var d)) { dim.Point1 = new VXYZ(dim.Point1.X, d); RaisePropertyChanged(shape); } }));
+                props.Add(("P2 X", F(dim.Point2.X), v => { if (double.TryParse(v, out var d)) { dim.Point2 = new VXYZ(d, dim.Point2.Y); RaisePropertyChanged(shape); } }));
+                props.Add(("P2 Y", F(dim.Point2.Y), v => { if (double.TryParse(v, out var d)) { dim.Point2 = new VXYZ(dim.Point2.X, d); RaisePropertyChanged(shape); } }));
                 props.Add(("Offset", F(dim.Offset), v => { if (double.TryParse(v, out var d)) { dim.Offset = d; RaisePropertyChanged(shape); } }));
                 props.Add(("Arrow Size", F(dim.ArrowSize), v => { if (double.TryParse(v, out var d) && d > 0) { dim.ArrowSize = d; RaisePropertyChanged(shape); } }));
                 props.Add(("Text Height", F(dim.TextHeight), v => { if (double.TryParse(v, out var d) && d > 0) { dim.TextHeight = d; RaisePropertyChanged(shape); } }));

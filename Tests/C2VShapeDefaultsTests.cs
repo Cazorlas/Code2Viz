@@ -1,5 +1,6 @@
 using System;
 using Xunit;
+using Code2Viz.Canvas;
 using C2VGeometry;
 
 namespace Code2Viz.Tests;
@@ -8,10 +9,12 @@ namespace Code2Viz.Tests;
 // C2VGeometry.ShapeDefaults, falling back to their per-type hardcoded defaults
 // when no global override is set.
 //
-// These tests have no canvas / singleton dependency, so they are parallel-safe
-// and deliberately NOT placed in the "CanvasState" collection. We force
-// Shape.DefaultRegistry = null so constructing shapes never registers them
-// anywhere, and Reset() the global defaults around every test for isolation.
+// We force Shape.DefaultRegistry = null so constructing shapes never registers
+// them anywhere, and Reset() the global defaults around every test for isolation.
+// Because Shape.DefaultRegistry is a process-wide static that the canvas tests
+// also depend on, this class lives in the serialized "CanvasState" collection and
+// restores the registry to CanvasRenderer.Instance on teardown.
+[Collection("CanvasState")]
 public class C2VShapeDefaultsTests : IDisposable
 {
     public C2VShapeDefaultsTests()
@@ -22,8 +25,8 @@ public class C2VShapeDefaultsTests : IDisposable
 
     public void Dispose()
     {
-        Shape.DefaultRegistry = null;
         ShapeDefaults.Reset();
+        Shape.DefaultRegistry = CanvasRenderer.Instance;
     }
 
     [Fact]

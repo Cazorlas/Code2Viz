@@ -1,15 +1,15 @@
-using Code2Viz.Geometry;
+using C2VGeometry;
 using Code2Viz.Animation;
 using Code2Viz.Services;
 
 namespace Code2Viz.Canvas;
 
-public class CanvasRenderer : ICanvasRenderer
+public class CanvasRenderer : ICanvasRenderer, C2VGeometry.IShapeRegistry
 {
     private static CanvasRenderer? _instance;
     private static readonly object _lock = new();
 
-    private readonly List<IDrawable> _shapes = new();
+    private readonly List<C2VGeometry.IDrawable> _shapes = new();
 
     /// <summary>
     /// The currently active timeline for animation playback.
@@ -25,7 +25,12 @@ public class CanvasRenderer : ICanvasRenderer
             {
                 lock (_lock)
                 {
-                    _instance ??= new CanvasRenderer();
+                    if (_instance == null)
+                    {
+                        _instance = new CanvasRenderer();
+                        // App code (`new VCircle(...)`) auto-registers onto the canvas.
+                        C2VGeometry.Shape.DefaultRegistry = _instance;
+                    }
                 }
             }
             return _instance;
@@ -33,6 +38,20 @@ public class CanvasRenderer : ICanvasRenderer
     }
 
     private CanvasRenderer() { }
+
+    #region IShapeRegistry (C2VGeometry)
+
+    void C2VGeometry.IShapeRegistry.Register(Shape shape) => AddShape(shape);
+
+    void C2VGeometry.IShapeRegistry.Unregister(Shape shape) => RemoveShape(shape);
+
+    void C2VGeometry.IShapeRegistry.MoveAbove(Shape shape, Shape referenceShape)
+        => MoveShapeAbove(shape, referenceShape);
+
+    void C2VGeometry.IShapeRegistry.MoveBehind(Shape shape, Shape referenceShape)
+        => MoveShapeBehind(shape, referenceShape);
+
+    #endregion
 
     public void AddShape(IDrawable shape)
     {

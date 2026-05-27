@@ -7,7 +7,7 @@ using System.Windows.Media;
 using WpfShapes = System.Windows.Shapes;
 using WpfCanvas = System.Windows.Controls.Canvas;
 using Code2Viz.Animation;
-using Code2Viz.Geometry;
+using C2VGeometry;
 using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 using Cursors = System.Windows.Input.Cursors;
 using Color = System.Windows.Media.Color;

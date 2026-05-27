@@ -36,6 +36,15 @@ public class VRadialDimension : Shape
     /// <summary>Text suffix appended to the dimension value</summary>
     public string Suffix { get; set; } = "";
 
+    /// <summary>If true, the text is drawn over an opaque background swatch.</summary>
+    public bool TextBackgroundOpaque { get; set; } = false;
+
+    /// <summary>Override color for the leader/dimension line (null = use Color).</summary>
+    public string? DimensionLineColor { get; set; }
+
+    /// <summary>Override color for the dimension text (null = use Color).</summary>
+    public string? TextColor { get; set; }
+
     public VRadialDimension(VCircle circle)
     {
         Center = new VXYZ(circle.Center.X, circle.Center.Y);
@@ -68,6 +77,9 @@ public class VRadialDimension : Shape
         if (ShapeDefaults.DimDecimalPlaces.HasValue) DecimalPlaces = ShapeDefaults.DimDecimalPlaces.Value;
         if (ShapeDefaults.DimPrefix != null) Prefix = ShapeDefaults.DimPrefix;
         if (ShapeDefaults.DimSuffix != null) Suffix = ShapeDefaults.DimSuffix;
+        if (ShapeDefaults.DimTextBgOpaque.HasValue) TextBackgroundOpaque = ShapeDefaults.DimTextBgOpaque.Value;
+        if (ShapeDefaults.DimDimensionLineColor != null) DimensionLineColor = ShapeDefaults.DimDimensionLineColor;
+        if (ShapeDefaults.DimTextColor != null) TextColor = ShapeDefaults.DimTextColor;
     }
 
     /// <summary>
@@ -155,7 +167,10 @@ public class VRadialDimension : Shape
             DecimalPlaces = DecimalPlaces,
             TextHeight = TextHeight,
             Prefix = Prefix,
-            Suffix = Suffix
+            Suffix = Suffix,
+            TextBackgroundOpaque = TextBackgroundOpaque,
+            DimensionLineColor = DimensionLineColor,
+            TextColor = TextColor
         };
         CopyStyleTo(clone);
         return clone;

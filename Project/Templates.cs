@@ -15,7 +15,7 @@ public static class Templates
             using System.Linq;
             using System.Numerics;
             using System.Collections.Generic;
-            using Code2Viz.Geometry;
+            using C2VGeometry;
             using Code2Viz.Console;
 
             namespace {{safeName}}
@@ -66,7 +66,7 @@ public static class Templates
         using System.Linq;
         using System.Numerics;
         using System.Collections.Generic;
-        using Code2Viz.Geometry;
+        using C2VGeometry;
         using Code2Viz.Console;
 
         namespace {0}

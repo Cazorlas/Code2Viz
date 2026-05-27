@@ -4,7 +4,7 @@ using System.Reflection;
 using System.Runtime.Loader;
 using Code2Viz.Canvas;
 using Code2Viz.Console;
-using Geom = Code2Viz.Geometry;
+using C2VGeometry;
 
 namespace Code2Viz.Sketching;
 
@@ -13,7 +13,8 @@ namespace Code2Viz.Sketching;
 /// <para>
 /// Owns the <see cref="AssemblyLoadContext"/> for as long as the sketch is running so the
 /// compiled user code survives across frames. Binds <see cref="C2VGeometry.Shape.DefaultRegistry"/>
-/// to a per-frame collector and ships frame output to the WPF canvas via an adapter.
+/// directly to the WPF <see cref="CanvasRenderer"/> so shapes created in Draw() register straight
+/// onto the canvas; each frame clears and rebuilds the canvas from scratch.
 /// </para>
 /// </summary>
 public sealed class SketchRuntime
@@ -22,7 +23,6 @@ public sealed class SketchRuntime
 
     private Sketch? _active;
     private AssemblyLoadContext? _ctx;
-    private readonly C2VGeometryRegistry _registry = new();
     private readonly Stopwatch _clock = new();
     private double _lastFrameSec;
     private int _frame;
@@ -70,8 +70,8 @@ public sealed class SketchRuntime
     {
         Stop();
 
-        // Bind C2VGeometry auto-registration to our per-frame collector
-        C2VGeometry.Shape.DefaultRegistry = _registry;
+        // Bind C2VGeometry auto-registration directly to the WPF canvas.
+        C2VGeometry.Shape.DefaultRegistry = CanvasRenderer.Instance;
         C2VGeometry.Shape.AutoRegister = true;
         C2VGeometry.Shape.ResetIdCounter();
 
@@ -82,7 +82,6 @@ public sealed class SketchRuntime
         catch (Exception ex)
         {
             ReportError(ex, "Sketch construction");
-            C2VGeometry.Shape.DefaultRegistry = null;
             try { ctx.Unload(); } catch { /* Default ALC etc */ }
             return;
         }
@@ -99,6 +98,8 @@ public sealed class SketchRuntime
         try
         {
             PopulateState(0);
+            // Clear before running user code so its shapes auto-register onto a fresh canvas.
+            CanvasRenderer.Instance.Clear();
             _active.Setup();
             FlushFrame();
         }
@@ -126,6 +127,8 @@ public sealed class SketchRuntime
 
         try
         {
+            // Clear before running user code so its shapes auto-register onto a fresh canvas.
+            CanvasRenderer.Instance.Clear();
             _active.Draw();
             FlushFrame();
         }
@@ -145,8 +148,8 @@ public sealed class SketchRuntime
         if (_active == null && _ctx == null) return;
 
         _active = null;
-        C2VGeometry.Shape.DefaultRegistry = null;
-        _registry.Clear();
+        // Leave DefaultRegistry pointing at the canvas so subsequent project runs auto-register.
+        C2VGeometry.Shape.DefaultRegistry = CanvasRenderer.Instance;
         CanvasRenderer.Instance.Clear();
         _clock.Reset();
         _frame = 0;
@@ -200,17 +203,13 @@ public sealed class SketchRuntime
     {
         if (_active == null) return;
 
-        CanvasRenderer.Instance.Clear();
-
-        // DrainConverted constructs Geom shapes that auto-register with CanvasRenderer.Instance
-        foreach (var _ in _registry.DrainConverted()) { /* iteration is the work */ }
-
-        // Boundary rectangle showing the sketch area. Color picked to be visible against
-        // both light and dark canvas backgrounds.
+        // The user's Setup()/Draw() shapes have already auto-registered with the canvas
+        // (DefaultRegistry == CanvasRenderer.Instance). Add the boundary rectangle on top.
+        // Color picked to be visible against both light and dark canvas backgrounds.
         var halfW = _active.Width / 2;
         var halfH = _active.Height / 2;
         // Construction auto-registers with the canvas
-        _ = new Geom.VRectangle(new Geom.VPoint(-halfW, -halfH), _active.Width, _active.Height)
+        _ = new VRectangle(new VXYZ(-halfW, -halfH), _active.Width, _active.Height)
         {
             Color = "#888888",
             FillColor = "Transparent",

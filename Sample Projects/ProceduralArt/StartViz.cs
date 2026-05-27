@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
-using Code2Viz.Geometry;
+using C2VGeometry;
 using Code2Viz.Console;
 using Code2Viz.Animation;
 
@@ -76,10 +76,10 @@ pen.Sort((a, b) => {
 
 int penIdx = 0;
 foreach (var (col, ax, ay, bx, by, cx, cy) in pen) {
-    var pts = new List<VPoint>();
-    var pa = new VPoint(ax, ay); pa.Hide();
-    var pb = new VPoint(bx, by); pb.Hide();
-    var pc = new VPoint(cx, cy); pc.Hide();
+    var pts = new List<VXYZ>();
+    var pa = new VXYZ(ax, ay);
+    var pb = new VXYZ(bx, by);
+    var pc = new VXYZ(cx, cy);
     pts.Add(pa); pts.Add(pb); pts.Add(pc);
     var poly = new VPolygon(pts) {
         Color = "#0A0E1A",

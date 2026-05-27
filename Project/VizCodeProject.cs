@@ -59,25 +59,25 @@ public class VizCodeProject
 
     public void ApplySettings()
     {
-        Geometry.ShapeDefaults.GlobalColor = ProjectFile.Settings.DefaultColor;
-        Geometry.ShapeDefaults.GlobalFillColor = ProjectFile.Settings.DefaultFillColor;
-        Geometry.ShapeDefaults.GlobalLineWeight = ProjectFile.Settings.DefaultLineWeight;
-        Geometry.ShapeDefaults.GlobalLineTypeScale = ProjectFile.Settings.DefaultLineTypeScale;
+        C2VGeometry.ShapeDefaults.GlobalColor = ProjectFile.Settings.DefaultColor;
+        C2VGeometry.ShapeDefaults.GlobalFillColor = ProjectFile.Settings.DefaultFillColor;
+        C2VGeometry.ShapeDefaults.GlobalLineWeight = ProjectFile.Settings.DefaultLineWeight;
+        C2VGeometry.ShapeDefaults.GlobalLineTypeScale = ProjectFile.Settings.DefaultLineTypeScale;
 
         // Dimension style defaults
-        Geometry.ShapeDefaults.DimOffset = ProjectFile.Settings.DimOffset;
-        Geometry.ShapeDefaults.DimArrowSize = ProjectFile.Settings.DimArrowSize;
-        Geometry.ShapeDefaults.DimTextHeight = ProjectFile.Settings.DimTextHeight;
-        Geometry.ShapeDefaults.DimDecimalPlaces = ProjectFile.Settings.DimDecimalPlaces;
-        Geometry.ShapeDefaults.DimExtendBeyondDimLines = ProjectFile.Settings.DimExtendBeyondDimLines;
-        Geometry.ShapeDefaults.DimOffsetFromOrigin = ProjectFile.Settings.DimOffsetFromOrigin;
-        Geometry.ShapeDefaults.DimPrefix = ProjectFile.Settings.DimPrefix;
-        Geometry.ShapeDefaults.DimSuffix = ProjectFile.Settings.DimSuffix;
-        Geometry.ShapeDefaults.DimTextBgOpaque = ProjectFile.Settings.DimTextBgOpaque;
-        Geometry.ShapeDefaults.DimExtensionLineColor = ProjectFile.Settings.DimExtensionLineColor;
-        Geometry.ShapeDefaults.DimDimensionLineColor = ProjectFile.Settings.DimDimensionLineColor;
-        Geometry.ShapeDefaults.DimTextColor = ProjectFile.Settings.DimTextColor;
-        Geometry.ShapeDefaults.DimSuppressDimensionLine = ProjectFile.Settings.DimSuppressDimensionLine;
+        C2VGeometry.ShapeDefaults.DimOffset = ProjectFile.Settings.DimOffset;
+        C2VGeometry.ShapeDefaults.DimArrowSize = ProjectFile.Settings.DimArrowSize;
+        C2VGeometry.ShapeDefaults.DimTextHeight = ProjectFile.Settings.DimTextHeight;
+        C2VGeometry.ShapeDefaults.DimDecimalPlaces = ProjectFile.Settings.DimDecimalPlaces;
+        C2VGeometry.ShapeDefaults.DimExtendBeyondDimLines = ProjectFile.Settings.DimExtendBeyondDimLines;
+        C2VGeometry.ShapeDefaults.DimOffsetFromOrigin = ProjectFile.Settings.DimOffsetFromOrigin;
+        C2VGeometry.ShapeDefaults.DimPrefix = ProjectFile.Settings.DimPrefix;
+        C2VGeometry.ShapeDefaults.DimSuffix = ProjectFile.Settings.DimSuffix;
+        C2VGeometry.ShapeDefaults.DimTextBgOpaque = ProjectFile.Settings.DimTextBgOpaque;
+        C2VGeometry.ShapeDefaults.DimExtensionLineColor = ProjectFile.Settings.DimExtensionLineColor;
+        C2VGeometry.ShapeDefaults.DimDimensionLineColor = ProjectFile.Settings.DimDimensionLineColor;
+        C2VGeometry.ShapeDefaults.DimTextColor = ProjectFile.Settings.DimTextColor;
+        C2VGeometry.ShapeDefaults.DimSuppressDimensionLine = ProjectFile.Settings.DimSuppressDimensionLine;
     }
 
     public static VizCodeProject CreateNew(string directory, string projectName)

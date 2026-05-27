@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
-using Code2Viz.Geometry;
+using C2VGeometry;
 using Code2Viz.Console;
 using Code2Viz.Animation;
 
@@ -27,13 +27,13 @@ var sub = new VText(-220, 226, "BooleanOps + bisection search → 5 equal-area p
 };
 
 // ---------- PARCEL: convex hexagon ----------
-var parcelPts = new List<VPoint>();
-parcelPts.Add(new VPoint(-200, 100)  { Name = "pp_0" });
-parcelPts.Add(new VPoint(150,  130)  { Name = "pp_1" });
-parcelPts.Add(new VPoint(220,  30)   { Name = "pp_2" });
-parcelPts.Add(new VPoint(180,  -120) { Name = "pp_3" });
-parcelPts.Add(new VPoint(-50,  -150) { Name = "pp_4" });
-parcelPts.Add(new VPoint(-220, -50)  { Name = "pp_5" });
+var parcelPts = new List<VXYZ>();
+parcelPts.Add(new VXYZ(-200, 100));
+parcelPts.Add(new VXYZ(150,  130));
+parcelPts.Add(new VXYZ(220,  30));
+parcelPts.Add(new VXYZ(180,  -120));
+parcelPts.Add(new VXYZ(-50,  -150));
+parcelPts.Add(new VXYZ(-220, -50));
 
 var parcel = new VPolygon(parcelPts) {
     Color = "Cyan", FillColor = "#0E1A2C", LineWeight = 2.5, Name = "parcel"
@@ -53,11 +53,11 @@ double yMax = parcelPts.Max(p => p.Y);
 
 // helper: build a left-half-plane rectangle (vertices hidden, returned polygon also hidden)
 VPolygon MakeLeftRect(double cutX) {
-    var pts = new List<VPoint>();
-    var v0 = new VPoint(xMin - 80, yMin - 80); v0.Hide();
-    var v1 = new VPoint(cutX,      yMin - 80); v1.Hide();
-    var v2 = new VPoint(cutX,      yMax + 80); v2.Hide();
-    var v3 = new VPoint(xMin - 80, yMax + 80); v3.Hide();
+    var pts = new List<VXYZ>();
+    var v0 = new VXYZ(xMin - 80, yMin - 80);
+    var v1 = new VXYZ(cutX,      yMin - 80);
+    var v2 = new VXYZ(cutX,      yMax + 80);
+    var v3 = new VXYZ(xMin - 80, yMax + 80);
     pts.Add(v0); pts.Add(v1); pts.Add(v2); pts.Add(v3);
     var rect = new VPolygon(pts);
     rect.Hide();

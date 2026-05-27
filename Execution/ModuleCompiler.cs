@@ -89,10 +89,7 @@ public class ModuleCompiler
             }
         }
 
-        // Add Code2Viz.Geometry assembly (also brings in Code2Viz.Sketch, Code2Viz.Animation, etc.)
-        DefaultReferences.Add(MetadataReference.CreateFromFile(typeof(Geometry.VPoint).Assembly.Location));
-
-        // Add C2VGeometry assembly so sketches can `using C2VGeometry;`
+        // Add C2VGeometry assembly so user code can `using C2VGeometry;`
         DefaultReferences.Add(MetadataReference.CreateFromFile(typeof(C2VGeometry.Shape).Assembly.Location));
     }
 
@@ -391,7 +388,7 @@ public class ModuleCompiler
         var typeCounts = new Dictionary<string, int>();
         foreach (var drawable in shapes)
         {
-            if (drawable is Geometry.Shape shape && string.IsNullOrEmpty(shape.Name) && !shape.IsExplicitlyDrawn && shape.IsVisible)
+            if (drawable is C2VGeometry.Shape shape && string.IsNullOrEmpty(shape.Name) && !shape.IsExplicitlyDrawn && shape.IsVisible)
             {
                 shape.IsVisible = false;
                 hiddenCount++;

@@ -1,5 +1,5 @@
 using System.Windows;
-using Code2Viz.Geometry;
+using C2VGeometry;
 
 namespace Code2Viz.Canvas;
 
@@ -55,12 +55,12 @@ public class SelectionTool
     /// <summary>
     /// Start point of selection box in world coordinates.
     /// </summary>
-    public VPoint? BoxStart { get; private set; }
+    public VXYZ? BoxStart { get; private set; }
 
     /// <summary>
     /// Current end point of selection box in world coordinates.
     /// </summary>
-    public VPoint? BoxEnd { get; private set; }
+    public VXYZ? BoxEnd { get; private set; }
 
     /// <summary>
     /// Whether a control point is being dragged.
@@ -80,7 +80,7 @@ public class SelectionTool
     /// <summary>
     /// Current position of the dragged control point.
     /// </summary>
-    public VPoint? DragPosition { get; private set; }
+    public VXYZ? DragPosition { get; private set; }
 
     /// <summary>
     /// Event raised when selection changes.
@@ -104,7 +104,7 @@ public class SelectionTool
     /// <param name="shapes">Shapes to test against.</param>
     /// <param name="scale">Current canvas scale for tolerance calculation.</param>
     /// <returns>The topmost shape at the position, or null if none.</returns>
-    public Shape? HitTest(VPoint worldPos, IReadOnlyList<IDrawable> shapes, double scale)
+    public Shape? HitTest(VXYZ worldPos, IReadOnlyList<IDrawable> shapes, double scale)
     {
         var tolerance = HitTolerance / scale;
 
@@ -124,11 +124,11 @@ public class SelectionTool
     /// <summary>
     /// Tests if a point hits a specific shape.
     /// </summary>
-    private bool HitTestShape(Shape shape, VPoint point, double tolerance)
+    private bool HitTestShape(Shape shape, VXYZ point, double tolerance)
     {
         return shape switch
         {
-            VPoint p => DistanceToPoint(p, point) <= tolerance,
+            VPoint p => DistanceToPoint(p.AsVXYZ(), point) <= tolerance,
             VLine line => DistanceToLine(line, point) <= tolerance,
             VCircle circle => DistanceToCircle(circle, point) <= tolerance,
             VArc arc => DistanceToArc(arc, point) <= tolerance,
@@ -146,12 +146,12 @@ public class SelectionTool
         };
     }
 
-    private double DistanceToPoint(VPoint p, VPoint testPoint)
+    private double DistanceToPoint(VXYZ p, VXYZ testPoint)
     {
         return p.DistanceTo(testPoint);
     }
 
-    private double DistanceToLine(VLine line, VPoint point)
+    private double DistanceToLine(VLine line, VXYZ point)
     {
         var dx = line.End.X - line.Start.X;
         var dy = line.End.Y - line.Start.Y;
@@ -167,7 +167,7 @@ public class SelectionTool
         return Math.Sqrt((point.X - projX) * (point.X - projX) + (point.Y - projY) * (point.Y - projY));
     }
 
-    private double DistanceToCircle(VCircle circle, VPoint point)
+    private double DistanceToCircle(VCircle circle, VXYZ point)
     {
         var distToCenter = point.DistanceTo(circle.Center);
 
@@ -179,7 +179,7 @@ public class SelectionTool
         return Math.Abs(distToCenter - circle.Radius);
     }
 
-    private double DistanceToArc(VArc arc, VPoint point)
+    private double DistanceToArc(VArc arc, VXYZ point)
     {
         var distToCenter = point.DistanceTo(arc.Center);
         var angle = Math.Atan2(point.Y - arc.Center.Y, point.X - arc.Center.X) * 180 / Math.PI;
@@ -205,7 +205,7 @@ public class SelectionTool
         return Math.Abs(distToCenter - arc.Radius);
     }
 
-    private bool HitTestRectangle(VRectangle rect, VPoint point, double tolerance)
+    private bool HitTestRectangle(VRectangle rect, VXYZ point, double tolerance)
     {
         // Check if inside (for filled rectangles)
         if (rect.FillColor != "Transparent")
@@ -218,16 +218,16 @@ public class SelectionTool
         // Check distance to edges
         var lines = new[]
         {
-            new VLine(rect.Corner, new VPoint(rect.Corner.X + rect.Width, rect.Corner.Y)),
-            new VLine(new VPoint(rect.Corner.X + rect.Width, rect.Corner.Y), new VPoint(rect.Corner.X + rect.Width, rect.Corner.Y + rect.Height)),
-            new VLine(new VPoint(rect.Corner.X + rect.Width, rect.Corner.Y + rect.Height), new VPoint(rect.Corner.X, rect.Corner.Y + rect.Height)),
-            new VLine(new VPoint(rect.Corner.X, rect.Corner.Y + rect.Height), rect.Corner)
+            new VLine(rect.Corner, new VXYZ(rect.Corner.X + rect.Width, rect.Corner.Y)),
+            new VLine(new VXYZ(rect.Corner.X + rect.Width, rect.Corner.Y), new VXYZ(rect.Corner.X + rect.Width, rect.Corner.Y + rect.Height)),
+            new VLine(new VXYZ(rect.Corner.X + rect.Width, rect.Corner.Y + rect.Height), new VXYZ(rect.Corner.X, rect.Corner.Y + rect.Height)),
+            new VLine(new VXYZ(rect.Corner.X, rect.Corner.Y + rect.Height), rect.Corner)
         };
 
         return lines.Any(line => DistanceToLine(line, point) <= tolerance);
     }
 
-    private bool HitTestEllipse(VEllipse ellipse, VPoint point, double tolerance)
+    private bool HitTestEllipse(VEllipse ellipse, VXYZ point, double tolerance)
     {
         // Normalized point relative to ellipse center
         var nx = (point.X - ellipse.Center.X) / ellipse.RadiusX;
@@ -243,7 +243,7 @@ public class SelectionTool
         return Math.Abs(normalizedDist - 1.0) * avgRadius <= tolerance;
     }
 
-    private bool HitTestPolygon(VPolygon polygon, VPoint point, double tolerance)
+    private bool HitTestPolygon(VPolygon polygon, VXYZ point, double tolerance)
     {
         if (polygon.Points.Count < 3)
             return false;
@@ -264,7 +264,7 @@ public class SelectionTool
         return false;
     }
 
-    private bool IsPointInPolygon(IReadOnlyList<VPoint> polygon, VPoint point)
+    private bool IsPointInPolygon(IReadOnlyList<VXYZ> polygon, VXYZ point)
     {
         bool inside = false;
         int j = polygon.Count - 1;
@@ -282,7 +282,7 @@ public class SelectionTool
         return inside;
     }
 
-    private double DistanceToPolyline(VPolyline polyline, VPoint point)
+    private double DistanceToPolyline(VPolyline polyline, VXYZ point)
     {
         if (polyline.Points.Count < 2)
             return double.MaxValue;
@@ -297,7 +297,7 @@ public class SelectionTool
         return minDist;
     }
 
-    private double DistanceToBezier(VBezier bezier, VPoint point)
+    private double DistanceToBezier(VBezier bezier, VXYZ point)
     {
         var renderPoints = bezier.GetRenderPoints();
         if (renderPoints.Count < 2)
@@ -313,7 +313,7 @@ public class SelectionTool
         return minDist;
     }
 
-    private double DistanceToSpline(VSpline spline, VPoint point)
+    private double DistanceToSpline(VSpline spline, VXYZ point)
     {
         var renderPoints = spline.GetRenderPoints();
         if (renderPoints.Count < 2)
@@ -329,7 +329,7 @@ public class SelectionTool
         return minDist;
     }
 
-    private bool HitTestText(VText text, VPoint point, double tolerance)
+    private bool HitTestText(VText text, VXYZ point, double tolerance)
     {
         // Approximate text bounding box
         var estimatedWidth = text.Content.Length * text.Height * 0.6;
@@ -339,7 +339,7 @@ public class SelectionTool
                point.Y <= text.Location.Y + text.Height + tolerance;
     }
 
-    private bool HitTestDimension(VDimension dim, VPoint point, double tolerance)
+    private bool HitTestDimension(VDimension dim, VXYZ point, double tolerance)
     {
         var (dimStart, dimEnd, _, ext1Start, ext1End, ext2Start, ext2End) = dim.GetDimensionGeometry();
 
@@ -356,7 +356,7 @@ public class SelectionTool
         return false;
     }
 
-    private bool HitTestGroup(VGroup group, VPoint point, double tolerance)
+    private bool HitTestGroup(VGroup group, VXYZ point, double tolerance)
     {
         foreach (var shape in group.Shapes)
         {
@@ -366,7 +366,7 @@ public class SelectionTool
         return false;
     }
 
-    private bool IsWithinBoundingBox(Shape shape, VPoint point, double tolerance)
+    private bool IsWithinBoundingBox(Shape shape, VXYZ point, double tolerance)
     {
         var bounds = shape.GetBounds();
         return point.X >= bounds.Min.X - tolerance && point.X <= bounds.Max.X + tolerance &&
@@ -379,7 +379,7 @@ public class SelectionTool
     /// <param name="worldPos">Position in world coordinates.</param>
     /// <param name="scale">Current canvas scale.</param>
     /// <returns>Tuple of (shape, control point index) or (null, -1) if no hit.</returns>
-    public (Shape? shape, int index) HitTestControlPoints(VPoint worldPos, double scale)
+    public (Shape? shape, int index) HitTestControlPoints(VXYZ worldPos, double scale)
     {
         var tolerance = HandleTolerance / scale;
 
@@ -409,7 +409,7 @@ public class SelectionTool
     /// <param name="shapes">All shapes on the canvas.</param>
     /// <param name="scale">Current canvas scale.</param>
     /// <returns>True if a shape was clicked, false to start box selection.</returns>
-    public bool OnMouseDown(VPoint worldPos, bool shift, bool ctrl, IReadOnlyList<IDrawable> shapes, double scale)
+    public bool OnMouseDown(VXYZ worldPos, bool shift, bool ctrl, IReadOnlyList<IDrawable> shapes, double scale)
     {
         // First, check if we're clicking on a control point of a selected shape
         if (SelectedShapes.Count > 0)
@@ -482,12 +482,12 @@ public class SelectionTool
     /// <param name="shapes">All shapes on the canvas (for snapping).</param>
     /// <param name="scale">Current canvas scale (for snap tolerance calculation).</param>
     /// <param name="spatialIndex">Optional spatial index for efficient snap detection.</param>
-    public void OnMouseMove(VPoint worldPos, IReadOnlyList<IDrawable>? shapes = null, double scale = 1.0, QuadTree? spatialIndex = null)
+    public void OnMouseMove(VXYZ worldPos, IReadOnlyList<IDrawable>? shapes = null, double scale = 1.0, QuadTree? spatialIndex = null)
     {
         if (IsDraggingHandle && DraggedShape != null)
         {
             // Try to snap to other shapes (exclude the shape being dragged)
-            VPoint targetPos = worldPos;
+            VXYZ targetPos = worldPos;
             CurrentSnap = null;
 
             if (spatialIndex != null)
@@ -539,7 +539,7 @@ public class SelectionTool
     /// <param name="shapes">All shapes on the canvas.</param>
     /// <param name="shift">Whether Shift key is pressed.</param>
     /// <param name="ctrl">Whether Ctrl key is pressed.</param>
-    public void OnMouseUp(VPoint worldPos, IReadOnlyList<IDrawable> shapes, bool shift, bool ctrl)
+    public void OnMouseUp(VXYZ worldPos, IReadOnlyList<IDrawable> shapes, bool shift, bool ctrl)
     {
         // End handle dragging
         if (IsDraggingHandle)

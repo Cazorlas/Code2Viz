@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
-using Code2Viz.Geometry;
+using C2VGeometry;
 using Code2Viz.Console;
 using Code2Viz.Animation;
 
@@ -32,29 +32,29 @@ var worldRect = new VRectangle(wxMin, wyMin, wxMax - wxMin, wyMax - wyMin) {
     Color = "#404060", LineType = LineType.Dashed, LineWeight = 1, LineTypeScale = 0.7,
     Name = "world_rect"
 };
-var wTL = new VPoint(wxMin, wyMax) { Name = "w_tl" };
-var wTR = new VPoint(wxMax, wyMax) { Name = "w_tr" };
-var wBR = new VPoint(wxMax, wyMin) { Name = "w_br" };
-var wBL = new VPoint(wxMin, wyMin) { Name = "w_bl" };
+var wTL = new VXYZ(wxMin, wyMax);
+var wTR = new VXYZ(wxMax, wyMax);
+var wBR = new VXYZ(wxMax, wyMin);
+var wBL = new VXYZ(wxMin, wyMin);
 
 // ---------- OBSTACLES ----------
-var triPts = new List<VPoint>();
-triPts.Add(new VPoint(-180, 70) { Name = "tri_0" });
-triPts.Add(new VPoint(-75, 145) { Name = "tri_1" });
-triPts.Add(new VPoint(-40, 35)  { Name = "tri_2" });
+var triPts = new List<VXYZ>();
+triPts.Add(new VXYZ(-180, 70));
+triPts.Add(new VXYZ(-75, 145));
+triPts.Add(new VXYZ(-40, 35));
 
-var pentPts = new List<VPoint>();
-pentPts.Add(new VPoint(70, 130)  { Name = "pent_0" });
-pentPts.Add(new VPoint(195, 90)  { Name = "pent_1" });
-pentPts.Add(new VPoint(205, -25) { Name = "pent_2" });
-pentPts.Add(new VPoint(115, -65) { Name = "pent_3" });
-pentPts.Add(new VPoint(40, 25)   { Name = "pent_4" });
+var pentPts = new List<VXYZ>();
+pentPts.Add(new VXYZ(70, 130));
+pentPts.Add(new VXYZ(195, 90));
+pentPts.Add(new VXYZ(205, -25));
+pentPts.Add(new VXYZ(115, -65));
+pentPts.Add(new VXYZ(40, 25));
 
-var quadPts = new List<VPoint>();
-quadPts.Add(new VPoint(-90, -120) { Name = "quad_0" });
-quadPts.Add(new VPoint(45, -90)   { Name = "quad_1" });
-quadPts.Add(new VPoint(80, -180)  { Name = "quad_2" });
-quadPts.Add(new VPoint(-55, -195) { Name = "quad_3" });
+var quadPts = new List<VXYZ>();
+quadPts.Add(new VXYZ(-90, -120));
+quadPts.Add(new VXYZ(45, -90));
+quadPts.Add(new VXYZ(80, -180));
+quadPts.Add(new VXYZ(-55, -195));
 
 var tri  = new VPolygon(triPts)  { Color = "#C9A781", FillColor = "#3A2D22", LineWeight = 1.5, Name = "tri" };
 var pent = new VPolygon(pentPts) { Color = "#7FB89C", FillColor = "#1F3329", LineWeight = 1.5, Name = "pent" };
@@ -64,31 +64,31 @@ tri.Draw();
 pent.Draw();
 quad.Draw();
 
-var obsPts = new List<List<VPoint>>();
+var obsPts = new List<List<VXYZ>>();
 obsPts.Add(triPts); obsPts.Add(pentPts); obsPts.Add(quadPts);
 
-var obsEdges = new List<(VPoint a, VPoint b)>();
+var obsEdges = new List<(VXYZ a, VXYZ b)>();
 foreach (var op in obsPts)
     for (int i = 0; i < op.Count; i++)
         obsEdges.Add((op[i], op[(i + 1) % op.Count]));
 obsEdges.Add((wTL, wTR)); obsEdges.Add((wTR, wBR));
 obsEdges.Add((wBR, wBL)); obsEdges.Add((wBL, wTL));
 
-var visGraphEdges = new List<(VPoint a, VPoint b)>();
+var visGraphEdges = new List<(VXYZ a, VXYZ b)>();
 foreach (var op in obsPts)
     for (int i = 0; i < op.Count; i++)
         visGraphEdges.Add((op[i], op[(i + 1) % op.Count]));
 
 // ---------- START / GOAL ----------
-var start = new VPoint(-265, -25) { Name = "start_pt" };
-var goal  = new VPoint(265, -10)  { Name = "goal_pt" };
+var start = new VXYZ(-265, -25);
+var goal  = new VXYZ(265, -10);
 var startDot = new VCircle(start.X, start.Y, 7) { Color = "Lime", FillColor = "Lime", LineWeight = 2, Name = "start_dot" };
 var goalDot  = new VCircle(goal.X,  goal.Y,  7) { Color = "Gold", FillColor = "Gold", LineWeight = 2, Name = "goal_dot" };
 var sLab = new VText(start.X - 22, start.Y - 14, "START", 9) { Color = "Lime", Name = "s_lab" };
 var gLab = new VText(goal.X  - 16, goal.Y  - 14, "GOAL",  9) { Color = "Gold", Name = "g_lab" };
 
 // ---------- HELPERS ----------
-VPoint SegInt(VPoint a, VPoint b, VPoint c, VPoint d) {
+VXYZ SegInt(VXYZ a, VXYZ b, VXYZ c, VXYZ d) {
     double dx1 = b.X - a.X, dy1 = b.Y - a.Y;
     double dx2 = d.X - c.X, dy2 = d.Y - c.Y;
     double denom = dx1 * dy2 - dy1 * dx2;
@@ -96,11 +96,11 @@ VPoint SegInt(VPoint a, VPoint b, VPoint c, VPoint d) {
     double t = ((c.X - a.X) * dy2 - (c.Y - a.Y) * dx2) / denom;
     double u = ((c.X - a.X) * dy1 - (c.Y - a.Y) * dx1) / denom;
     if (t > 0.0005 && t < 0.9995 && u > 0.0005 && u < 0.9995)
-        return new VPoint(a.X + t * dx1, a.Y + t * dy1);
+        return new VXYZ(a.X + t * dx1, a.Y + t * dy1);
     return null;
 }
 
-VPoint RayHit(VPoint p, VPoint rayEnd, VPoint a, VPoint b) {
+VXYZ RayHit(VXYZ p, VXYZ rayEnd, VXYZ a, VXYZ b) {
     double dx1 = rayEnd.X - p.X, dy1 = rayEnd.Y - p.Y;
     double dx2 = b.X - a.X, dy2 = b.Y - a.Y;
     double denom = dx1 * dy2 - dy1 * dx2;
@@ -108,12 +108,12 @@ VPoint RayHit(VPoint p, VPoint rayEnd, VPoint a, VPoint b) {
     double t = ((a.X - p.X) * dy2 - (a.Y - p.Y) * dx2) / denom;
     double u = ((a.X - p.X) * dy1 - (a.Y - p.Y) * dx1) / denom;
     if (t > 0.001 && t <= 1.0 && u >= -0.0001 && u <= 1.0001)
-        return new VPoint(p.X + t * dx1, p.Y + t * dy1);
+        return new VXYZ(p.X + t * dx1, p.Y + t * dy1);
     return null;
 }
 
 // ---------- VISIBILITY GRAPH + DIJKSTRA (silent) ----------
-var allVerts = new List<VPoint>();
+var allVerts = new List<VXYZ>();
 var vertObs = new List<int>(); var vertLocal = new List<int>();
 for (int o = 0; o < obsPts.Count; o++)
     for (int v = 0; v < obsPts[o].Count; v++) {
@@ -180,7 +180,7 @@ for (int i = 0; i < pathPts.Count - 1; i++) {
     segLens.Add(L); totalLen += L;
 }
 int numSamples = 10;
-var samples = new List<VPoint>();
+var samples = new List<VXYZ>();
 for (int i = 0; i < numSamples; i++) {
     double t = (double)i / (numSamples - 1);
     double target = t * totalLen;
@@ -189,9 +189,7 @@ for (int i = 0; i < numSamples; i++) {
         if (accum + segLens[s] >= target - 1e-9) {
             double localT = (target - accum) / segLens[s];
             var a = pathPts[s]; var b = pathPts[s + 1];
-            samples.Add(new VPoint(a.X + localT * (b.X - a.X), a.Y + localT * (b.Y - a.Y)) {
-                Name = $"sample_pt_{i}"
-            });
+            samples.Add(new VXYZ(a.X + localT * (b.X - a.X), a.Y + localT * (b.Y - a.Y)));
             break;
         }
         accum += segLens[s];
@@ -225,14 +223,14 @@ int maxIdx = 0; double maxArea = 0;
 
 for (int s = 0; s < samples.Count; s++) {
     var p = samples[s];
-    var verts = new List<VPoint>();
+    var verts = new List<VXYZ>();
     for (int r = 0; r < numRays; r++) {
         double ang = r * 2 * Math.PI / numRays;
-        var rayEnd = new VPoint(p.X + maxDist * Math.Cos(ang), p.Y + maxDist * Math.Sin(ang));
+        var rayEnd = new VXYZ(p.X + maxDist * Math.Cos(ang), p.Y + maxDist * Math.Sin(ang));
         if (rayEnd.X < wxMin || rayEnd.X > wxMax || rayEnd.Y < wyMin || rayEnd.Y > wyMax)
             rayEnd.Hide();
 
-        VPoint closest = rayEnd;
+        VXYZ closest = rayEnd;
         double minDsq = maxDist * maxDist;
         foreach (var (a, b) in obsEdges) {
             var hit = RayHit(p, rayEnd, a, b);
@@ -255,14 +253,14 @@ for (int s = 0; s < samples.Count; s++) {
 
 // ---------- MAX VISIBILITY POLYGON (keep outline visible for emphasis) ----------
 var maxSample = samples[maxIdx];
-var maxVerts = new List<VPoint>();
+var maxVerts = new List<VXYZ>();
 for (int r = 0; r < numRays; r++) {
     double ang = r * 2 * Math.PI / numRays;
-    var rayEnd = new VPoint(maxSample.X + maxDist * Math.Cos(ang), maxSample.Y + maxDist * Math.Sin(ang));
+    var rayEnd = new VXYZ(maxSample.X + maxDist * Math.Cos(ang), maxSample.Y + maxDist * Math.Sin(ang));
     if (rayEnd.X < wxMin || rayEnd.X > wxMax || rayEnd.Y < wyMin || rayEnd.Y > wyMax)
         rayEnd.Hide();
 
-    VPoint closest = rayEnd;
+    VXYZ closest = rayEnd;
     double minDsq = maxDist * maxDist;
     foreach (var (a, b) in obsEdges) {
         var hit = RayHit(maxSample, rayEnd, a, b);

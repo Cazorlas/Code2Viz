@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
-using Code2Viz.Geometry;
+using C2VGeometry;
 using Code2Viz.Console;
 
 namespace ConvexHull
@@ -11,27 +11,27 @@ namespace ConvexHull
     {
         public int Going { get; private set; }
         public int Rise { get; private set; }
-        public VPoint Location { get; private set; }
+        public VXYZ Location { get; private set; }
         public VLine Tread { get; set; }
         public VLine Riser { get; set; }
-        public VPoint Start { get; set; }
-        public VPoint Mid { get; set; }
-        public VPoint End { get; set; }
+        public VXYZ Start { get; set; }
+        public VXYZ Mid { get; set; }
+        public VXYZ End { get; set; }
 
-        public Step(VPoint location, int going, int rise)
+        public Step(VXYZ location, int going, int rise)
         {
             Location = location;
             Going = going;
             Rise = rise;
 
-            Start = (VPoint) location.Clone();
-            Mid = Start + new VPoint(0, rise);
-            End = Mid + new VPoint(Going, 0);
+            Start = (VXYZ) location.Clone();
+            Mid = Start + new VXYZ(0, rise);
+            End = Mid + new VXYZ(Going, 0);
 
             Start.Draw();
             Mid.Draw();
             End.Draw();
-            VPolyline pl = new VPolyline(new VPoint[]{Start, Mid, End});
+            VPolyline pl = new VPolyline(new VXYZ[]{Start, Mid, End});
             pl.Draw();
 
         }

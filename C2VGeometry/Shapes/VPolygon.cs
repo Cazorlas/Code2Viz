@@ -95,7 +95,10 @@ public class VPolygon : Shape, ICurve
         for (int i = 0; i < Points.Count; i++)
         {
             int nextIndex = (i + 1) % Points.Count;
-            Curves.Add(new VLine(Points[i], Points[nextIndex]));
+            // VLine.Internal: edge segments are the polygon's internal curve
+            // representation, NOT canvas shapes — `new VLine` would auto-register
+            // each edge with DefaultRegistry and pollute the canvas (see CLAUDE.md #10).
+            Curves.Add(VLine.Internal(Points[i], Points[nextIndex]));
         }
     }
 

@@ -1,5 +1,5 @@
 using Code2Viz.Canvas;
-using Code2Viz.Geometry;
+using C2VGeometry;
 
 namespace Code2Viz.Services
 {

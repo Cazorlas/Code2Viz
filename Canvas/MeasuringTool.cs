@@ -1,4 +1,4 @@
-using Code2Viz.Geometry;
+using C2VGeometry;
 
 namespace Code2Viz.Canvas;
 
@@ -24,12 +24,12 @@ public class MeasuringTool
     /// <summary>
     /// First point of the measurement (null if not yet set).
     /// </summary>
-    public VPoint? FirstPoint { get; private set; }
+    public VXYZ? FirstPoint { get; private set; }
 
     /// <summary>
     /// Current cursor position in world coordinates.
     /// </summary>
-    public VPoint? CurrentPoint { get; private set; }
+    public VXYZ? CurrentPoint { get; private set; }
 
     /// <summary>
     /// Current snap result (if any).
@@ -95,7 +95,7 @@ public class MeasuringTool
     /// <param name="shapes">Current shapes on canvas.</param>
     /// <param name="scale">Current canvas scale.</param>
     /// <param name="spatialIndex">Optional spatial index for efficient snap detection.</param>
-    public void OnMouseMove(VPoint worldPos, IReadOnlyList<IDrawable> shapes, double scale, QuadTree? spatialIndex = null)
+    public void OnMouseMove(VXYZ worldPos, IReadOnlyList<IDrawable> shapes, double scale, QuadTree? spatialIndex = null)
     {
         if (Mode != ToolMode.Measuring)
             return;
@@ -119,7 +119,7 @@ public class MeasuringTool
     /// </summary>
     /// <param name="worldPos">Mouse position in world coordinates.</param>
     /// <returns>True if the click was handled by the measuring tool.</returns>
-    public bool OnLeftClick(VPoint worldPos)
+    public bool OnLeftClick(VXYZ worldPos)
     {
         if (Mode != ToolMode.Measuring)
             return false;
@@ -165,7 +165,7 @@ public class MeasuringTool
     /// <summary>
     /// Gets the effective end point (snapped or cursor position).
     /// </summary>
-    public VPoint? GetEffectiveEndPoint()
+    public VXYZ? GetEffectiveEndPoint()
     {
         if (CurrentSnap != null)
             return CurrentSnap.Point;

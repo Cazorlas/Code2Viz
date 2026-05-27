@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
-using Code2Viz.Geometry;
+using C2VGeometry;
 using Point = System.Windows.Point;
 using Rect = System.Windows.Rect;
 

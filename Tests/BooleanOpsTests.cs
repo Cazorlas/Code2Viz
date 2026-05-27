@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Xunit;
-using Code2Viz.Geometry;
+using C2VGeometry;
 
 namespace Code2Viz.Tests;
 
@@ -10,7 +10,7 @@ public class BooleanOpsTests
 {
     private static VPolygon MakePoly(params (double x, double y)[] coords)
     {
-        var points = coords.Select(c => new VPoint(c.x, c.y)).ToList();
+        var points = coords.Select(c => new VXYZ(c.x, c.y)).ToList();
         return new VPolygon(points);
     }
 

@@ -1,7 +1,7 @@
 using System;
 using System.Linq.Expressions;
 using System.Reflection;
-using Code2Viz.Geometry;
+using C2VGeometry;
 
 namespace Code2Viz.Animation
 {
@@ -138,7 +138,7 @@ namespace Code2Viz.Animation
                 return;
 
             double easedT = EasingFunction(Math.Clamp(t, 0, 1));
-            VPoint pathPoint = _path.PointAtParameter(easedT);
+            VXYZ pathPoint = _path.PointAtParameter(easedT);
             Target.OffsetX = pathPoint.X - _shapeCenterX;
             Target.OffsetY = pathPoint.Y - _shapeCenterY;
         }
@@ -149,12 +149,12 @@ namespace Code2Viz.Animation
     /// </summary>
     public class RotateAnimation : Animation
     {
-        private readonly VPoint _pivot;
+        private readonly VXYZ _pivot;
         private readonly double _angleDegrees;
         private double? _initialRotation;
         private bool _hasStarted;
 
-        public RotateAnimation(Shape target, VPoint pivot, double angleDegrees, double duration)
+        public RotateAnimation(Shape target, VXYZ pivot, double angleDegrees, double duration)
             : base(target, duration)
         {
             _pivot = pivot;

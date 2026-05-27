@@ -19,6 +19,7 @@
   <ItemGroup>
     <!-- Exclude sibling project folders from compilation -->
     <Compile Remove="Tests\**" />
+    <Compile Remove="Geometry\**" />
     <Compile Remove="McpBridge\**" />
     <Compile Remove="McpServer\**" />
     <Compile Remove="C2VGeometry\**" />

@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
-using Code2Viz.Geometry;
+using C2VGeometry;
 using Point = System.Windows.Point;
 using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
@@ -354,7 +354,7 @@ public class RenderCanvas : FrameworkElement
         {
             var screenPos = e.GetPosition(this);
             var worldPos = ScreenToWorld(screenPos.X, screenPos.Y);
-            var vPoint = new VPoint(worldPos.X, worldPos.Y);
+            var vPoint = new VXYZ(worldPos.X, worldPos.Y);
 
             // Apply snap to grid on clicks (same as OnMouseMove preview)
             if (SnapToGrid && !_isPanning)
@@ -452,7 +452,7 @@ public class RenderCanvas : FrameworkElement
             {
                 var screenPos = e.GetPosition(this);
                 var worldPos = ScreenToWorld(screenPos.X, screenPos.Y);
-                var vPoint = new VPoint(worldPos.X, worldPos.Y);
+                var vPoint = new VXYZ(worldPos.X, worldPos.Y);
 
                 var shift = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
                 var ctrl = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
@@ -488,7 +488,7 @@ public class RenderCanvas : FrameworkElement
             // Update drawing tool with cursor position (use spatial index for O(log n) snap detection)
             // Check for Shift key to enable orthogonal constraint
             _drawingTool.IsOrthoMode = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
-            _drawingTool.OnMouseMove(new VPoint(worldPos.X, worldPos.Y), _currentShapes, _viewport.Scale, _spatialIndex);
+            _drawingTool.OnMouseMove(new VXYZ(worldPos.X, worldPos.Y), _currentShapes, _viewport.Scale, _spatialIndex);
             RedrawAll();
 
             // Focus canvas when drawing to enable keyboard input for distance/angle
@@ -500,13 +500,13 @@ public class RenderCanvas : FrameworkElement
         else if (_measuringTool?.Mode == ToolMode.Measuring)
         {
             // Update measuring tool with cursor position (use spatial index for O(log n) snap detection)
-            _measuringTool.OnMouseMove(new VPoint(worldPos.X, worldPos.Y), _currentShapes, _viewport.Scale, _spatialIndex);
+            _measuringTool.OnMouseMove(new VXYZ(worldPos.X, worldPos.Y), _currentShapes, _viewport.Scale, _spatialIndex);
             RedrawAll();
         }
         else if (_selectionTool?.IsBoxSelecting == true || _selectionTool?.IsDraggingHandle == true)
         {
             // Update selection box or handle drag (with snapping support, use spatial index for O(log n) performance)
-            _selectionTool.OnMouseMove(new VPoint(worldPos.X, worldPos.Y), _currentShapes, _viewport.Scale, _spatialIndex);
+            _selectionTool.OnMouseMove(new VXYZ(worldPos.X, worldPos.Y), _currentShapes, _viewport.Scale, _spatialIndex);
             RedrawAll();
         }
     }
@@ -872,7 +872,7 @@ public class RenderCanvas : FrameworkElement
         }
     }
 
-    private void DrawPreviewShape(DrawingContext dc, Geometry.Shape shape)
+    private void DrawPreviewShape(DrawingContext dc, C2VGeometry.Shape shape)
     {
         // Use dashed gray pen for preview
         var previewBrush = new SolidColorBrush(Colors.Gray);
@@ -1584,12 +1584,12 @@ public class RenderCanvas : FrameworkElement
         }
     }
 
-    private VPoint SnapPointToGrid(double worldX, double worldY)
+    private VXYZ SnapPointToGrid(double worldX, double worldY)
     {
         var spacing = CalculateAdaptiveSpacing();
         var snappedX = Math.Round(worldX / spacing) * spacing;
         var snappedY = Math.Round(worldY / spacing) * spacing;
-        return new VPoint(snappedX, snappedY);
+        return new VXYZ(snappedX, snappedY);
     }
 
     private double CalculateAdaptiveSpacing()
@@ -2564,7 +2564,7 @@ public class RenderCanvas : FrameworkElement
     /// Draws a filled triangular arrowhead at tipPoint, pointing from tailPoint toward tipPoint.
     /// </summary>
     private void DrawDimensionArrowhead(DrawingContext dc, Brush brush, Pen pen,
-        VPoint tipPoint, VPoint tailPoint, double arrowSize)
+        VXYZ tipPoint, VXYZ tailPoint, double arrowSize)
     {
         var dx = tipPoint.X - tailPoint.X;
         var dy = tipPoint.Y - tailPoint.Y;

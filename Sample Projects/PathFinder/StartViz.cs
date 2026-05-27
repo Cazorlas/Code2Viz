@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
-using Code2Viz.Geometry;
+using C2VGeometry;
 using Code2Viz.Console;
 using Code2Viz.Animation;
 
@@ -21,7 +21,7 @@ ShapeDefaults.Reset();
 // ---------- GRID ----------
 int W = 20, H = 15;
 double cs = 22.0;
-var gridOrigin = new VPoint(-W * cs / 2.0, -H * cs / 2.0);
+var gridOrigin = new VXYZ(-W * cs / 2.0, -H * cs / 2.0);
 var grid = new VSpatialGrid(gridOrigin, W, H, cs) { Name = "grid" };
 
 // ---------- HEADER ----------

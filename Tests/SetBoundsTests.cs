@@ -1,12 +1,12 @@
 using System;
 using Xunit;
 using Code2Viz.Canvas;
-using Code2Viz.Geometry;
+using C2VGeometry;
 
 namespace Code2Viz.Tests;
 
 // Touches the singleton CanvasRenderer because most shapes auto-register.
-// See RayCasterTests for the collection rationale.
+// See C2VRayCasterTests for the collection rationale.
 [Collection("CanvasState")]
 public class SetBoundsTests : IDisposable
 {
@@ -49,16 +49,15 @@ public class SetBoundsTests : IDisposable
     }
 
     [Fact]
-    public void VLine_SetBounds_PreservesPointInstance()
+    public void VLine_SetBounds_UpdatesEndpoints()
     {
+        // C2V VXYZ is immutable, so SetBounds reassigns Start/End to the trimmed positions.
         var line = new VLine(0, 0, 10, 0);
-        var startRef = line.Start;
-        var endRef = line.End;
 
         line.SetBounds(0.2, 0.8);
 
-        Assert.Same(startRef, line.Start);
-        Assert.Same(endRef, line.End);
+        Assert.Equal(2.0, line.Start.X, 6);
+        Assert.Equal(8.0, line.End.X, 6);
     }
 
     [Fact]
@@ -108,7 +107,7 @@ public class SetBoundsTests : IDisposable
     [Fact]
     public void VEllipse_SetBounds_RescalesAngles()
     {
-        var ell = new VEllipse(new VPoint(0, 0), 4, 2, 0, 360);
+        var ell = new VEllipse(new VXYZ(0, 0), 4, 2, 0, 360);
         ell.SetBounds(0.25, 0.5);
 
         Assert.Equal(90.0, ell.StartAngle, 6);
@@ -131,9 +130,9 @@ public class SetBoundsTests : IDisposable
     {
         // 4 segments, 5 vertices at parameters 0, 0.25, 0.5, 0.75, 1
         var poly = new VPolyline(
-            new VPoint(0, 0), new VPoint(1, 0),
-            new VPoint(2, 0), new VPoint(3, 0),
-            new VPoint(4, 0));
+            new VXYZ(0, 0), new VXYZ(1, 0),
+            new VXYZ(2, 0), new VXYZ(3, 0),
+            new VXYZ(4, 0));
 
         poly.SetBounds(0.25, 0.75);
 
@@ -150,8 +149,8 @@ public class SetBoundsTests : IDisposable
     public void VPolyline_SetBounds_WithinSingleSegment()
     {
         var poly = new VPolyline(
-            new VPoint(0, 0), new VPoint(4, 0),
-            new VPoint(8, 0));
+            new VXYZ(0, 0), new VXYZ(4, 0),
+            new VXYZ(8, 0));
 
         // t=[0, 0.5] is the first segment only -> x=0..4
         poly.SetBounds(0.0, 0.25);
@@ -166,7 +165,7 @@ public class SetBoundsTests : IDisposable
     [Fact]
     public void VPolygon_SetBounds_Throws()
     {
-        var poly = new VPolygon(new VPoint(0, 0), new VPoint(1, 0), new VPoint(1, 1), new VPoint(0, 1));
+        var poly = new VPolygon(new VXYZ(0, 0), new VXYZ(1, 0), new VXYZ(1, 1), new VXYZ(0, 1));
         Assert.Throws<NotSupportedException>(() => poly.SetBounds(0.0, 0.5));
     }
 
@@ -195,16 +194,20 @@ public class SetBoundsTests : IDisposable
     }
 
     [Fact]
-    public void VBezier_SetBounds_PreservesPointInstances()
+    public void VBezier_SetBounds_UpdatesEndpointsToTrimmedRange()
     {
+        // C2V VXYZ is immutable, so SetBounds reassigns P0/P3 to the trimmed endpoints.
         var bez = new VBezier(0, 0, 1, 2, 2, 2, 3, 0);
-        var p0Ref = bez.P0;
-        var p3Ref = bez.P3;
+        double s = 0.1, e = 0.9;
+        var expectedP0 = bez.Evaluate(s);
+        var expectedP3 = bez.Evaluate(e);
 
-        bez.SetBounds(0.1, 0.9);
+        bez.SetBounds(s, e);
 
-        Assert.Same(p0Ref, bez.P0);
-        Assert.Same(p3Ref, bez.P3);
+        Assert.Equal(expectedP0.X, bez.P0.X, 6);
+        Assert.Equal(expectedP0.Y, bez.P0.Y, 6);
+        Assert.Equal(expectedP3.X, bez.P3.X, 6);
+        Assert.Equal(expectedP3.Y, bez.P3.Y, 6);
     }
 
     // --- VSpline ---
@@ -213,9 +216,9 @@ public class SetBoundsTests : IDisposable
     public void VSpline_SetBounds_TrimmedCurveTracksOriginal()
     {
         var spline = new VSpline(
-            new VPoint(0, 0), new VPoint(2, 1),
-            new VPoint(4, -1), new VPoint(6, 0),
-            new VPoint(8, 1));
+            new VXYZ(0, 0), new VXYZ(2, 1),
+            new VXYZ(4, -1), new VXYZ(6, 0),
+            new VXYZ(8, 1));
 
         double s = 0.25, e = 0.75;
         // Sample expected points along the original on the trimmed range, before mutation.
@@ -249,14 +252,14 @@ public class SetBoundsTests : IDisposable
     [Fact]
     public void VRay_SetBounds_Throws()
     {
-        var ray = new VRay(new VPoint(0, 0), new VXYZ(1, 0, 0));
+        var ray = new VRay(new VXYZ(0, 0), new VXYZ(1, 0, 0));
         Assert.Throws<NotSupportedException>(() => ray.SetBounds(0.0, 0.5));
     }
 
     [Fact]
     public void VXLine_SetBounds_Throws()
     {
-        var xline = new VXLine(new VPoint(0, 0), new VXYZ(1, 0, 0));
+        var xline = new VXLine(new VXYZ(0, 0), new VXYZ(1, 0, 0));
         Assert.Throws<NotSupportedException>(() => xline.SetBounds(0.0, 0.5));
     }
 }

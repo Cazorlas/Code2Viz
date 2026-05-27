@@ -189,7 +189,7 @@ public class VText : Shape
         return new BoundingBox(new VXYZ(minX, minY), new VXYZ(maxX, maxY));
     }
 
-    internal (double offsetX, double offsetY) GetAnchorOffset(double textWidth, double textHeight)
+    public (double offsetX, double offsetY) GetAnchorOffset(double textWidth, double textHeight)
     {
         double offsetX = Anchor switch
         {

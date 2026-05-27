@@ -1093,7 +1093,7 @@ public partial class MainWindow : Window
             {
                 RenderCanvas.SelectionTool.ClearSelection();
                 RenderCanvas.Refresh();
-                _propertiesPanel?.UpdateSelection(new List<Geometry.Shape>());
+                _propertiesPanel?.UpdateSelection(new List<C2VGeometry.Shape>());
             }
         };
     }
@@ -3849,7 +3849,7 @@ public partial class MainWindow : Window
 
         // Clear selection before running (shapes will be recreated from code)
         RenderCanvas.SelectionTool.ClearSelection();
-        _propertiesPanel?.UpdateSelection(new List<Geometry.Shape>());
+        _propertiesPanel?.UpdateSelection(new List<C2VGeometry.Shape>());
 
         // Show console tab when running code, unless the user has hidden it via Windows > Console
         if (ShowConsoleMenuItem.IsChecked)
@@ -3860,7 +3860,7 @@ public partial class MainWindow : Window
         try
         {
             _textMarkerService?.Clear();
-            Geometry.Shape.AutoRegister = ApplicationSettings.Instance.AutoDraw;
+            C2VGeometry.Shape.AutoRegister = ApplicationSettings.Instance.AutoDraw;
             var result = await _compiler.CompileAndExecuteAsync(_currentProject);
 
             // Apply project settings (including background)
@@ -4084,7 +4084,7 @@ public partial class MainWindow : Window
             using System.Linq;
             using System.Numerics;
             using System.Collections.Generic;
-            using Code2Viz.Geometry;
+            using C2VGeometry;
             using Code2Viz.Console;
             using Code2Viz.Animation;
 
@@ -4116,7 +4116,7 @@ public partial class MainWindow : Window
         try
         {
             _textMarkerService?.Clear();
-            Geometry.Shape.AutoRegister = ApplicationSettings.Instance.AutoDraw;
+            C2VGeometry.Shape.AutoRegister = ApplicationSettings.Instance.AutoDraw;
             var result = await _compiler.CompileAndExecuteAsync(_currentProject);
 
             _currentProject.ApplySettings();
@@ -4183,7 +4183,7 @@ public partial class MainWindow : Window
         try
         {
             _textMarkerService?.Clear();
-            Geometry.Shape.AutoRegister = ApplicationSettings.Instance.AutoDraw;
+            C2VGeometry.Shape.AutoRegister = ApplicationSettings.Instance.AutoDraw;
             var result = await _compiler.CompileAndExecuteAsync(_currentProject);
 
             // Apply project settings
@@ -4470,7 +4470,7 @@ public partial class MainWindow : Window
         double maxX = double.MinValue, maxY = double.MinValue;
         foreach (var drawable in shapes)
         {
-            if (drawable is Geometry.Shape shape)
+            if (drawable is C2VGeometry.Shape shape)
             {
                 var bounds = shape.GetBounds();
                 minX = Math.Min(minX, bounds.Min.X);
@@ -6578,7 +6578,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnShapeCompleted(object? sender, Geometry.Shape shape)
+    private void OnShapeCompleted(object? sender, C2VGeometry.Shape shape)
     {
         // Sync counters from existing code to avoid duplicate variable names
         var existingCode = _currentProject?.EntryPointFile?.Content ?? "";
@@ -6595,7 +6595,7 @@ public partial class MainWindow : Window
         SetStatus(tool.StatusMessage, isError: false);
     }
 
-    private void OnTextPlacementRequested(object? sender, Geometry.VPoint location)
+    private void OnTextPlacementRequested(object? sender, C2VGeometry.VXYZ location)
     {
         // Show dialog to get text content
         var dialog = new System.Windows.Window
@@ -10517,13 +10517,13 @@ public class {typeName}
 
     private const int OutlinerMaxShapes = 1000;
 
-    private void PopulateOutliner(IReadOnlyList<Geometry.IDrawable> shapes)
+    private void PopulateOutliner(IReadOnlyList<C2VGeometry.IDrawable> shapes)
     {
         var items = new System.Collections.ObjectModel.ObservableCollection<Project.OutlinerItem>();
 
         // Group shapes by type
         var groupedShapes = shapes
-            .OfType<Geometry.Shape>()
+            .OfType<C2VGeometry.Shape>()
             .GroupBy(s => s.GetType().Name)
             .OrderBy(g => g.Key);
 

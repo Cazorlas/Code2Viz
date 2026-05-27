@@ -613,12 +613,10 @@ public class RoslynCompletionService
             var assemblySymbol = compilation.GetAssemblyOrModuleSymbol(reference) as IAssemblySymbol;
             if (assemblySymbol == null) continue;
 
-            // Look for Code2Viz.Geometry namespace
+            // Look for C2VGeometry namespace (top-level)
             var geometryNs = assemblySymbol.GlobalNamespace
                 .GetNamespaceMembers()
-                .FirstOrDefault(ns => ns.Name == "Code2Viz")?
-                .GetNamespaceMembers()
-                .FirstOrDefault(ns => ns.Name == "Geometry");
+                .FirstOrDefault(ns => ns.Name == "C2VGeometry");
 
             if (geometryNs != null)
             {

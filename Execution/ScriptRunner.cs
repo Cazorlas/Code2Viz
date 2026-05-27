@@ -17,12 +17,12 @@ public class ScriptRunner
     static ScriptRunner()
     {
         DefaultOptions = ScriptOptions.Default
-            .AddReferences(typeof(Geometry.VPoint).Assembly)
+            .AddReferences(typeof(C2VGeometry.VPoint).Assembly)
             .AddImports(
                 "System",
                 "System.Math",
                 "System.Collections.Generic",
-                "Code2Viz.Geometry"
+                "C2VGeometry"
             );
     }
 

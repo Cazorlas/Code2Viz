@@ -1,4 +1,4 @@
-using Code2Viz.Geometry;
+using C2VGeometry;
 
 namespace Code2Viz.Canvas;
 
@@ -23,14 +23,14 @@ public enum SnapType
 /// </summary>
 public class SnapResult
 {
-    public VPoint Point { get; set; }
+    public VXYZ Point { get; set; }
     public SnapType Type { get; set; }
     public double Distance { get; set; }
 
     /// <summary>
     /// For Extension snaps: the endpoint from which the extension originates.
     /// </summary>
-    public VPoint? ExtensionSource { get; set; }
+    public VXYZ? ExtensionSource { get; set; }
 
     /// <summary>
     /// For Extension snaps: the angle of the line being extended (in degrees).
@@ -40,20 +40,20 @@ public class SnapResult
     /// <summary>
     /// For Perpendicular/Tangent snaps: the reference point (first click) from which the relationship is measured.
     /// </summary>
-    public VPoint? ReferenceSource { get; set; }
+    public VXYZ? ReferenceSource { get; set; }
 
     /// <summary>
     /// For Perpendicular snaps: the point on the shape where perpendicular meets.
     /// For Tangent snaps: the tangent point on the circle/arc.
     /// </summary>
-    public VPoint? ConstraintPoint { get; set; }
+    public VXYZ? ConstraintPoint { get; set; }
 
     /// <summary>
     /// For Tangent snaps: the center of the circle/arc being tangent to.
     /// </summary>
-    public VPoint? TangentCenter { get; set; }
+    public VXYZ? TangentCenter { get; set; }
 
-    public SnapResult(VPoint point, SnapType type, double distance)
+    public SnapResult(VXYZ point, SnapType type, double distance)
     {
         Point = point;
         Type = type;
@@ -80,7 +80,7 @@ public class SnapEngine
     public bool TangentSnapEnabled { get; set; } = true;
 
     // First point for perpendicular snap calculation
-    public VPoint? ReferencePoint { get; set; }
+    public VXYZ? ReferencePoint { get; set; }
 
     /// <summary>
     /// Finds the best snap point near the cursor position.
@@ -89,7 +89,7 @@ public class SnapEngine
     /// <param name="shapes">List of shapes to snap to.</param>
     /// <param name="scale">Current canvas scale (zoom level).</param>
     /// <returns>The best snap result, or null if no snap found.</returns>
-    public SnapResult? FindSnapPoint(VPoint cursorWorld, IReadOnlyList<IDrawable> shapes, double scale)
+    public SnapResult? FindSnapPoint(VXYZ cursorWorld, IReadOnlyList<IDrawable> shapes, double scale)
     {
         // Store scale for extension reach calculations
         _currentScale = scale;
@@ -131,7 +131,7 @@ public class SnapEngine
     /// <param name="spatialIndex">QuadTree spatial index for efficient shape lookup.</param>
     /// <param name="scale">Current canvas scale (zoom level).</param>
     /// <returns>The best snap result, or null if no snap found.</returns>
-    public SnapResult? FindSnapPoint(VPoint cursorWorld, QuadTree? spatialIndex, double scale)
+    public SnapResult? FindSnapPoint(VXYZ cursorWorld, QuadTree? spatialIndex, double scale)
     {
         // Store scale for extension reach calculations
         _currentScale = scale;
@@ -181,7 +181,7 @@ public class SnapEngine
         return prioritizedCandidates.First();
     }
 
-    private void CollectIntersectionPointsFromList(VPoint cursor, List<IDrawable> shapes, double tolerance, List<SnapResult> candidates)
+    private void CollectIntersectionPointsFromList(VXYZ cursor, List<IDrawable> shapes, double tolerance, List<SnapResult> candidates)
     {
         for (int i = 0; i < shapes.Count; i++)
         {
@@ -209,7 +209,7 @@ public class SnapEngine
         _ => 99
     };
 
-    private void CollectSnapPoints(VPoint cursor, IDrawable shape, double tolerance, List<SnapResult> candidates)
+    private void CollectSnapPoints(VXYZ cursor, IDrawable shape, double tolerance, List<SnapResult> candidates)
     {
         switch (shape)
         {
@@ -234,13 +234,13 @@ public class SnapEngine
             case VPolyline polyline:
                 CollectPolylineSnapPoints(cursor, polyline, tolerance, candidates);
                 break;
-            case VPoint point:
+            case VXYZ point:
                 CollectPointSnapPoints(cursor, point, tolerance, candidates);
                 break;
         }
     }
 
-    private void CollectLineSnapPoints(VPoint cursor, VLine line, double tolerance, List<SnapResult> candidates)
+    private void CollectLineSnapPoints(VXYZ cursor, VLine line, double tolerance, List<SnapResult> candidates)
     {
         // Endpoint snaps
         if (EndpointSnapEnabled)
@@ -279,7 +279,7 @@ public class SnapEngine
         }
     }
 
-    private void CollectArcSnapPoints(VPoint cursor, VArc arc, double tolerance, List<SnapResult> candidates)
+    private void CollectArcSnapPoints(VXYZ cursor, VArc arc, double tolerance, List<SnapResult> candidates)
     {
         // Endpoint snaps
         if (EndpointSnapEnabled)
@@ -314,7 +314,7 @@ public class SnapEngine
         }
     }
 
-    private void CollectCircleSnapPoints(VPoint cursor, VCircle circle, double tolerance, List<SnapResult> candidates)
+    private void CollectCircleSnapPoints(VXYZ cursor, VCircle circle, double tolerance, List<SnapResult> candidates)
     {
         // Center snap
         if (CenterSnapEnabled)
@@ -325,10 +325,10 @@ public class SnapEngine
         // Quadrant points (0, 90, 180, 270 degrees)
         if (EndpointSnapEnabled)
         {
-            AddSnapCandidate(cursor, new VPoint(circle.Center.X + circle.Radius, circle.Center.Y), SnapType.Endpoint, tolerance, candidates);
-            AddSnapCandidate(cursor, new VPoint(circle.Center.X - circle.Radius, circle.Center.Y), SnapType.Endpoint, tolerance, candidates);
-            AddSnapCandidate(cursor, new VPoint(circle.Center.X, circle.Center.Y + circle.Radius), SnapType.Endpoint, tolerance, candidates);
-            AddSnapCandidate(cursor, new VPoint(circle.Center.X, circle.Center.Y - circle.Radius), SnapType.Endpoint, tolerance, candidates);
+            AddSnapCandidate(cursor, new VXYZ(circle.Center.X + circle.Radius, circle.Center.Y), SnapType.Endpoint, tolerance, candidates);
+            AddSnapCandidate(cursor, new VXYZ(circle.Center.X - circle.Radius, circle.Center.Y), SnapType.Endpoint, tolerance, candidates);
+            AddSnapCandidate(cursor, new VXYZ(circle.Center.X, circle.Center.Y + circle.Radius), SnapType.Endpoint, tolerance, candidates);
+            AddSnapCandidate(cursor, new VXYZ(circle.Center.X, circle.Center.Y - circle.Radius), SnapType.Endpoint, tolerance, candidates);
         }
 
         // Nearest snap
@@ -345,7 +345,7 @@ public class SnapEngine
         }
     }
 
-    private void CollectEllipseSnapPoints(VPoint cursor, VEllipse ellipse, double tolerance, List<SnapResult> candidates)
+    private void CollectEllipseSnapPoints(VXYZ cursor, VEllipse ellipse, double tolerance, List<SnapResult> candidates)
     {
         // Center snap
         if (CenterSnapEnabled)
@@ -356,21 +356,21 @@ public class SnapEngine
         // Quadrant points
         if (EndpointSnapEnabled)
         {
-            AddSnapCandidate(cursor, new VPoint(ellipse.Center.X + ellipse.RadiusX, ellipse.Center.Y), SnapType.Endpoint, tolerance, candidates);
-            AddSnapCandidate(cursor, new VPoint(ellipse.Center.X - ellipse.RadiusX, ellipse.Center.Y), SnapType.Endpoint, tolerance, candidates);
-            AddSnapCandidate(cursor, new VPoint(ellipse.Center.X, ellipse.Center.Y + ellipse.RadiusY), SnapType.Endpoint, tolerance, candidates);
-            AddSnapCandidate(cursor, new VPoint(ellipse.Center.X, ellipse.Center.Y - ellipse.RadiusY), SnapType.Endpoint, tolerance, candidates);
+            AddSnapCandidate(cursor, new VXYZ(ellipse.Center.X + ellipse.RadiusX, ellipse.Center.Y), SnapType.Endpoint, tolerance, candidates);
+            AddSnapCandidate(cursor, new VXYZ(ellipse.Center.X - ellipse.RadiusX, ellipse.Center.Y), SnapType.Endpoint, tolerance, candidates);
+            AddSnapCandidate(cursor, new VXYZ(ellipse.Center.X, ellipse.Center.Y + ellipse.RadiusY), SnapType.Endpoint, tolerance, candidates);
+            AddSnapCandidate(cursor, new VXYZ(ellipse.Center.X, ellipse.Center.Y - ellipse.RadiusY), SnapType.Endpoint, tolerance, candidates);
         }
     }
 
-    private void CollectRectangleSnapPoints(VPoint cursor, VRectangle rect, double tolerance, List<SnapResult> candidates)
+    private void CollectRectangleSnapPoints(VXYZ cursor, VRectangle rect, double tolerance, List<SnapResult> candidates)
     {
         var corners = new[]
         {
             rect.Corner,
-            new VPoint(rect.Corner.X + rect.Width, rect.Corner.Y),
-            new VPoint(rect.Corner.X + rect.Width, rect.Corner.Y + rect.Height),
-            new VPoint(rect.Corner.X, rect.Corner.Y + rect.Height)
+            new VXYZ(rect.Corner.X + rect.Width, rect.Corner.Y),
+            new VXYZ(rect.Corner.X + rect.Width, rect.Corner.Y + rect.Height),
+            new VXYZ(rect.Corner.X, rect.Corner.Y + rect.Height)
         };
 
         // Endpoint snaps (corners)
@@ -387,7 +387,7 @@ public class SnapEngine
         {
             for (int i = 0; i < 4; i++)
             {
-                var mid = new VPoint(
+                var mid = new VXYZ(
                     (corners[i].X + corners[(i + 1) % 4].X) / 2,
                     (corners[i].Y + corners[(i + 1) % 4].Y) / 2);
                 AddSnapCandidate(cursor, mid, SnapType.Midpoint, tolerance, candidates);
@@ -397,7 +397,7 @@ public class SnapEngine
         // Center snap
         if (CenterSnapEnabled)
         {
-            var center = new VPoint(
+            var center = new VXYZ(
                 rect.Corner.X + rect.Width / 2,
                 rect.Corner.Y + rect.Height / 2);
             AddSnapCandidate(cursor, center, SnapType.Center, tolerance, candidates);
@@ -424,7 +424,7 @@ public class SnapEngine
         }
     }
 
-    private void CollectPolygonSnapPoints(VPoint cursor, VPolygon polygon, double tolerance, List<SnapResult> candidates)
+    private void CollectPolygonSnapPoints(VXYZ cursor, VPolygon polygon, double tolerance, List<SnapResult> candidates)
     {
         if (polygon.Points.Count < 3) return;
 
@@ -443,7 +443,7 @@ public class SnapEngine
             for (int i = 0; i < polygon.Points.Count; i++)
             {
                 var next = (i + 1) % polygon.Points.Count;
-                var mid = new VPoint(
+                var mid = new VXYZ(
                     (polygon.Points[i].X + polygon.Points[next].X) / 2,
                     (polygon.Points[i].Y + polygon.Points[next].Y) / 2);
                 AddSnapCandidate(cursor, mid, SnapType.Midpoint, tolerance, candidates);
@@ -461,7 +461,7 @@ public class SnapEngine
             }
             cx /= polygon.Points.Count;
             cy /= polygon.Points.Count;
-            AddSnapCandidate(cursor, new VPoint(cx, cy), SnapType.Center, tolerance, candidates);
+            AddSnapCandidate(cursor, new VXYZ(cx, cy), SnapType.Center, tolerance, candidates);
         }
 
         // Nearest snap (project to edges)
@@ -487,7 +487,7 @@ public class SnapEngine
         }
     }
 
-    private void CollectPolylineSnapPoints(VPoint cursor, VPolyline polyline, double tolerance, List<SnapResult> candidates)
+    private void CollectPolylineSnapPoints(VXYZ cursor, VPolyline polyline, double tolerance, List<SnapResult> candidates)
     {
         if (polyline.Points.Count < 2) return;
 
@@ -509,7 +509,7 @@ public class SnapEngine
         {
             for (int i = 0; i < polyline.Points.Count - 1; i++)
             {
-                var mid = new VPoint(
+                var mid = new VXYZ(
                     (polyline.Points[i].X + polyline.Points[i + 1].X) / 2,
                     (polyline.Points[i].Y + polyline.Points[i + 1].Y) / 2);
                 AddSnapCandidate(cursor, mid, SnapType.Midpoint, tolerance, candidates);
@@ -537,15 +537,15 @@ public class SnapEngine
         }
     }
 
-    private void CollectPointSnapPoints(VPoint cursor, VPoint point, double tolerance, List<SnapResult> candidates)
+    private void CollectPointSnapPoints(VXYZ cursor, VXYZ point, double tolerance, List<SnapResult> candidates)
     {
         if (EndpointSnapEnabled)
         {
-            AddSnapCandidate(cursor, new VPoint(point.X, point.Y), SnapType.Endpoint, tolerance, candidates);
+            AddSnapCandidate(cursor, new VXYZ(point.X, point.Y), SnapType.Endpoint, tolerance, candidates);
         }
     }
 
-    private void CollectIntersectionPoints(VPoint cursor, IReadOnlyList<IDrawable> shapes, double tolerance, List<SnapResult> candidates)
+    private void CollectIntersectionPoints(VXYZ cursor, IReadOnlyList<IDrawable> shapes, double tolerance, List<SnapResult> candidates)
     {
         // Check all pairs of shapes for intersections
         for (int i = 0; i < shapes.Count; i++)
@@ -561,9 +561,9 @@ public class SnapEngine
         }
     }
 
-    private List<VPoint> FindIntersections(IDrawable shape1, IDrawable shape2)
+    private List<VXYZ> FindIntersections(IDrawable shape1, IDrawable shape2)
     {
-        var results = new List<VPoint>();
+        var results = new List<VXYZ>();
 
         // Line-Line intersection
         if (shape1 is VLine line1 && shape2 is VLine line2)
@@ -571,7 +571,7 @@ public class SnapEngine
             var result = GeometryHelper.IntersectLineLine(line1, line2);
             if (result is VPoint p)
             {
-                results.Add(p);
+                results.Add(p.AsVXYZ());
             }
         }
 
@@ -594,9 +594,9 @@ public class SnapEngine
         return results;
     }
 
-    private List<VPoint> IntersectLineCircle(VLine line, VCircle circle)
+    private List<VXYZ> IntersectLineCircle(VLine line, VCircle circle)
     {
-        var results = new List<VPoint>();
+        var results = new List<VXYZ>();
 
         double dx = line.End.X - line.Start.X;
         double dy = line.End.Y - line.Start.Y;
@@ -619,18 +619,18 @@ public class SnapEngine
 
         if (t1 >= 0 && t1 <= 1)
         {
-            results.Add(new VPoint(line.Start.X + t1 * dx, line.Start.Y + t1 * dy));
+            results.Add(new VXYZ(line.Start.X + t1 * dx, line.Start.Y + t1 * dy));
         }
 
         if (t2 >= 0 && t2 <= 1 && Math.Abs(t1 - t2) > 1e-9)
         {
-            results.Add(new VPoint(line.Start.X + t2 * dx, line.Start.Y + t2 * dy));
+            results.Add(new VXYZ(line.Start.X + t2 * dx, line.Start.Y + t2 * dy));
         }
 
         return results;
     }
 
-    private VPoint? GetPerpendicularPoint(VPoint referencePoint, VLine line)
+    private VXYZ? GetPerpendicularPoint(VXYZ referencePoint, VLine line)
     {
         // Find point on line that is perpendicular to reference point
         var projected = line.Project(referencePoint);
@@ -652,7 +652,7 @@ public class SnapEngine
         return null;
     }
 
-    private void AddSnapCandidate(VPoint cursor, VPoint snapPoint, SnapType type, double tolerance, List<SnapResult> candidates)
+    private void AddSnapCandidate(VXYZ cursor, VXYZ snapPoint, SnapType type, double tolerance, List<SnapResult> candidates)
     {
         var distance = cursor.DistanceTo(snapPoint);
         if (distance <= tolerance)
@@ -664,7 +664,7 @@ public class SnapEngine
     /// <summary>
     /// Adds a perpendicular snap candidate with visualization data.
     /// </summary>
-    private void AddPerpendicularSnapCandidate(VPoint cursor, VPoint snapPoint, VPoint referencePoint, double tolerance, List<SnapResult> candidates)
+    private void AddPerpendicularSnapCandidate(VXYZ cursor, VXYZ snapPoint, VXYZ referencePoint, double tolerance, List<SnapResult> candidates)
     {
         var distance = cursor.DistanceTo(snapPoint);
         if (distance <= tolerance)
@@ -681,7 +681,7 @@ public class SnapEngine
     /// <summary>
     /// Collects tangent snap points from reference point to a circle/arc.
     /// </summary>
-    private void CollectTangentSnapPoints(VPoint cursor, VPoint referencePoint, VPoint center, double radius, double tolerance, List<SnapResult> candidates, VArc? arc = null)
+    private void CollectTangentSnapPoints(VXYZ cursor, VXYZ referencePoint, VXYZ center, double radius, double tolerance, List<SnapResult> candidates, VArc? arc = null)
     {
         // Distance from reference point to center
         var dx = center.X - referencePoint.X;
@@ -710,8 +710,8 @@ public class SnapEngine
         var perpY = dirX;
 
         // Two tangent points
-        var tangent1 = new VPoint(midX + perpX * distPerpendicular, midY + perpY * distPerpendicular);
-        var tangent2 = new VPoint(midX - perpX * distPerpendicular, midY - perpY * distPerpendicular);
+        var tangent1 = new VXYZ(midX + perpX * distPerpendicular, midY + perpY * distPerpendicular);
+        var tangent2 = new VXYZ(midX - perpX * distPerpendicular, midY - perpY * distPerpendicular);
 
         // Check if tangent points are on the arc (if it's an arc, not full circle)
         if (arc != null)
@@ -732,7 +732,7 @@ public class SnapEngine
     /// <summary>
     /// Checks if a point lies on an arc's angular range.
     /// </summary>
-    private bool IsPointOnArc(VPoint point, VArc arc)
+    private bool IsPointOnArc(VXYZ point, VArc arc)
     {
         var dx = point.X - arc.Center.X;
         var dy = point.Y - arc.Center.Y;
@@ -765,7 +765,7 @@ public class SnapEngine
     /// <summary>
     /// Adds a tangent snap candidate with visualization data.
     /// </summary>
-    private void AddTangentSnapCandidate(VPoint cursor, VPoint tangentPoint, VPoint referencePoint, VPoint center, double tolerance, List<SnapResult> candidates)
+    private void AddTangentSnapCandidate(VXYZ cursor, VXYZ tangentPoint, VXYZ referencePoint, VXYZ center, double tolerance, List<SnapResult> candidates)
     {
         var distance = cursor.DistanceTo(tangentPoint);
         if (distance <= tolerance)
@@ -791,7 +791,7 @@ public class SnapEngine
     /// Extension snaps occur when the cursor is near the infinite line extending beyond the segment endpoints.
     /// Uses perpendicular distance for magnetic effect along the extension line.
     /// </summary>
-    private void CollectExtensionSnapPoints(VPoint cursor, VPoint segStart, VPoint segEnd, double tolerance, List<SnapResult> candidates)
+    private void CollectExtensionSnapPoints(VXYZ cursor, VXYZ segStart, VXYZ segEnd, double tolerance, List<SnapResult> candidates)
     {
         var dx = segEnd.X - segStart.X;
         var dy = segEnd.Y - segStart.Y;
@@ -814,7 +814,7 @@ public class SnapEngine
         // Calculate projected point on infinite line
         var projX = segStart.X + t * dx;
         var projY = segStart.Y + t * dy;
-        var projected = new VPoint(projX, projY);
+        var projected = new VXYZ(projX, projY);
 
         // Calculate PERPENDICULAR distance from cursor to the infinite line
         // This is what creates the "magnetic" effect - cursor snaps to line when close perpendicular
@@ -824,7 +824,7 @@ public class SnapEngine
         if (perpDistance > tolerance) return;
 
         // Determine which endpoint is the source of the extension
-        VPoint extensionSource;
+        VXYZ extensionSource;
         double extensionDistance;
         if (t < 0)
         {

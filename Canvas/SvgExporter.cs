@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Text;
-using Code2Viz.Geometry;
+using C2VGeometry;
 
 namespace Code2Viz.Canvas;
 
@@ -172,7 +172,7 @@ public static class SvgExporter
         return $"<g>{sb}</g>";
     }
 
-    private static string DimensionArrowheadSvg(VPoint tip, VPoint tail, double arrowSize, string color, double lineWeight)
+    private static string DimensionArrowheadSvg(VXYZ tip, VXYZ tail, double arrowSize, string color, double lineWeight)
     {
         var dx = tip.X - tail.X;
         var dy = tip.Y - tail.Y;

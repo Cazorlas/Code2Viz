@@ -2,24 +2,29 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Xunit;
+using Code2Viz.Canvas;
 using C2VGeometry;
 
 namespace Code2Viz.Tests;
 
 // These tests construct the C2VGeometry RayCaster from an explicit collection
-// of shapes — there is NO canvas / singleton dependency, so they are
-// parallel-safe and deliberately NOT placed in the "CanvasState" collection.
+// of shapes — the RayCaster is always built from the explicit list we hand it.
 //
 // We force Shape.DefaultRegistry = null so that constructing the test shapes
-// (which auto-register by default) does not try to push them onto any
-// registry. The RayCaster is always built from the explicit list we hand it.
-public class C2VRayCasterTests
+// (which auto-register by default) does not try to push them onto any registry.
+// Because that mutates the process-wide Shape.DefaultRegistry static, this class
+// lives in the serialized "CanvasState" collection and restores the registry to
+// CanvasRenderer.Instance on teardown.
+[Collection("CanvasState")]
+public class C2VRayCasterTests : IDisposable
 {
     public C2VRayCasterTests()
     {
         // No registry => shapes are created standalone, never registered.
         Shape.DefaultRegistry = null;
     }
+
+    public void Dispose() => Shape.DefaultRegistry = CanvasRenderer.Instance;
 
     [Fact]
     public void FindIntersection_HitsClosestOfTwoCircles()
