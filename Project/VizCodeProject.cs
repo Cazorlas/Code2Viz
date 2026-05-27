@@ -57,12 +57,17 @@ public class VizCodeProject
         return project;
     }
 
+    private static string? NonEmpty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
+
     public void ApplySettings()
     {
-        C2VGeometry.ShapeDefaults.GlobalColor = ProjectFile.Settings.DefaultColor;
-        C2VGeometry.ShapeDefaults.GlobalFillColor = ProjectFile.Settings.DefaultFillColor;
-        C2VGeometry.ShapeDefaults.GlobalLineWeight = ProjectFile.Settings.DefaultLineWeight;
-        C2VGeometry.ShapeDefaults.GlobalLineTypeScale = ProjectFile.Settings.DefaultLineTypeScale;
+        // Project setting wins; the application-level default is the fallback when the project
+        // doesn't specify one (per AppSettingsData: "used when project settings are empty").
+        var app = ApplicationSettings.Instance;
+        C2VGeometry.ShapeDefaults.GlobalColor = NonEmpty(ProjectFile.Settings.DefaultColor) ?? NonEmpty(app.AppDefaultColor);
+        C2VGeometry.ShapeDefaults.GlobalFillColor = NonEmpty(ProjectFile.Settings.DefaultFillColor) ?? NonEmpty(app.AppDefaultFillColor);
+        C2VGeometry.ShapeDefaults.GlobalLineWeight = ProjectFile.Settings.DefaultLineWeight ?? app.AppDefaultLineWeight;
+        C2VGeometry.ShapeDefaults.GlobalLineTypeScale = ProjectFile.Settings.DefaultLineTypeScale ?? app.AppDefaultLineTypeScale;
 
         // Dimension style defaults
         C2VGeometry.ShapeDefaults.DimOffset = ProjectFile.Settings.DimOffset;

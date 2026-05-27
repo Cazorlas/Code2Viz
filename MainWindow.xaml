@@ -1824,7 +1824,8 @@
                                                     Padding="6"
                                                     Background="{StaticResource BackgroundBrush}"
                                                     BorderBrush="{StaticResource BorderBrush}"
-                                                    Foreground="{StaticResource ForegroundBrush}" />
+                                                    Foreground="{StaticResource ForegroundBrush}"
+                                                    TextChanged="DefaultNumericBox_TextChanged" />
 
                                                 <!--  Line Type Scale  -->
                                                 <TextBlock
@@ -1842,7 +1843,8 @@
                                                     Padding="6"
                                                     Background="{StaticResource BackgroundBrush}"
                                                     BorderBrush="{StaticResource BorderBrush}"
-                                                    Foreground="{StaticResource ForegroundBrush}" />
+                                                    Foreground="{StaticResource ForegroundBrush}"
+                                                    TextChanged="DefaultNumericBox_TextChanged" />
 
                                                 <!--  Save Project Settings Button  -->
                                                 <Button
@@ -2222,7 +2224,8 @@
                                                     Padding="6"
                                                     Background="{StaticResource BackgroundBrush}"
                                                     BorderBrush="{StaticResource BorderBrush}"
-                                                    Foreground="{StaticResource ForegroundBrush}" />
+                                                    Foreground="{StaticResource ForegroundBrush}"
+                                                    TextChanged="DefaultNumericBox_TextChanged" />
 
                                                 <!--  App Default Line Type Scale  -->
                                                 <TextBlock
@@ -2240,7 +2243,8 @@
                                                     Padding="6"
                                                     Background="{StaticResource BackgroundBrush}"
                                                     BorderBrush="{StaticResource BorderBrush}"
-                                                    Foreground="{StaticResource ForegroundBrush}" />
+                                                    Foreground="{StaticResource ForegroundBrush}"
+                                                    TextChanged="DefaultNumericBox_TextChanged" />
 
                                                 <!--  Snap Settings Sub-header  -->
                                                 <TextBlock

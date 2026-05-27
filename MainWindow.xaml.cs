@@ -3305,8 +3305,12 @@ public partial class MainWindow : Window
         }
     }
 
+    private bool _loadingSettings;
     private void LoadSettingsToUI()
     {
+        _loadingSettings = true;
+        try
+        {
         if (_currentProject == null) return;
 
         var settings = _currentProject.ProjectFile.Settings;
@@ -3419,6 +3423,8 @@ public partial class MainWindow : Window
         UpdateColorButton(AppSettingsColorBtn, AppSettingsColorBox.Text);
         UpdateColorButton(AppSettingsFillColorBtn, AppSettingsFillColorBox.Text);
         UpdateColorButton(AppSettingsCanvasColorBtn, AppSettingsCanvasColorBox.Text);
+        }
+        finally { _loadingSettings = false; }
     }
 
     private void ColorBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -3437,6 +3443,73 @@ public partial class MainWindow : Window
             UpdateColorButton(AppSettingsFillColorBtn, AppSettingsFillColorBox.Text);
         else if (sender == AppSettingsCanvasColorBox)
             UpdateColorButton(AppSettingsCanvasColorBtn, AppSettingsCanvasColorBox.Text);
+
+        // Apply live so new shapes pick up the default immediately (no "Save Settings" click needed).
+        if (!_loadingSettings)
+            PersistDefaultColor(sender as TextBox);
+    }
+
+    /// <summary>
+    /// Live-applies a default stroke/fill/canvas color box: validates it, writes it to the right
+    /// setting (per-project, or app-level fallback), and re-applies ShapeDefaults so newly created
+    /// shapes use it at once. Mirrors how the Highlight color already applies on change.
+    /// </summary>
+    private void PersistDefaultColor(TextBox? box)
+    {
+        if (box == null) return;
+        string? val = string.IsNullOrWhiteSpace(box.Text) ? null : box.Text.Trim();
+        if (val != null) { try { _ = ColorConverter.ConvertFromString(val); } catch { return; } } // ignore mid-typing
+
+        var proj = _currentProject?.ProjectFile.Settings;
+        if (box == SettingsColorBox && proj != null) proj.DefaultColor = val;
+        else if (box == SettingsFillColorBox && proj != null) proj.DefaultFillColor = val;
+        else if (box == SettingsCanvasColorBox && proj != null) proj.DefaultCanvasBackgroundColor = val;
+        else if (box == AppSettingsColorBox) { ApplicationSettings.Instance.AppDefaultColor = val; ApplicationSettings.Save(); }
+        else if (box == AppSettingsFillColorBox) { ApplicationSettings.Instance.AppDefaultFillColor = val; ApplicationSettings.Save(); }
+        else if (box == AppSettingsCanvasColorBox) { ApplicationSettings.Instance.AppDefaultCanvasBackground = val; ApplicationSettings.Save(); }
+        else return;
+
+        ApplyShapeDefaultsLive();
+
+        // Live canvas background for the canvas-color boxes.
+        if ((box == SettingsCanvasColorBox || box == AppSettingsCanvasColorBox) && !string.IsNullOrWhiteSpace(val))
+        {
+            try { RenderCanvas.CanvasBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(val)); } catch { }
+        }
+    }
+
+    private void DefaultNumericBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_loadingSettings || sender is not TextBox box) return;
+        bool empty = string.IsNullOrWhiteSpace(box.Text);
+        if (!empty && !double.TryParse(box.Text.Trim(), out _)) return; // ignore mid-typing
+        double? val = empty ? null : double.Parse(box.Text.Trim());
+
+        var proj = _currentProject?.ProjectFile.Settings;
+        if (box == SettingsThicknessBox && proj != null) proj.DefaultLineWeight = val;
+        else if (box == SettingsLineTypeScaleBox && proj != null) proj.DefaultLineTypeScale = val;
+        else if (box == AppSettingsThicknessBox) { ApplicationSettings.Instance.AppDefaultLineWeight = val; ApplicationSettings.Save(); }
+        else if (box == AppSettingsLineTypeScaleBox) { ApplicationSettings.Instance.AppDefaultLineTypeScale = val; ApplicationSettings.Save(); }
+        else return;
+
+        ApplyShapeDefaultsLive();
+    }
+
+    /// <summary>Re-applies shape default styles. Project settings win; app-level defaults are the fallback.</summary>
+    private void ApplyShapeDefaultsLive()
+    {
+        if (_currentProject != null)
+        {
+            _currentProject.ApplySettings();
+        }
+        else
+        {
+            var app = ApplicationSettings.Instance;
+            C2VGeometry.ShapeDefaults.GlobalColor = string.IsNullOrWhiteSpace(app.AppDefaultColor) ? null : app.AppDefaultColor;
+            C2VGeometry.ShapeDefaults.GlobalFillColor = string.IsNullOrWhiteSpace(app.AppDefaultFillColor) ? null : app.AppDefaultFillColor;
+            C2VGeometry.ShapeDefaults.GlobalLineWeight = app.AppDefaultLineWeight;
+            C2VGeometry.ShapeDefaults.GlobalLineTypeScale = app.AppDefaultLineTypeScale;
+        }
     }
     
     private void UpdateColorButton(Button btn, string colorText)
