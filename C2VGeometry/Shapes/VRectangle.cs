@@ -58,8 +58,8 @@ public class VRectangle : VPolygon
         _width = width;
         _height = height;
         _rotationAngle = 0;
-        Color = "Magenta";
-        FillColor = "Transparent";
+        Color = ShapeDefaults.GlobalColor ?? "Magenta";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
     }
 
     public VRectangle(double x, double y, double width, double height)

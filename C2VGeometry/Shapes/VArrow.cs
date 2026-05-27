@@ -25,14 +25,14 @@ public class VArrow : Shape
     {
         Start = start;
         End = end;
-        Color = "Orange";
+        Color = ShapeDefaults.GlobalColor ?? "Orange";
     }
 
     public VArrow(double x1, double y1, double x2, double y2)
     {
         Start = new VXYZ(x1, y1);
         End = new VXYZ(x2, y2);
-        Color = "Orange";
+        Color = ShapeDefaults.GlobalColor ?? "Orange";
     }
 
     public VArrow(VXYZ startPoint, VXYZ direction, double length)
@@ -40,7 +40,7 @@ public class VArrow : Shape
         Start = startPoint;
         var normalizedDir = direction.Normalize();
         End = new VXYZ(startPoint.X + normalizedDir.X * length, startPoint.Y + normalizedDir.Y * length);
-        Color = "Orange";
+        Color = ShapeDefaults.GlobalColor ?? "Orange";
     }
 
     /// <summary>

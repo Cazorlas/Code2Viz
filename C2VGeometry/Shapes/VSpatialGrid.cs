@@ -67,8 +67,8 @@ public class VSpatialGrid : Shape
         YCount = Math.Max(1, yCount);
         CellSize = Math.Max(cellSize, GeometryTolerance.Epsilon);
 
-        Color = "Gray";
-        FillColor = "Transparent";
+        Color = ShapeDefaults.GlobalColor ?? "Gray";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
 
         GenerateCells();
         AssignNeighbours();

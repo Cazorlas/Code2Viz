@@ -40,7 +40,8 @@ public class VRadialDimension : Shape
     {
         Center = new VXYZ(circle.Center.X, circle.Center.Y);
         Radius = circle.Radius;
-        Color = "Yellow";
+        Color = ShapeDefaults.GlobalColor ?? "Yellow";
+        ApplyDimensionDefaults();
     }
 
     public VRadialDimension(VArc arc)
@@ -48,14 +49,25 @@ public class VRadialDimension : Shape
         Center = new VXYZ(arc.Center.X, arc.Center.Y);
         Radius = arc.Radius;
         LeaderAngle = (arc.StartAngle + arc.EndAngle) / 2;
-        Color = "Yellow";
+        Color = ShapeDefaults.GlobalColor ?? "Yellow";
+        ApplyDimensionDefaults();
     }
 
     public VRadialDimension(VXYZ center, double radius)
     {
         Center = new VXYZ(center.X, center.Y);
         Radius = radius;
-        Color = "Yellow";
+        Color = ShapeDefaults.GlobalColor ?? "Yellow";
+        ApplyDimensionDefaults();
+    }
+
+    private void ApplyDimensionDefaults()
+    {
+        if (ShapeDefaults.DimArrowSize.HasValue) ArrowSize = ShapeDefaults.DimArrowSize.Value;
+        if (ShapeDefaults.DimTextHeight.HasValue) TextHeight = ShapeDefaults.DimTextHeight.Value;
+        if (ShapeDefaults.DimDecimalPlaces.HasValue) DecimalPlaces = ShapeDefaults.DimDecimalPlaces.Value;
+        if (ShapeDefaults.DimPrefix != null) Prefix = ShapeDefaults.DimPrefix;
+        if (ShapeDefaults.DimSuffix != null) Suffix = ShapeDefaults.DimSuffix;
     }
 
     /// <summary>

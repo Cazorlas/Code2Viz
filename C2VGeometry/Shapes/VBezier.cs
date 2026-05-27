@@ -34,7 +34,7 @@ public class VBezier : Shape, ICurve
         P1 = p1;
         P2 = p2;
         P3 = p3;
-        Color = "Purple";
+        Color = ShapeDefaults.GlobalColor ?? "Purple";
         _selfIntersecting = CurveIntersection.IsSelfIntersecting(this);
     }
 
@@ -44,7 +44,7 @@ public class VBezier : Shape, ICurve
         P1 = new VXYZ(x1, y1);
         P2 = new VXYZ(x2, y2);
         P3 = new VXYZ(x3, y3);
-        Color = "Purple";
+        Color = ShapeDefaults.GlobalColor ?? "Purple";
         _selfIntersecting = CurveIntersection.IsSelfIntersecting(this);
     }
 

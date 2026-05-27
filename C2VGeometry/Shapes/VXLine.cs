@@ -39,7 +39,7 @@ public class VXLine : Shape, ICurve
     {
         BasePoint = basePoint;
         Direction = direction.Normalize();
-        Color = "Gray";
+        Color = ShapeDefaults.GlobalColor ?? "Gray";
     }
 
     /// <summary>

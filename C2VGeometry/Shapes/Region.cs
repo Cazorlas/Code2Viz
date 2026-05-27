@@ -53,8 +53,8 @@ public class Region : Shape
 
         OuterLoop = orderedCurves.Select(t => t.reversed ? ReverseCurve(t.curve) : t.curve).ToList();
 
-        Color = "LightBlue";
-        FillColor = "Transparent";
+        Color = ShapeDefaults.GlobalColor ?? "LightBlue";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
     }
 
     /// <summary>
@@ -83,8 +83,8 @@ public class Region : Shape
     {
         OuterLoop = outerLoop ?? throw new ArgumentNullException(nameof(outerLoop));
         Holes = holes ?? new List<List<ICurve>>();
-        Color = "LightBlue";
-        FillColor = "Transparent";
+        Color = ShapeDefaults.GlobalColor ?? "LightBlue";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
     }
 
     #endregion

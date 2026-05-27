@@ -31,7 +31,7 @@ public class VEllipse : Shape, ICurve
         Center = center;
         RadiusX = radiusX;
         RadiusY = radiusY;
-        Color = "Pink";
+        Color = ShapeDefaults.GlobalColor ?? "Pink";
     }
 
     public VEllipse(double centerX, double centerY, double radiusX, double radiusY)
@@ -39,7 +39,7 @@ public class VEllipse : Shape, ICurve
         Center = new VXYZ(centerX, centerY);
         RadiusX = radiusX;
         RadiusY = radiusY;
-        Color = "Pink";
+        Color = ShapeDefaults.GlobalColor ?? "Pink";
     }
 
     public VEllipse(VXYZ center, double radiusX, double radiusY, double startAngle, double endAngle)

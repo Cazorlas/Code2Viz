@@ -30,14 +30,14 @@ public class VSpline : Shape, ICurve
     public VSpline(params VXYZ[] points)
     {
         ControlPoints = points.ToList();
-        Color = "Violet";
+        Color = ShapeDefaults.GlobalColor ?? "Violet";
         _selfIntersecting = CurveIntersection.IsSelfIntersecting(this);
     }
 
     public VSpline(IEnumerable<VXYZ> points)
     {
         ControlPoints = points.ToList();
-        Color = "Violet";
+        Color = ShapeDefaults.GlobalColor ?? "Violet";
         _selfIntersecting = CurveIntersection.IsSelfIntersecting(this);
     }
 

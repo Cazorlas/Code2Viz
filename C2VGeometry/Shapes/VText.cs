@@ -68,8 +68,8 @@ public class VText : Shape
     {
         Location = new VXYZ(location.X, location.Y);
         Content = content;
-        Color = "White";
-        FillColor = "Transparent";
+        Color = ShapeDefaults.GlobalColor ?? "White";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
     }
 
     public VText(VXYZ location, string content, double height)
@@ -77,16 +77,16 @@ public class VText : Shape
         Location = new VXYZ(location.X, location.Y);
         Content = content;
         Height = height;
-        Color = "White";
-        FillColor = "Transparent";
+        Color = ShapeDefaults.GlobalColor ?? "White";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
     }
 
     public VText(double x, double y, string content)
     {
         Location = new VXYZ(x, y);
         Content = content;
-        Color = "White";
-        FillColor = "Transparent";
+        Color = ShapeDefaults.GlobalColor ?? "White";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
     }
 
     public VText(double x, double y, string content, double height)
@@ -94,8 +94,8 @@ public class VText : Shape
         Location = new VXYZ(x, y);
         Content = content;
         Height = height;
-        Color = "White";
-        FillColor = "Transparent";
+        Color = ShapeDefaults.GlobalColor ?? "White";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
     }
 
 

@@ -82,7 +82,7 @@ public class VHatch : Shape
         _pattern = pattern ?? throw new ArgumentNullException(nameof(pattern));
         _patternScale = scale;
         _patternAngle = angle;
-        Color = "Cyan";
+        Color = ShapeDefaults.GlobalColor ?? "Cyan";
         LineWeight = 1.0;
     }
 

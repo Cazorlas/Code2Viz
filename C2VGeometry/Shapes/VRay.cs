@@ -39,7 +39,7 @@ public class VRay : Shape, ICurve
     {
         Origin = origin;
         Direction = direction.Normalize();
-        Color = "Gray";
+        Color = ShapeDefaults.GlobalColor ?? "Gray";
     }
 
     /// <summary>

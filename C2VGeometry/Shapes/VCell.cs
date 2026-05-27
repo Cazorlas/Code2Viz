@@ -61,8 +61,8 @@ public class VCell : VPolygon
         UniqueId = uniqueId;
         Column = column;
         Row = row;
-        Color = "Gray";
-        FillColor = "Transparent";
+        Color = ShapeDefaults.GlobalColor ?? "Gray";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
     }
 
     private static VXYZ[] ComputeCorners(VXYZ center, double cellSize)

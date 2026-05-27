@@ -48,14 +48,28 @@ public class VDimension : Shape
     {
         Point1 = point1;
         Point2 = point2;
-        Color = "Yellow";
+        Color = ShapeDefaults.GlobalColor ?? "Yellow";
+        ApplyDimensionDefaults();
     }
 
     public VDimension(double x1, double y1, double x2, double y2)
     {
         Point1 = new VXYZ(x1, y1);
         Point2 = new VXYZ(x2, y2);
-        Color = "Yellow";
+        Color = ShapeDefaults.GlobalColor ?? "Yellow";
+        ApplyDimensionDefaults();
+    }
+
+    private void ApplyDimensionDefaults()
+    {
+        if (ShapeDefaults.DimOffset.HasValue) Offset = ShapeDefaults.DimOffset.Value;
+        if (ShapeDefaults.DimArrowSize.HasValue) ArrowSize = ShapeDefaults.DimArrowSize.Value;
+        if (ShapeDefaults.DimTextHeight.HasValue) TextHeight = ShapeDefaults.DimTextHeight.Value;
+        if (ShapeDefaults.DimDecimalPlaces.HasValue) DecimalPlaces = ShapeDefaults.DimDecimalPlaces.Value;
+        if (ShapeDefaults.DimExtendBeyondDimLines.HasValue) ExtendBeyondDimLines = ShapeDefaults.DimExtendBeyondDimLines.Value;
+        if (ShapeDefaults.DimOffsetFromOrigin.HasValue) OffsetFromOrigin = ShapeDefaults.DimOffsetFromOrigin.Value;
+        if (ShapeDefaults.DimPrefix != null) Prefix = ShapeDefaults.DimPrefix;
+        if (ShapeDefaults.DimSuffix != null) Suffix = ShapeDefaults.DimSuffix;
     }
 
     /// <summary>

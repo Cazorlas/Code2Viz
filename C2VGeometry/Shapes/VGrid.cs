@@ -75,8 +75,8 @@ public class VGrid : Shape
         YSpacing = ySpacing;
         Centered = centered;
 
-        Color = "White";
-        FillColor = "LimeGreen";
+        Color = ShapeDefaults.GlobalColor ?? "White";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "LimeGreen";
 
         GeneratePoints();
     }

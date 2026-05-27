@@ -89,11 +89,11 @@ public abstract class Shape : IDrawable
     /// </summary>
     protected Shape()
     {
-        Color = DefaultColor;
-        FillColor = DefaultFillColor;
-        LineWeight = DefaultLineWeight;
-        LineType = DefaultLineType;
-        LineTypeScale = DefaultLineTypeScale;
+        Color = ShapeDefaults.GlobalColor ?? DefaultColor;
+        FillColor = ShapeDefaults.GlobalFillColor ?? DefaultFillColor;
+        LineWeight = ShapeDefaults.GlobalLineWeight ?? DefaultLineWeight;
+        LineType = ShapeDefaults.GlobalLineType ?? DefaultLineType;
+        LineTypeScale = ShapeDefaults.GlobalLineTypeScale ?? DefaultLineTypeScale;
 
         // Auto-register with registry if configured
         if (AutoRegister && DefaultRegistry != null)
@@ -109,11 +109,11 @@ public abstract class Shape : IDrawable
     /// <param name="register">If false, the shape will not be auto-registered with the registry.</param>
     protected Shape(bool register)
     {
-        Color = DefaultColor;
-        FillColor = DefaultFillColor;
-        LineWeight = DefaultLineWeight;
-        LineType = DefaultLineType;
-        LineTypeScale = DefaultLineTypeScale;
+        Color = ShapeDefaults.GlobalColor ?? DefaultColor;
+        FillColor = ShapeDefaults.GlobalFillColor ?? DefaultFillColor;
+        LineWeight = ShapeDefaults.GlobalLineWeight ?? DefaultLineWeight;
+        LineType = ShapeDefaults.GlobalLineType ?? DefaultLineType;
+        LineTypeScale = ShapeDefaults.GlobalLineTypeScale ?? DefaultLineTypeScale;
 
         if (register && AutoRegister && DefaultRegistry != null)
         {

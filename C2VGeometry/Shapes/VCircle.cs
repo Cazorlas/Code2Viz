@@ -27,14 +27,14 @@ public class VCircle : Shape, ICurve
     {
         Center = center;
         Radius = radius;
-        Color = "Yellow";
+        Color = ShapeDefaults.GlobalColor ?? "Yellow";
     }
 
     public VCircle(double centerX, double centerY, double radius)
     {
         Center = new VXYZ(centerX, centerY);
         Radius = radius;
-        Color = "Yellow";
+        Color = ShapeDefaults.GlobalColor ?? "Yellow";
     }
 
     /// <summary>
@@ -61,7 +61,7 @@ public class VCircle : Shape, ICurve
 
         Center = new VXYZ(cx, cy);
         Radius = Math.Sqrt((x1 - cx) * (x1 - cx) + (y1 - cy) * (y1 - cy));
-        Color = "Yellow";
+        Color = ShapeDefaults.GlobalColor ?? "Yellow";
     }
 
     /// <summary>

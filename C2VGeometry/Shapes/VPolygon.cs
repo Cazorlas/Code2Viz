@@ -68,8 +68,8 @@ public class VPolygon : Shape, ICurve
     public VPolygon(params VXYZ[] points)
     {
         Points = points.ToList();
-        Color = "LightBlue";
-        FillColor = "Transparent";
+        Color = ShapeDefaults.GlobalColor ?? "LightBlue";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
         _selfIntersecting = CurveIntersection.IsPolylineSelfIntersecting(GetClosedPoints());
         BuildCurvesFromPoints();
     }
@@ -77,8 +77,8 @@ public class VPolygon : Shape, ICurve
     public VPolygon(IEnumerable<VXYZ> points)
     {
         Points = points.ToList();
-        Color = "LightBlue";
-        FillColor = "Transparent";
+        Color = ShapeDefaults.GlobalColor ?? "LightBlue";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
         _selfIntersecting = CurveIntersection.IsPolylineSelfIntersecting(GetClosedPoints());
         BuildCurvesFromPoints();
     }
@@ -145,8 +145,8 @@ public class VPolygon : Shape, ICurve
         // Store the curves (extract just the ICurve from the tuples)
         Curves = orderedCurves.Select(t => t.curve).ToList();
 
-        Color = "LightBlue";
-        FillColor = "Transparent";
+        Color = ShapeDefaults.GlobalColor ?? "LightBlue";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
 
         // Validation passed, so no self-intersection
         _selfIntersecting = false;

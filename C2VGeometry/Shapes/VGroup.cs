@@ -26,8 +26,8 @@ public class VGroup : Shape
     /// </summary>
     public VGroup()
     {
-        Color = "White";
-        FillColor = "Transparent";
+        Color = ShapeDefaults.GlobalColor ?? "White";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
     }
 
     /// <summary>
@@ -36,8 +36,8 @@ public class VGroup : Shape
     public VGroup(params Shape[] shapes)
     {
         Shapes.AddRange(shapes);
-        Color = "White";
-        FillColor = "Transparent";
+        Color = ShapeDefaults.GlobalColor ?? "White";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
     }
 
     /// <summary>
@@ -46,8 +46,8 @@ public class VGroup : Shape
     public VGroup(IEnumerable<Shape> shapes)
     {
         Shapes.AddRange(shapes);
-        Color = "White";
-        FillColor = "Transparent";
+        Color = ShapeDefaults.GlobalColor ?? "White";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
     }
 
     /// <summary>
@@ -56,8 +56,8 @@ public class VGroup : Shape
     public VGroup(List<Shape> shapes)
     {
         Shapes.AddRange(shapes);
-        Color = "White";
-        FillColor = "Transparent";
+        Color = ShapeDefaults.GlobalColor ?? "White";
+        FillColor = ShapeDefaults.GlobalFillColor ?? "Transparent";
     }
 
     /// <summary>
