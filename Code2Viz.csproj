@@ -24,12 +24,17 @@
     <Compile Remove="McpServer\**" />
     <Compile Remove="C2VGeometry\**" />
     <Compile Remove="Animator\**" />
+    <Compile Remove="SketchHost\**" />
     <Compile Remove="RegionSample\**" />
     <Compile Remove="Sample Projects\**" />
     <Page Remove="Animator\**" />
     <ApplicationDefinition Remove="Animator\**" />
     <Resource Remove="Animator\**" />
     <None Remove="Animator\**" />
+    <Page Remove="SketchHost\**" />
+    <ApplicationDefinition Remove="SketchHost\**" />
+    <Resource Remove="SketchHost\**" />
+    <None Remove="SketchHost\**" />
   </ItemGroup>
 
 

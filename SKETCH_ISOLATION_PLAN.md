@@ -67,8 +67,10 @@ blunder, including infinite loops.
 - **New project `SketchHost/` (`SketchHost.exe`, console).** Owns the `AssemblyLoadContext`,
   the `SketchRuntime`, and the `ShapeRegistry`. Reuses `SketchCompiler` + `StackGuardRewriter`
   (keep the stack guard — cheaper than respawning on every recursion bug).
-- **IPC over the existing named-pipe stack (`McpBridge/`).** Reuse the framing/host code that
-  already drives the MCP bridge rather than inventing a new transport.
+- **IPC over the child's redirected stdin/stdout** (decided during the POC — see Progress below).
+  The `McpBridge` pipe was evaluated and rejected: it's request/response, one message per
+  connection, byte-by-byte — unsuitable for a 60 fps push stream. Stdio needs no pipe-name
+  management and the OS tears the pipes down when either process dies (clean crash detection).
 - **UI → host messages:** `Compile(source, path)`, `Stop`, `SetLooping`, input state
   (`mouseX/Y`, `mousePressed`, `lastKey`), export-frame requests.
 - **Host → UI messages:** per-frame shape batch, `Size`/`Background`/zoom requests, console
@@ -98,19 +100,60 @@ Recommended: start with **(1)**; measure; add **(2)** only if a real sketch need
 
 ### Migration steps
 
-1. Extract `SketchRuntime` + `ShapeRegistry` + `SketchCompiler` references behind an interface so
-   they can run host-side unchanged.
-2. Stand up `SketchHost.exe` with the pipe loop; prove a trivial sketch round-trips one frame.
-3. Implement the binary frame protocol + shared-memory ring; port `AnimCanvas` to render from a
-   decoded frame batch instead of a live `Shape` list.
-4. Add the watchdog + crash/restart UX on the UI side.
-5. Bundle `SketchHost.exe` into the installer next to `Animator.exe` (mirror the existing
-   `{app}\Animator\` packaging rule — see `installer.iss`).
-6. Delete the in-process `Start`/`Tick` path once parity is verified.
+1. ✅ **Stand up `SketchHost.exe` + the IPC protocol; round-trip frames; prove crash/hang
+   isolation.** (Increment 1 — see Progress below.)
+2. ⬜ **Wire the parent UI to the child.** Replace the in-process `SketchRuntime` wiring in
+   `Animator/MainWindow.xaml.cs` with a `SketchHostClient`: Run → `client.Run(...)`,
+   `OnRendering` → `client.SendInput(...)`, `FrameReceived` → `Canvas.SetShapes(...)`,
+   `BackgroundChanged`/`ZoomRequested` → canvas, `ConsoleLine` → console pane, `Hung`/`Exited`
+   → status + auto-respawn. Keep the in-process path behind a flag until parity is confirmed.
+3. ⬜ **Locate `SketchHost.exe` at runtime** (mirror `AppSwitcher.FindSiblingApp`: walk `..` to
+   the solution root, look under `SketchHost\bin\{Config}\net9.0-windows\` and `{app}\SketchHost\`).
+4. ⬜ **Throughput pass if needed** — measure frame serialization under a heavy sketch; only then
+   add the shared-memory ring / delta frames from the "Hard problem" section. (POC uses plain
+   length-prefixed stdio, which was fine for the test sketches.)
+5. ⬜ **Bundle `SketchHost.exe` into the installer** next to `Animator.exe` (mirror the existing
+   `{app}\Animator\` packaging rule — see `installer.iss`) and add a "Build SketchHost (Release)"
+   step to the release workflow.
+6. ⬜ **Delete the in-process `Start`/`Tick` path** once parity is verified.
+
+Optional cleanup (not required): extract `Sketch`/`SketchRuntime`/`SketchCompiler`/`ShapeRegistry`/
+`ConsoleOutput` into a non-WPF library so the child needn't reference the WPF Animator assembly.
+Today `SketchHost` references `Animator.csproj` and runs headless; it works, but pulls WPF/AvalonEdit
+into the child.
+
+### Progress — Increment 1 (POC, done)
+
+A working vertical slice landed, additive and non-invasive (the live in-process path is untouched):
+
+- **`Animator/Ipc/HostMessage.cs`** — `MessageType` tags + `MessageChannel`, a length-prefixed
+  binary framing over a duplex stream (`[4-byte LE length][1-byte type][body]`), with synchronized
+  writes so the frame loop and console callback can share one output stream.
+- **`Animator/Ipc/ShapeCodec.cs`** — encodes the 8 shape types AnimCanvas renders (others dropped,
+  as today) and decodes them back into reconstructed `C2VGeometry.Shape`s, so `AnimCanvas.SetShapes`
+  is a drop-in on the parent.
+- **`Animator/Ipc/SketchHostClient.cs`** — parent handle: spawns the child, pumps the channel on a
+  reader thread, raises events (`FrameReceived`, `ConsoleLine`, `BackgroundChanged`, `ZoomRequested`,
+  `CompileCompleted`, `SketchStopped`, `Hung`, `Exited`), and runs the **watchdog** that kills a
+  child producing no frames (infinite loop) so the parent UI never freezes.
+- **`SketchHost/` (`SketchHost.exe`)** — the child: owns the real `SketchRuntime` + `SketchCompiler`,
+  drives its own ~60 fps loop, redirects `Console.Out`→stderr so stray user `Console.WriteLine`
+  can't corrupt the binary channel, and speaks the protocol over stdio. Added to `Code2Viz.sln`.
+
+**Verified** with a 3-sketch harness (parent process spawning the child):
+- benign sketch → frames stream and decode (1 shape/frame), zoom + background cross the boundary;
+- `circlesFill.cs` → recursion caught by the Phase-1 guard, error reported over IPC, **child stays
+  alive**;
+- `while(true){}` → **watchdog kills the child** (~2.3 s), child exits, **parent survives**.
+
+All three passed; the parent process survived all three. This proves spawn + duplex IPC + frame
+streaming + crash isolation + the infinite-loop watchdog — the whole risky core.
 
 ### Cost / risk
 
-- **Effort:** medium-large (new exe, IPC protocol, canvas render-from-batch rewrite, packaging).
-- **Risk:** frame-serialization throughput is the make-or-break; everything else is plumbing.
+- **Effort:** medium-large remaining (UI rewiring in step 2, packaging in step 5). The risky core
+  (IPC + isolation) is now proven.
+- **Risk:** frame-serialization throughput is the remaining unknown; plain stdio sufficed for the
+  POC, optimize only if a heavy sketch needs it (step 4).
 - **Payoff:** complete immunity — infinite loops, OOM, native crashes, and `FailFast` all become
   "the sketch process died, here's why" instead of a dead Animator.

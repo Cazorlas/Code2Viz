@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyName>SketchHost</AssemblyName>
+    <RootNamespace>SketchHost</RootNamespace>
+    <Description>Out-of-process sketch host for Animator. Runs user sketches in isolation so a crash, infinite loop, or stack overflow cannot take down the UI. See SKETCH_ISOLATION_PLAN.md.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Reuses Animator's compiler + runtime + IPC protocol. The child runs headless (never
+         creates a window) but references the WPF Animator assembly for those types. -->
+    <ProjectReference Include="..\Animator\Animator.csproj" />
+  </ItemGroup>
+
+</Project>
