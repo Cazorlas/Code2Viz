@@ -27,6 +27,7 @@ using Animator.Canvas;
 using Animator.Compiler;
 using Animator.Console;
 using Animator.Editor;
+using Animator.Ipc;
 using Animator.Sketching;
 using Code2Viz;
 using Code2Viz.Editor;
@@ -45,6 +46,16 @@ public partial class MainWindow : Window
     private TimeSpan _lastRenderTime = TimeSpan.Zero;
     private bool _isDirty;
     private bool _suppressDirty;
+
+    // Phase-2 process isolation (SKETCH_ISOLATION_PLAN.md). When ANIMATOR_ISOLATE=1, sketches run
+    // in a separate SketchHost.exe so an infinite loop / OOM / native crash can't take down the UI.
+    // Default OFF — the in-process path stays authoritative until parity is confirmed.
+    private readonly bool _isolate = Environment.GetEnvironmentVariable("ANIMATOR_ISOLATE") == "1";
+    private SketchHostClient? _hostClient;
+
+    /// <summary>Unified "is a sketch running" across the in-process and out-of-process paths.</summary>
+    private bool SketchIsRunning =>
+        _isolate ? (_hostClient?.IsSketchRunning ?? false) : SketchRuntime.Instance.IsRunning;
 
     private SharedEditorController? _editorController;
 
@@ -119,6 +130,7 @@ public partial class MainWindow : Window
         {
             CompositionTarget.Rendering -= OnRendering;
             SketchRuntime.Instance.Stop();
+            _hostClient?.Dispose();
         };
 
         // Keyboard shortcuts
@@ -173,11 +185,111 @@ public partial class MainWindow : Window
 
     // ── Sketch lifecycle ──
 
+    /// <summary>
+    /// Ensures a live <see cref="SketchHostClient"/> with an alive child process, (re)spawning and
+    /// wiring events as needed (the child may have exited or been killed by the watchdog). Returns
+    /// false if SketchHost.exe can't be located.
+    /// </summary>
+    private bool EnsureHostClient()
+    {
+        if (_hostClient is { IsChildAlive: true }) return true;
+
+        _hostClient?.Dispose();
+        _hostClient = null;
+
+        var exe = AppSwitcher.FindSketchHostExe();
+        if (exe == null)
+        {
+            ConsoleOutput.Instance.WriteError("Animator",
+                "Could not locate SketchHost.exe — build the SketchHost project. Falling back is not available in isolation mode.");
+            return false;
+        }
+
+        var client = new SketchHostClient();
+
+        client.FrameReceived += (shapes, frameCount) => Dispatcher.BeginInvoke(() =>
+        {
+            Canvas.SetShapes(shapes);
+            FrameLabel.Text = $"frame {frameCount}";
+        });
+        client.BackgroundChanged += color => Dispatcher.BeginInvoke(() => ApplyBackground(color));
+        client.ZoomRequested += (w, h) => Dispatcher.BeginInvoke(() => Canvas.SetBoundary(w, h));
+        // ConsoleOutput is thread-safe and its Changed handler already marshals to the UI.
+        client.ConsoleLine += (level, source, message) =>
+            ConsoleOutput.Instance.Write((ConsoleLevel)level, source, message);
+        client.CompileCompleted += (ok, error) => Dispatcher.BeginInvoke(() =>
+        {
+            RunButton.IsEnabled = true;
+            StatusLabel.Text = ok ? "Running" : "Compile error";
+            if (!ok) StopButton.IsEnabled = false;
+        });
+        client.SketchStopped += () => Dispatcher.BeginInvoke(() =>
+        {
+            StatusLabel.Text = "Stopped";
+            StopButton.IsEnabled = false;
+            RunButton.IsEnabled = true;
+        });
+        client.Hung += message =>
+        {
+            ConsoleOutput.Instance.WriteError("Sketch", message);
+            Dispatcher.BeginInvoke(() =>
+            {
+                Canvas.Clear();
+                StatusLabel.Text = "Stopped (hung)";
+                StopButton.IsEnabled = false;
+                RunButton.IsEnabled = true;
+            });
+        };
+        client.Exited += code => Dispatcher.BeginInvoke(() =>
+        {
+            // Unexpected exit while we thought a sketch was live (e.g. a crash the guard can't catch).
+            if (StatusLabel.Text == "Running")
+            {
+                ConsoleOutput.Instance.WriteError("Sketch",
+                    $"Sketch host exited unexpectedly (code {code}). The app is unaffected; run again to restart it.");
+                StatusLabel.Text = "Stopped (host exited)";
+                StopButton.IsEnabled = false;
+                RunButton.IsEnabled = true;
+            }
+        });
+
+        try { client.Start(exe); }
+        catch (Exception ex)
+        {
+            ConsoleOutput.Instance.WriteError("Animator", $"Failed to start SketchHost: {ex.Message}");
+            client.Dispose();
+            return false;
+        }
+
+        _hostClient = client;
+        return true;
+    }
+
+    /// <summary>Applies a sketch-requested background color to the canvas (shared by both paths).</summary>
+    private void ApplyBackground(string color)
+    {
+        try { Canvas.CanvasBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(color)); }
+        catch { ConsoleOutput.Instance.WriteLine("Sketch", $"Background: '{color}' is not a recognised color name."); }
+    }
+
     private void OnRendering(object? sender, EventArgs e)
     {
         var args = (RenderingEventArgs)e;
         if (args.RenderingTime == _lastRenderTime) return;
         _lastRenderTime = args.RenderingTime;
+
+        if (_isolate)
+        {
+            // Out-of-process: the child drives its own Draw loop and pushes frames/background/zoom
+            // back via events. The parent only forwards input each frame.
+            if (!(_hostClient?.IsSketchRunning ?? false)) return;
+            var (imx, imy) = Canvas.WorldMouse;
+            _hostClient!.SendInput(imx, imy,
+                Mouse.LeftButton == MouseButtonState.Pressed,
+                Keyboard.FocusedElement is UIElement,
+                "");
+            return;
+        }
 
         if (!SketchRuntime.Instance.IsRunning) return;
 
@@ -188,19 +300,7 @@ public partial class MainWindow : Window
             "");
 
         var bg = SketchRuntime.Instance.TryConsumeBackground();
-        if (bg != null)
-        {
-            try
-            {
-                var c = (Color)ColorConverter.ConvertFromString(bg);
-                Canvas.CanvasBackground = new SolidColorBrush(c);
-            }
-            catch
-            {
-                ConsoleOutput.Instance.WriteLine("Sketch",
-                    $"Background: '{bg}' is not a recognised color name.");
-            }
-        }
+        if (bg != null) ApplyBackground(bg);
 
         SketchRuntime.Instance.Tick();
 
@@ -216,6 +316,22 @@ public partial class MainWindow : Window
 
         var source = Editor.Text;
         var name = _currentPath != null ? Path.GetFileName(_currentPath) : "Untitled.cs";
+
+        if (_isolate)
+        {
+            // Out-of-process: hand the source to the child; CompileCompleted/SketchStopped events
+            // drive the status. (Re)spawn the child if it isn't alive.
+            if (!EnsureHostClient())
+            {
+                StatusLabel.Text = "Host unavailable";
+                StopButton.IsEnabled = false;
+                RunButton.IsEnabled = true;
+                return;
+            }
+            Canvas.Clear();
+            _hostClient!.Run(name, source);
+            return;
+        }
 
         _ = _compiler.CompileAndRunAsync(source, name).ContinueWith(t =>
         {
@@ -237,7 +353,11 @@ public partial class MainWindow : Window
 
     private void StopSketch()
     {
-        SketchRuntime.Instance.Stop();
+        if (_isolate)
+            _hostClient?.StopSketch();
+        else
+            SketchRuntime.Instance.Stop();
+
         Canvas.Clear();
         Canvas.ClearBoundary();
         StopButton.IsEnabled = false;
@@ -247,7 +367,7 @@ public partial class MainWindow : Window
 
     private void ToggleRun()
     {
-        if (SketchRuntime.Instance.IsRunning)
+        if (SketchIsRunning)
             StopSketch();
         else
             RunSketch();
@@ -258,7 +378,7 @@ public partial class MainWindow : Window
     // Ctrl/Alt/Win combos so genuine shortcuts (Ctrl+S, Shift+F5, etc.) still work.
     private void Editor_PreviewKeyDown_StopSketch(object sender, KeyEventArgs e)
     {
-        if (!SketchRuntime.Instance.IsRunning) return;
+        if (!SketchIsRunning) return;
 
         if (e.Key is Key.LeftCtrl or Key.RightCtrl
                   or Key.LeftShift or Key.RightShift
@@ -441,7 +561,9 @@ public partial class MainWindow : Window
         if (save.ShowDialog(this) != true) return;
 
         // Stop the live sketch so the export driver has a clean slate. Restore it after.
-        bool wasRunning = Animator.Sketching.SketchRuntime.Instance.IsRunning;
+        // (Export always renders in-process via SketchExporter; in isolation mode this just stops
+        // the child so it isn't competing while we export.)
+        bool wasRunning = SketchIsRunning;
         if (wasRunning)
             StopSketch();
 
@@ -587,6 +709,26 @@ internal static class AppSwitcher
         {
             if (File.Exists(c)) return c;
         }
+        return null;
+    }
+
+    /// <summary>
+    /// Locates the out-of-process sketch host. Installed layout puts it at {app}\SketchHost\
+    /// alongside {app}\Animator\; dev layout has it under the solution root's SketchHost\bin\.
+    /// </summary>
+    public static string? FindSketchHostExe()
+    {
+        var thisDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+        var candidates = new[]
+        {
+            // Installed: {app}\Animator\Animator.exe -> {app}\SketchHost\SketchHost.exe
+            Path.GetFullPath(Path.Combine(thisDir, "..", "SketchHost", "SketchHost.exe")),
+            // Dev: .../Animator/bin/{Config}/net9.0-windows -> solution root /SketchHost/bin/{Config}/...
+            Path.GetFullPath(Path.Combine(thisDir, "..", "..", "..", "..", "SketchHost", "bin", "Debug", "net9.0-windows", "SketchHost.exe")),
+            Path.GetFullPath(Path.Combine(thisDir, "..", "..", "..", "..", "SketchHost", "bin", "Release", "net9.0-windows", "SketchHost.exe")),
+        };
+        foreach (var c in candidates)
+            if (File.Exists(c)) return c;
         return null;
     }
 }

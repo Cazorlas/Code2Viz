@@ -39,6 +39,9 @@ public sealed class SketchHostClient : IDisposable
 
     public bool IsChildAlive => _proc is { HasExited: false };
 
+    /// <summary>True between <see cref="Run"/> and the sketch stopping/erroring/being killed.</summary>
+    public bool IsSketchRunning => _sketchRunning;
+
     public void Start(string sketchHostExePath)
     {
         if (!File.Exists(sketchHostExePath))

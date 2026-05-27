@@ -102,13 +102,13 @@ Recommended: start with **(1)**; measure; add **(2)** only if a real sketch need
 
 1. ✅ **Stand up `SketchHost.exe` + the IPC protocol; round-trip frames; prove crash/hang
    isolation.** (Increment 1 — see Progress below.)
-2. ⬜ **Wire the parent UI to the child.** Replace the in-process `SketchRuntime` wiring in
-   `Animator/MainWindow.xaml.cs` with a `SketchHostClient`: Run → `client.Run(...)`,
-   `OnRendering` → `client.SendInput(...)`, `FrameReceived` → `Canvas.SetShapes(...)`,
-   `BackgroundChanged`/`ZoomRequested` → canvas, `ConsoleLine` → console pane, `Hung`/`Exited`
-   → status + auto-respawn. Keep the in-process path behind a flag until parity is confirmed.
-3. ⬜ **Locate `SketchHost.exe` at runtime** (mirror `AppSwitcher.FindSiblingApp`: walk `..` to
-   the solution root, look under `SketchHost\bin\{Config}\net9.0-windows\` and `{app}\SketchHost\`).
+2. ✅ **Wire the parent UI to the child** (Increment 2 — see below). `Animator/MainWindow.xaml.cs`
+   branches on the `ANIMATOR_ISOLATE=1` flag: Run → `client.Run(...)`, `OnRendering` →
+   `client.SendInput(...)`, `FrameReceived` → `Canvas.SetShapes(...)`, `BackgroundChanged`/
+   `ZoomRequested` → canvas, `ConsoleLine` → console pane, `CompileCompleted`/`SketchStopped`/
+   `Hung`/`Exited` → status; the child is (re)spawned on demand. In-process stays the default.
+3. ✅ **Locate `SketchHost.exe` at runtime** — `AppSwitcher.FindSketchHostExe()` (mirrors
+   `FindSiblingApp`: `{app}\SketchHost\` installed; solution-root `SketchHost\bin\{Config}\…` in dev).
 4. ⬜ **Throughput pass if needed** — measure frame serialization under a heavy sketch; only then
    add the shared-memory ring / delta frames from the "Hard problem" section. (POC uses plain
    length-prefixed stdio, which was fine for the test sketches.)
@@ -148,6 +148,24 @@ A working vertical slice landed, additive and non-invasive (the live in-process 
 
 All three passed; the parent process survived all three. This proves spawn + duplex IPC + frame
 streaming + crash isolation + the infinite-loop watchdog — the whole risky core.
+
+### Progress — Increment 2 (UI wiring, done; flag-gated)
+
+`Animator/MainWindow.xaml.cs` now runs sketches out-of-process when `ANIMATOR_ISOLATE=1`
+(env var; default OFF so the in-process path stays authoritative). A `SketchIsRunning` property
+unifies the running-state check across both paths; `EnsureHostClient()` (re)spawns the child and
+wires its events to the canvas/console/status on the dispatcher; `RunSketch`/`StopSketch`/
+`OnRendering`/`ToggleRun`/export all branch on the flag. `SketchHostClient.IsSketchRunning` added.
+
+**Verified in the real GUI** (UI Automation invoking the actual ▶ Run button under
+`ANIMATOR_ISOLATE=1`):
+- benign sketch → invoking Run spawns a `SketchHost.exe` child; killing the parent leaves **no
+  orphan** (child self-exits on stdin EOF);
+- `while(true){}` → child spawns and hangs, the **watchdog kills it ~3 s later**, and the Animator
+  parent **stays alive** — the freeze case the in-process path can't survive.
+
+Remaining before this can become the default: steps 4–6 (throughput check, installer bundling,
+delete the in-process path).
 
 ### Cost / risk
 
