@@ -10,6 +10,16 @@ between tags; this file is the curated, human-friendly summary.
 
 ## [Unreleased]
 
+## [2026.5.3] - 2026-05-27
+
+### Added
+- This changelog.
+
+### Changed
+- GitHub release notes are now generated automatically from the commit log
+  between tags, so every release has real notes (the body was previously only a
+  bare "compare" link).
+
 ## [2026.5.2] - 2026-05-27
 
 ### Added
@@ -37,5 +47,6 @@ between tags; this file is the curated, human-friendly summary.
 Releases before 2026.5.2 predate this changelog; see the
 [Releases page](https://github.com/harilalmn/Code2Viz/releases) and git history.
 
-[Unreleased]: https://github.com/harilalmn/Code2Viz/compare/v2026.5.2...HEAD
+[Unreleased]: https://github.com/harilalmn/Code2Viz/compare/v2026.5.3...HEAD
+[2026.5.3]: https://github.com/harilalmn/Code2Viz/releases/tag/v2026.5.3
 [2026.5.2]: https://github.com/harilalmn/Code2Viz/releases/tag/v2026.5.2
