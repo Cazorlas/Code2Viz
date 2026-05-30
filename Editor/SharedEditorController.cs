@@ -1140,6 +1140,15 @@ namespace Code2Viz.Editor
 
         private void OnEditorPreviewKeyDown(object? sender, KeyEventArgs e)
         {
+            // When multi-cursors are active, route navigation/editing through the renderer so
+            // every cursor moves/edits together. Without this the first key collapses to the
+            // main caret and OnSelectionChanged_ClearMultiSelect wipes the extra cursors.
+            if (_multiSelectionRenderer is { HasSelections: true })
+            {
+                if (HandleMultiCursorKey(e))
+                    return;
+            }
+
             if (e.Key == Key.Tab && _snippetSession is { IsActive: true })
             {
                 if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
@@ -2447,105 +2456,194 @@ namespace Code2Viz.Editor
             _editor.CaretOffset = startOffset + wrappedText.Length;
         }
 
-        // Multi-cursor functionality
-        private void AddCursorAbove()
+        // Handles a key press while multi-cursors are active. Returns true if the key was
+        // consumed. Mirrors Code2Viz's MainWindow.TextArea_PreviewKeyDown multi-cursor block.
+        private bool HandleMultiCursorKey(KeyEventArgs e)
         {
-            if (_multiSelectionRenderer == null) return;
-            var caret = _editor.TextArea.Caret;
-            if (caret.Line > 1)
+            var renderer = _multiSelectionRenderer;
+            if (renderer == null || !renderer.HasSelections) return false;
+
+            // Escape clears multi-cursor mode.
+            if (e.Key == Key.Escape)
             {
-                int newOffset = _editor.Document.GetOffset(caret.Line - 1, caret.Column);
-                _multiSelectionRenderer.AddSelection(newOffset, newOffset);
-                _editor.TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
+                renderer.ClearSelections();
+                e.Handled = true;
+                return true;
             }
+
+            // Adding more cursors with Ctrl+Alt+Up/Down must stack, not edit.
+            if (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Alt))
+            {
+                var addKey = e.Key == Key.System ? e.SystemKey : e.Key;
+                if (addKey == Key.Up)   { renderer.AddCursorAbove(); e.Handled = true; return true; }
+                if (addKey == Key.Down) { renderer.AddCursorBelow(); e.Handled = true; return true; }
+                return false;
+            }
+
+            var mods = Keyboard.Modifiers;
+            Action? op = e.Key switch
+            {
+                Key.Back   => renderer.BackspaceAtAllCursors,
+                Key.Delete => renderer.DeleteAtAllCursors,
+                Key.Enter  => () => renderer.EnterAtAllCursors(autoIndent: true),
+                Key.Up     => renderer.MoveAllCursorsUp,
+                Key.Down   => renderer.MoveAllCursorsDown,
+                Key.Left   => mods == (ModifierKeys.Control | ModifierKeys.Shift) ? renderer.ExtendAllSelectionsWordLeft
+                            : mods == ModifierKeys.Control ? renderer.MoveAllCursorsWordLeft
+                            : mods == ModifierKeys.Shift ? renderer.ExtendAllSelectionsLeft
+                            : renderer.MoveAllCursorsLeft,
+                Key.Right  => mods == (ModifierKeys.Control | ModifierKeys.Shift) ? renderer.ExtendAllSelectionsWordRight
+                            : mods == ModifierKeys.Control ? renderer.MoveAllCursorsWordRight
+                            : mods == ModifierKeys.Shift ? renderer.ExtendAllSelectionsRight
+                            : renderer.MoveAllCursorsRight,
+                Key.Home   => mods == ModifierKeys.Shift ? renderer.ExtendAllSelectionsHome : renderer.MoveAllCursorsHome,
+                Key.End    => mods == ModifierKeys.Shift ? renderer.ExtendAllSelectionsEnd : renderer.MoveAllCursorsEnd,
+                _ => null
+            };
+
+            if (op == null) return false;
+
+            // Suppress OnSelectionChanged_ClearMultiSelect while we mutate the document/selection.
+            _isMultiCursorEditing = true;
+            _isAddingNextOccurrence = true;
+            try
+            {
+                op();
+                e.Handled = true;
+            }
+            finally
+            {
+                _isAddingNextOccurrence = false;
+                _isMultiCursorEditing = false;
+            }
+            return true;
         }
 
-        private void AddCursorBelow()
-        {
-            if (_multiSelectionRenderer == null) return;
-            var caret = _editor.TextArea.Caret;
-            if (caret.Line < _editor.Document.LineCount)
-            {
-                int newOffset = _editor.Document.GetOffset(caret.Line + 1, caret.Column);
-                _multiSelectionRenderer.AddSelection(newOffset, newOffset);
-                _editor.TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
-            }
-        }
+        // Multi-cursor functionality.
+        // Delegate to the renderer's implementations, which anchor to the topmost/bottommost
+        // existing cursor (so presses stack) and clamp the column to the target line length.
+        private void AddCursorAbove() => _multiSelectionRenderer?.AddCursorAbove();
 
+        private void AddCursorBelow() => _multiSelectionRenderer?.AddCursorBelow();
+
+        // Ctrl+D. Model (matches Code2Viz): the main editor selection is always the NEWEST
+        // occurrence; the renderer holds only the OLDER occurrences. The main selection is never
+        // added to the renderer (the multi-cursor edit/insert paths already include it), so it is
+        // never double-counted — double-counting underflows the offset math and crashes the editor.
         private void AddNextOccurrence()
         {
             if (_multiSelectionRenderer == null) return;
-            
-            var selectedText = _editor.SelectedText;
-            if (string.IsNullOrEmpty(selectedText))
+
+            var document = _editor.Document;
+            var textArea = _editor.TextArea;
+            var selection = textArea.Selection;
+
+            if (selection.IsEmpty && !_multiSelectionRenderer.HasSelections)
             {
-                // Select word under caret
-                var offset = _editor.CaretOffset;
-                var word = GetWordAtOffset(_editor.Document, offset);
-                if (!string.IsNullOrEmpty(word))
-                {
-                    int wordStart = _editor.Text.IndexOf(word, Math.Max(0, offset - word.Length));
-                    if (wordStart >= 0)
-                    {
-                        _editor.Select(wordStart, word.Length);
-                        selectedText = word;
-                    }
-                }
-            }
-
-            if (string.IsNullOrEmpty(selectedText)) return;
-
-            int searchFrom = _editor.SelectionStart + _editor.SelectionLength;
-            if (searchFrom >= _editor.Text.Length) searchFrom = 0;
-
-            int nextOffset = _editor.Text.IndexOf(selectedText, searchFrom, StringComparison.Ordinal);
-            if (nextOffset < 0 && searchFrom > 0)
-            {
-                nextOffset = _editor.Text.IndexOf(selectedText, 0, searchFrom, StringComparison.Ordinal);
-            }
-
-            if (nextOffset >= 0)
-            {
+                // First press with no selection: just select the word under the caret.
+                var (ws, we) = GetWordBounds(document, textArea.Caret.Offset);
+                if (ws == we) return;
                 _isAddingNextOccurrence = true;
-                try
-                {
-                    if (!_multiSelectionRenderer.HasSelections)
-                    {
-                        _multiSelectionRenderer.AddSelection(_editor.SelectionStart, _editor.SelectionStart + _editor.SelectionLength);
-                    }
-                    _multiSelectionRenderer.AddSelection(nextOffset, nextOffset + selectedText.Length);
-                    _editor.TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
-                }
-                finally
-                {
-                    _isAddingNextOccurrence = false;
-                }
+                textArea.Selection = AvalonSelection.Create(textArea, ws, we);
+                textArea.Caret.Offset = we;
+                _isAddingNextOccurrence = false;
+                return;
             }
-        }
 
-        private void SelectAllOccurrences()
-        {
-            if (_multiSelectionRenderer == null) return;
+            var segment = selection.SurroundingSegment;
+            if (segment == null) return;
+            string searchText = document.GetText(segment.Offset, segment.Length);
+            if (string.IsNullOrEmpty(searchText)) return;
 
-            var selectedText = _editor.SelectedText;
-            if (string.IsNullOrEmpty(selectedText)) return;
+            var text = document.Text;
+            int nextIndex = text.IndexOf(searchText, segment.EndOffset, StringComparison.Ordinal);
+            if (nextIndex < 0) nextIndex = text.IndexOf(searchText, 0, StringComparison.Ordinal);
+            if (nextIndex < 0) return;
+
+            // Stop if every occurrence is already covered.
+            bool alreadySelected = segment.Offset == nextIndex && segment.Length == searchText.Length;
+            foreach (var sel in _multiSelectionRenderer.Selections)
+            {
+                if (sel.StartOffset == nextIndex && sel.Length == searchText.Length) { alreadySelected = true; break; }
+            }
+            if (alreadySelected) return;
 
             _isAddingNextOccurrence = true;
             try
             {
-                _multiSelectionRenderer.ClearSelections();
-                int idx = 0;
-                while ((idx = _editor.Text.IndexOf(selectedText, idx, StringComparison.Ordinal)) >= 0)
-                {
-                    _multiSelectionRenderer.AddSelection(idx, idx + selectedText.Length);
-                    idx += selectedText.Length;
-                }
-                _editor.TextArea.TextView.InvalidateLayer(KnownLayer.Selection);
+                // Park the current (now older) occurrence in the renderer, advance main to the new one.
+                _multiSelectionRenderer.AddSelection(segment.Offset, segment.Length);
+                textArea.Selection = AvalonSelection.Create(textArea, nextIndex, nextIndex + searchText.Length);
+                textArea.Caret.Offset = nextIndex + searchText.Length;
+                textArea.Caret.BringCaretToView();
             }
             finally
             {
                 _isAddingNextOccurrence = false;
             }
+        }
+
+        // Ctrl+Shift+L. All occurrences except the last go into the renderer; the last becomes the
+        // main selection — same no-duplication invariant as AddNextOccurrence.
+        private void SelectAllOccurrences()
+        {
+            if (_multiSelectionRenderer == null) return;
+
+            var document = _editor.Document;
+            var textArea = _editor.TextArea;
+            var selection = textArea.Selection;
+
+            string searchText;
+            if (selection.IsEmpty)
+            {
+                var (ws, we) = GetWordBounds(document, textArea.Caret.Offset);
+                if (ws == we) return;
+                searchText = document.GetText(ws, we - ws);
+            }
+            else
+            {
+                var segment = selection.SurroundingSegment;
+                if (segment == null) return;
+                searchText = document.GetText(segment.Offset, segment.Length);
+            }
+            if (string.IsNullOrEmpty(searchText)) return;
+
+            var text = document.Text;
+            var occurrences = new List<(int Start, int End)>();
+            int index = 0;
+            while ((index = text.IndexOf(searchText, index, StringComparison.Ordinal)) >= 0)
+            {
+                occurrences.Add((index, index + searchText.Length));
+                index += searchText.Length;
+            }
+            if (occurrences.Count <= 1) return;
+
+            _isAddingNextOccurrence = true;
+            try
+            {
+                _multiSelectionRenderer.ClearSelections();
+                for (int i = 0; i < occurrences.Count - 1; i++)
+                    _multiSelectionRenderer.AddSelection(occurrences[i].Start, occurrences[i].End - occurrences[i].Start);
+
+                var last = occurrences[^1];
+                textArea.Selection = AvalonSelection.Create(textArea, last.Start, last.End);
+                textArea.Caret.Offset = last.End;
+                textArea.Caret.BringCaretToView();
+            }
+            finally
+            {
+                _isAddingNextOccurrence = false;
+            }
+        }
+
+        private (int Start, int End) GetWordBounds(ICSharpCode.AvalonEdit.Document.TextDocument document, int offset)
+        {
+            if (offset < 0 || offset > document.TextLength) return (offset, offset);
+            int start = offset;
+            while (start > 0 && IsIdentifierChar(document.GetCharAt(start - 1))) start--;
+            int end = offset;
+            while (end < document.TextLength && IsIdentifierChar(document.GetCharAt(end))) end++;
+            return (start, end);
         }
 
         private void ExpandSelection()
