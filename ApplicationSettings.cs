@@ -12,6 +12,7 @@ public class AppSettingsData
     public bool AutoUpdateCanvas { get; set; } = true;
     public int AutoUpdateDelayMs { get; set; } = 500;
     public bool AutoDraw { get; set; } = true;
+    public bool DrawPointAsPatch { get; set; } = false;
 
     // Window Visibility Settings
     public bool ShowRibbon { get; set; } = true;

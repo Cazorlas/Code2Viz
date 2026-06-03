@@ -188,6 +188,7 @@ public partial class MainWindow : Window
     {
         var s = AnimatorSettings.Instance;
 
+        AutoIndentMenuItem.IsChecked = s.AutoIndentEnabled;
         InlayHintsMenuItem.IsChecked = s.InlayHintsEnabled;
         SemanticHighlightingMenuItem.IsChecked = s.SemanticHighlightingEnabled;
         CodeLensMenuItem.IsChecked = s.CodeLensEnabled;
@@ -196,7 +197,8 @@ public partial class MainWindow : Window
         CanvasBorderMenuItem.IsChecked = s.CanvasBorderVisible;
         Canvas.ShowBoundary = s.CanvasBorderVisible;
 
-        _editorController!.InlayHintsEnabled = s.InlayHintsEnabled;
+        _editorController!.AutoIndentEnabled = s.AutoIndentEnabled;
+        _editorController.InlayHintsEnabled = s.InlayHintsEnabled;
         _editorController.SemanticHighlightingEnabled = s.SemanticHighlightingEnabled;
         _editorController.CodeLensEnabled = s.CodeLensEnabled;
 
@@ -555,6 +557,14 @@ public partial class MainWindow : Window
     private void ExitMenuItem_Click(object sender, RoutedEventArgs e) => Close();
 
     // ── View menu toggles ─────────────────────────────────────────────────────
+
+    private void AutoIndentMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (_editorController == null) return;
+        _editorController.AutoIndentEnabled = AutoIndentMenuItem.IsChecked;
+        AnimatorSettings.Instance.AutoIndentEnabled = AutoIndentMenuItem.IsChecked;
+        AnimatorSettings.Save();
+    }
 
     private void InlayHintsMenuItem_Click(object sender, RoutedEventArgs e)
     {

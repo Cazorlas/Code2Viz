@@ -5,6 +5,7 @@ namespace Animator;
 
 public class AnimatorSettingsData
 {
+    public bool AutoIndentEnabled { get; set; } = true;
     public bool InlayHintsEnabled { get; set; } = false;
     public bool SemanticHighlightingEnabled { get; set; } = true;
     public bool CodeLensEnabled { get; set; } = true;

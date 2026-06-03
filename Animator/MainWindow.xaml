@@ -111,6 +111,15 @@
                     <MenuItem Header="E_xit" Click="ExitMenuItem_Click" InputGestureText="Alt+F4" Style="{StaticResource MenuItemStyle}"/>
                 </MenuItem>
 
+                <MenuItem Header="_Edit">
+                    <MenuItem x:Name="AutoIndentMenuItem"
+                              Header="Auto-Indent on _Line Break"
+                              Click="AutoIndentMenuItem_Click"
+                              IsCheckable="True"
+                              IsChecked="True"
+                              Style="{StaticResource MenuItemStyle}"/>
+                </MenuItem>
+
                 <MenuItem Header="_View">
                     <MenuItem x:Name="InlayHintsMenuItem"
                               Header="_Inlay Hints"

@@ -3459,6 +3459,7 @@ public partial class MainWindow : Window
         SettingsZoomToFitCheck.IsChecked = appSettings.ZoomToFitOnRun;
         SettingsAutoUpdateCanvasCheck.IsChecked = appSettings.AutoUpdateCanvas;
         AutoUpdateCheck.IsChecked = appSettings.AutoDraw;
+        SettingsDrawPointAsPatchCheck.IsChecked = appSettings.DrawPointAsPatch;
 
         // Update Button colors for Project Settings
         UpdateColorButton(SettingsColorBtn, SettingsColorBox.Text);
@@ -3645,6 +3646,14 @@ public partial class MainWindow : Window
     {
         ApplicationSettings.Instance.AutoDraw = AutoUpdateCheck.IsChecked == true;
         ApplicationSettings.Save();
+    }
+
+    private void SettingsDrawPointAsPatchCheck_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loadingSettings) return;
+        ApplicationSettings.Instance.DrawPointAsPatch = SettingsDrawPointAsPatchCheck.IsChecked == true;
+        ApplicationSettings.Save();
+        RenderCanvas.Refresh();
     }
 
     private void SaveSettingsButton_Click(object sender, RoutedEventArgs e)

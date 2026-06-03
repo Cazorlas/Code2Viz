@@ -1653,7 +1653,14 @@ public class RenderCanvas : FrameworkElement
         var fill = GetCachedBrush(point.FillColor);
         var pen = GetCachedPen(point.Color, point.LineWeight, point.LineType, point.LineTypeScale);
 
-        dc.DrawEllipse(fill, pen, screenPos, PointRadius, PointRadius);
+        if (Code2Viz.ApplicationSettings.Instance.DrawPointAsPatch)
+        {
+            dc.DrawEllipse(fill, pen, screenPos, PointRadius, PointRadius);
+        }
+        else
+        {
+            dc.DrawEllipse(pen.Brush, pen, screenPos, 1.5, 1.5);
+        }
 
         if (applyOpacity) dc.Pop();
     }

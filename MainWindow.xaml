@@ -191,7 +191,7 @@
                         <Separator />
                         <MenuItem
                             x:Name="AutoIndentMenuItem"
-                            Header="_Auto Indent"
+                            Header="Auto-Indent on _Line Break"
                             IsCheckable="True"
                             IsChecked="True"
                             Style="{StaticResource MenuItemStyle}" />
@@ -2030,6 +2030,8 @@
                                                     <RowDefinition Height="Auto" />
                                                     <RowDefinition Height="Auto" />
                                                     <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
                                                 </Grid.RowDefinitions>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="200" />
@@ -2062,10 +2064,10 @@
                                                     Margin="0,0,0,12"
                                                     Padding="6"
                                                     BorderBrush="{StaticResource BorderBrush}"
-                                                    Foreground="Black">
+                                                    Foreground="{StaticResource ForegroundBrush}">
                                                     <ComboBox.ItemContainerStyle>
                                                         <Style TargetType="ComboBoxItem">
-                                                            <Setter Property="Foreground" Value="Black" />
+                                                            <Setter Property="Foreground" Value="White" />
                                                         </Style>
                                                     </ComboBox.ItemContainerStyle>
                                                     <ComboBoxItem Content="Transparent" />
@@ -2557,6 +2559,25 @@
                                                     Foreground="{StaticResource ForegroundBrush}"
                                                     IsChecked="True"
                                                     Unchecked="AutoUpdateCheck_Changed" />
+
+                                                <!--  Draw Point As Patch  -->
+                                                <TextBlock
+                                                    Grid.Row="26"
+                                                    Grid.Column="0"
+                                                    Margin="0,8,0,0"
+                                                    VerticalAlignment="Center"
+                                                    Foreground="{StaticResource ForegroundBrush}"
+                                                    Text="Draw Point As Patch:" />
+                                                <CheckBox
+                                                    x:Name="SettingsDrawPointAsPatchCheck"
+                                                    Grid.Row="26"
+                                                    Grid.Column="1"
+                                                    Margin="0,8,0,0"
+                                                    VerticalAlignment="Center"
+                                                    Checked="SettingsDrawPointAsPatchCheck_Changed"
+                                                    Content="Enabled"
+                                                    Foreground="{StaticResource ForegroundBrush}"
+                                                    Unchecked="SettingsDrawPointAsPatchCheck_Changed" />
                                             </Grid>
 
                                             <!--  Note about auto-save  -->

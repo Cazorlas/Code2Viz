@@ -16,16 +16,16 @@ public class VPoint : Shape
     {
         X = x;
         Y = y;
-        Color = ShapeDefaults.GlobalColor ?? "White";
-        FillColor = ShapeDefaults.GlobalFillColor ?? "LimeGreen";
+        Color = "White";
+        FillColor = "White";
     }
 
     public VPoint(VXYZ position)
     {
         X = position.X;
         Y = position.Y;
-        Color = ShapeDefaults.GlobalColor ?? "White";
-        FillColor = ShapeDefaults.GlobalFillColor ?? "LimeGreen";
+        Color = "White";
+        FillColor = "White";
     }
 
     /// <summary>

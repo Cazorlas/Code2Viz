@@ -434,6 +434,12 @@ namespace Code2Viz.Editor
             try { _foldingStrategy?.UpdateFoldings(_foldingManager, _editor.Document); } catch { }
         }
 
+        /// <summary>
+        /// When true, pressing Enter re-indents the new line to match the current line
+        /// (adding a level after an opening brace). Toggled via the host's Edit menu.
+        /// </summary>
+        public bool AutoIndentEnabled { get; set; } = true;
+
         public bool InlayHintsEnabled
         {
             get => _inlayHintGenerator != null && _inlayHintGenerator.Enabled;
@@ -1134,7 +1140,7 @@ namespace Code2Viz.Editor
                 _ = ShowSignatureHelpAsync();
             }
 
-            if (ch == '}')
+            if (ch == '}' && AutoIndentEnabled)
             {
                 FormatCurrentLineOnType();
             }
@@ -1222,7 +1228,7 @@ namespace Code2Viz.Editor
 
             if (e.Key == Key.Return && (Keyboard.Modifiers & ~ModifierKeys.Shift) == 0)
             {
-                if (HandleAutoIndentEnter())
+                if (AutoIndentEnabled && HandleAutoIndentEnter())
                     e.Handled = true;
                 return;
             }
@@ -2539,7 +2545,7 @@ namespace Code2Viz.Editor
             {
                 Key.Back   => renderer.BackspaceAtAllCursors,
                 Key.Delete => renderer.DeleteAtAllCursors,
-                Key.Enter  => () => renderer.EnterAtAllCursors(autoIndent: true),
+                Key.Enter  => () => renderer.EnterAtAllCursors(AutoIndentEnabled),
                 Key.Up     => renderer.MoveAllCursorsUp,
                 Key.Down   => renderer.MoveAllCursorsDown,
                 Key.Left   => mods == (ModifierKeys.Control | ModifierKeys.Shift) ? renderer.ExtendAllSelectionsWordLeft
