@@ -977,6 +977,52 @@ public partial class MainWindow : Window
                 // else: don't handle, let AvalonEdit's default paste take over
             }));
 
+        // Intercept Copy so Ctrl+C gathers the text from EVERY multi-cursor selection
+        // (newline-joined, document order) rather than just the main selection.
+        CodeEditor.TextArea.CommandBindings.Insert(0, new System.Windows.Input.CommandBinding(
+            ApplicationCommands.Copy,
+            (s, e) =>
+            {
+                if (_multiSelectionRenderer != null && _multiSelectionRenderer.HasSelections
+                    && _multiSelectionRenderer.CopyAllSelections())
+                {
+                    e.Handled = true;
+                }
+                // else: let AvalonEdit's default copy handle it
+            },
+            (s, e) =>
+            {
+                if (_multiSelectionRenderer != null && _multiSelectionRenderer.HasSelections)
+                    e.CanExecute = true;
+            }));
+
+        // Intercept Cut likewise: copy all selections, then delete them at every cursor.
+        CodeEditor.TextArea.CommandBindings.Insert(0, new System.Windows.Input.CommandBinding(
+            ApplicationCommands.Cut,
+            (s, e) =>
+            {
+                if (_multiSelectionRenderer != null && _multiSelectionRenderer.HasSelections)
+                {
+                    _isMultiCursorEditing = true;
+                    _isAddingNextOccurrence = true;
+                    try
+                    {
+                        if (_multiSelectionRenderer.CutAllSelections())
+                            e.Handled = true;
+                    }
+                    finally
+                    {
+                        _isAddingNextOccurrence = false;
+                        _isMultiCursorEditing = false;
+                    }
+                }
+            },
+            (s, e) =>
+            {
+                if (_multiSelectionRenderer != null && _multiSelectionRenderer.HasSelections)
+                    e.CanExecute = true;
+            }));
+
         // Initialize Bracket Highlighting
         _bracketRenderer = new BracketHighlightRenderer(CodeEditor.TextArea.TextView);
         CodeEditor.TextArea.TextView.BackgroundRenderers.Add(_bracketRenderer);

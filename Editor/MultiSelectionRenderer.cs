@@ -1059,6 +1059,65 @@ public class MultiSelectionRenderer : IBackgroundRenderer
     }
 
     /// <summary>
+    /// Joins the text of every selection (main + additional) in document order, separated by
+    /// newlines. Empty (zero-length) cursors contribute nothing. Returns "" when nothing is
+    /// actually selected.
+    /// </summary>
+    public string GetAllSelectionsText()
+    {
+        var document = _textView.Document;
+        var segments = new List<(int Offset, int Length)>();
+
+        var mainSeg = _textArea.Selection.SurroundingSegment;
+        if (mainSeg != null && mainSeg.Length > 0)
+            segments.Add((mainSeg.Offset, mainSeg.Length));
+
+        foreach (var sel in _selections)
+            if (sel.Length > 0)
+                segments.Add((sel.StartOffset, sel.Length));
+
+        if (segments.Count == 0) return string.Empty;
+
+        var parts = segments
+            .OrderBy(s => s.Offset)
+            .Select(s => document.GetText(s.Offset, s.Length));
+        return string.Join(Environment.NewLine, parts);
+    }
+
+    /// <summary>
+    /// Copies the text of all selections (main + additional), newline-joined in document order,
+    /// to the clipboard. Returns false (leaving the clipboard untouched) when nothing is selected
+    /// so the caller can fall back to the editor's default copy.
+    /// </summary>
+    public bool CopyAllSelections()
+    {
+        var text = GetAllSelectionsText();
+        if (string.IsNullOrEmpty(text)) return false;
+        try
+        {
+            System.Windows.Clipboard.SetText(text);
+        }
+        catch
+        {
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Cut equivalent of <see cref="CopyAllSelections"/>: copies all selections to the clipboard,
+    /// then removes the selected text at every cursor. Returns false when nothing was selected.
+    /// </summary>
+    public bool CutAllSelections()
+    {
+        if (!CopyAllSelections()) return false;
+        // Replacing every selection with "" deletes its content and collapses to a caret,
+        // reusing InsertTextAtAllCursors' offset-adjustment bookkeeping.
+        InsertTextAtAllCursors(string.Empty);
+        return true;
+    }
+
+    /// <summary>
     /// Gets the word boundary to the left of the given offset.
     /// </summary>
     private int GetWordStartLeft(int offset)

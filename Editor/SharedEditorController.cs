@@ -243,6 +243,51 @@ namespace Code2Viz.Editor
                         e.CanExecute = true;
                 }));
 
+            // Intercept Copy so Ctrl+C gathers text from EVERY multi-cursor selection
+            // (newline-joined, document order) instead of just the main selection.
+            _editor.TextArea.CommandBindings.Insert(0, new CommandBinding(
+                ApplicationCommands.Copy,
+                (s, e) =>
+                {
+                    if (_multiSelectionRenderer is { HasSelections: true }
+                        && _multiSelectionRenderer.CopyAllSelections())
+                    {
+                        e.Handled = true;
+                    }
+                },
+                (s, e) =>
+                {
+                    if (_multiSelectionRenderer is { HasSelections: true })
+                        e.CanExecute = true;
+                }));
+
+            // Intercept Cut likewise: copy all selections, then delete them at every cursor.
+            _editor.TextArea.CommandBindings.Insert(0, new CommandBinding(
+                ApplicationCommands.Cut,
+                (s, e) =>
+                {
+                    if (_multiSelectionRenderer is { HasSelections: true })
+                    {
+                        _isMultiCursorEditing = true;
+                        _isAddingNextOccurrence = true;
+                        try
+                        {
+                            if (_multiSelectionRenderer.CutAllSelections())
+                                e.Handled = true;
+                        }
+                        finally
+                        {
+                            _isAddingNextOccurrence = false;
+                            _isMultiCursorEditing = false;
+                        }
+                    }
+                },
+                (s, e) =>
+                {
+                    if (_multiSelectionRenderer is { HasSelections: true })
+                        e.CanExecute = true;
+                }));
+
             // 12. Setup Refactoring & Hierarchy Providers
             _refactoringProvider = new RefactoringProvider(async () =>
             {
