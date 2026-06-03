@@ -12,7 +12,10 @@ namespace C2VGeometry;
 /// </summary>
 public class Region : Shape
 {
-    private const double ConnectionTolerance = 1e-6;
+    // Vertex-stitching / collinear-overlap tolerance for building closed loops from edges.
+    // Tied to the core epsilon (1e-9) rather than a fixed 1e-6 so genuinely sub-micro features
+    // are not merged away; stitching operates on exact-copy endpoints, so the tight value is safe.
+    private const double ConnectionTolerance = GeometryTolerance.Epsilon;
     private const int DefaultSegmentsPerCurve = 32;
 
     /// <summary>

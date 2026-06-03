@@ -18,9 +18,10 @@ namespace Code2Viz.Canvas
     /// </summary>
     public class ViewportTransform
     {
-        // Zoom constraints
-        public const double MinZoom = 0.01;
-        public const double MaxZoom = 100.0;
+        // Zoom constraints (wide range so sub-unit scenes can be zoomed into and
+        // very large scenes zoomed out — matches Animator's AnimCanvas range)
+        public const double MinZoom = 1e-4;
+        public const double MaxZoom = 1e6;
         public const double DefaultZoomFactor = 1.1;
 
         private double _scale = 1.0;

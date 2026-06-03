@@ -155,7 +155,9 @@ public class VPolygon : Shape, ICurve
         _selfIntersecting = false;
     }
 
-    private const double ConnectionTolerance = 1e-6;
+    // Tied to the core epsilon (1e-9) rather than a fixed 1e-6 so sub-micro polygon edges are
+    // validated/stitched without merging distinct vertices. See PolygonClipper.Precision.
+    private const double ConnectionTolerance = GeometryTolerance.Epsilon;
 
     /// <summary>
     /// Validates that all curves are open (StartPoint != EndPoint).

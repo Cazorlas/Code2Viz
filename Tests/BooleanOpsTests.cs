@@ -330,4 +330,48 @@ public class BooleanOpsTests
     }
 
     #endregion
+
+    #region Sub-micro scale (Clipper precision = 8 / connection tolerance = 1e-9)
+
+    // Before Clipper precision was raised 6 -> 8, every coordinate was snapped onto a 1e-6 grid,
+    // so geometry whose features are smaller than ~1e-6 collapsed to a point/empty result. These
+    // guard that genuinely sub-micro booleans now produce correct results.
+
+    [Fact]
+    public void Union_SubMicroSquares_MergesCorrectly()
+    {
+        // Two overlapping 4e-7 squares (well below the old 1e-6 grid). Overlap is 2e-7 x 2e-7.
+        const double s = 4e-7;
+        const double o = 2e-7;
+        var a = MakePoly((0, 0), (s, 0), (s, s), (0, s));
+        var b = MakePoly((o, o), (o + s, o), (o + s, o + s), (o, o + s));
+
+        var result = BooleanOps.Union(a, b);
+
+        Assert.NotNull(result);
+        // Union = s^2 + s^2 - o^2 = 2*(4e-7)^2 - (2e-7)^2 = 3.2e-13 - 4e-14 = 2.8e-13
+        double expected = 2 * s * s - o * o;
+        Assert.True(Math.Abs(PolyArea(result) - expected) <= 1e-3 * expected,
+            $"Expected ~{expected}, got {PolyArea(result)}");
+    }
+
+    [Fact]
+    public void Intersect_SubMicroSquares_ReturnsOverlap()
+    {
+        const double s = 4e-7;
+        const double o = 2e-7;
+        var a = MakePoly((0, 0), (s, 0), (s, s), (0, s));
+        var b = MakePoly((o, o), (o + s, o), (o + s, o + s), (o, o + s));
+
+        var result = BooleanOps.Intersect(a, b);
+
+        Assert.NotEmpty(result);
+        // Overlap is the o x o corner square = (2e-7)^2 = 4e-14
+        double expected = o * o;
+        double actual = result.Sum(p => PolyArea(p));
+        Assert.True(Math.Abs(actual - expected) <= 1e-3 * expected,
+            $"Expected ~{expected}, got {actual}");
+    }
+
+    #endregion
 }

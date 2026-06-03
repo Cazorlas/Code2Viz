@@ -27,10 +27,13 @@ internal static class PolygonClipper
 
     /// <summary>
     /// Decimal places preserved when Clipper2 scales doubles to its internal integer grid.
-    /// 6 places (micro-unit resolution) is ample for this app's coordinate range while keeping
-    /// scaled values far inside Int64 limits.
+    /// 8 places (Clipper2's maximum) gives a 1e-8 resolution so sub-micro geometry survives
+    /// boolean ops. The trade-off is the largest safe coordinate magnitude: Clipper works in
+    /// Int64, so scaled values must stay under 2^63-1 ≈ 9.2e18, i.e. raw coordinates up to
+    /// ~9.2e10 — still far beyond this app's realistic coordinate range. (Was 6 = 1e-6, which
+    /// snapped genuinely sub-micro features onto the same grid cell and merged them.)
     /// </summary>
-    private const int Precision = 6;
+    private const int Precision = 8;
 
     #region MakeSimple - Resolve Self-Intersections
 
