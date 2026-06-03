@@ -10,6 +10,21 @@ between tags; this file is the curated, human-friendly summary.
 
 ## [Unreleased]
 
+## [2026.6.0] - 2026-06-03
+
+### Changed
+- **Much wider canvas zoom range.** The zoom limit went from `[0.01×, 100×]` to `[1e-4×, 1e6×]`,
+  matching Animator. You can now zoom deep into sub-unit scenes — e.g. a cloud of points with
+  coordinates between 0 and 1 — instead of hitting a wall at 100×, and zoom far out of very large
+  scenes. (Tip: double-click empty canvas to Zoom-to-Fit.)
+- **Boolean operations now work at sub-micro scale.** Union/intersection/difference/XOR (for both
+  polygons and regions) preserve geometry down to ~`1e-8` units, up from a `1e-6` floor. Previously
+  every coordinate was snapped onto a `1e-6` grid, so features finer than a micro-unit collapsed or
+  merged. The vertex-stitching tolerance used when building polygons and regions was tightened to
+  match (`1e-9`), so genuinely distinct sub-micro vertices are no longer merged. The one trade-off:
+  the largest coordinate that boolean ops can safely handle is now ~`9.2e10` (was ~`9.2e12`) — still
+  far beyond any realistic canvas coordinate.
+
 ## [2026.5.8] - 2026-05-30
 
 ### Added
