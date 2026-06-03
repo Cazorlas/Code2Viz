@@ -1053,7 +1053,16 @@ namespace Code2Viz.Editor
 
             if (ch == '.')
             {
-                ShowCompletionWindow(autoTrigger: true);
+                // An identifier-completion window may still be open here (e.g. the user typed
+                // "pol" — popping the list — then "."). The dot is meant to re-trigger as a
+                // member-access list, but ShowCompletionWindow early-returns while the old window
+                // is still non-null, and that window's Closed handler (which nulls it) races with
+                // this synchronous handler. Close it proactively and defer the member-access
+                // trigger to Input priority so the old window is fully gone first. (Mirrors
+                // Code2Viz's TextEntering + Dispatcher.BeginInvoke pattern.)
+                _completionWindow?.Close();
+                _editor.Dispatcher.BeginInvoke(DispatcherPriority.Input,
+                    new Action(() => ShowCompletionWindow(autoTrigger: true)));
             }
             else if (ch == ' ' && _completionWindow == null && IsAfterCompletionKeyword())
             {

@@ -57,6 +57,69 @@ class Test {
     }
 
     [Fact]
+    public async Task GetCompletions_MemberAccess_InsideIncompleteForeachIn()
+    {
+        // Repro: `foreach (var vertex in pol.)` — member access on `pol` where the
+        // type is not enumerable (so the foreach itself is an error) AND the dot is
+        // immediately followed by `)`. Completion should still list pol's members.
+        var code = @"
+using System;
+public class VPolygon { public System.Collections.Generic.List<int> Points { get; set; } public System.Collections.Generic.List<int> Vertices { get; set; } }
+class MySketch {
+    VPolygon pol = new VPolygon();
+    void Draw() {
+        foreach (var vertex in pol.)
+        {
+        }
+    }
+}";
+        var position = code.IndexOf("pol.") + "pol.".Length;
+        var service = new RoslynCompletionService();
+
+        var (completions, _, _, _) = await service.GetCompletionsAsync(code, position);
+
+        Assert.Contains(completions, c => c.Text == "Points");
+        Assert.Contains(completions, c => c.Text == "Vertices");
+    }
+
+    [Fact]
+    public async Task GetCompletions_Animator_MemberAccess_RealVPolygon_ForeachIn()
+    {
+        // Faithful repro of the Animator screenshot: real C2VGeometry.VPolygon, injected
+        // global usings (incl. `global using C2VGeometry;`), workspace overload, and the
+        // dot inside an incomplete `foreach (var vertex in pol.)`.
+        var trusted = ((string?)System.AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") ?? "")
+            .Split(System.IO.Path.PathSeparator)
+            .Where(p => !string.IsNullOrEmpty(p))
+            .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))
+            .ToList();
+        trusted.Add(MetadataReference.CreateFromFile(typeof(C2VGeometry.Shape).Assembly.Location));
+
+        var workspace = new CachedCompilationWorkspace(trusted);
+        workspace.UpdateFile("_GlobalUsings.g.cs",
+            "global using System;\nglobal using System.Linq;\nglobal using System.Collections.Generic;\nglobal using C2VGeometry;\n");
+
+        var code = @"public class MySketch
+{
+    VPolygon pol = new VPolygon(new VXYZ(0,0), new VXYZ(1,0), new VXYZ(1,1));
+    public void Draw()
+    {
+        foreach (var vertex in pol.)
+        {
+        }
+    }
+}";
+        var position = code.IndexOf("pol.", code.IndexOf("foreach")) + "pol.".Length;
+        workspace.UpdateFile("Sketch.cs", code);
+
+        var service = new RoslynCompletionService(workspace);
+        var (completions, _, _, _) = await service.GetCompletionsAsync(code, position, workspace, "Sketch.cs");
+
+        Assert.Contains(completions, c => c.Text == "Points");
+        Assert.Contains(completions, c => c.Text == "Vertices");
+    }
+
+    [Fact]
     public async Task GetCompletions_ShouldReturnExpectedType_Assignment()
     {
         var code = @"
